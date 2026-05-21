@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS employees (
   work_hours VARCHAR(50) DEFAULT '9 AM - 5 PM',
   tech_stack JSON,
   role ENUM('admin', 'lead', 'employee') DEFAULT 'employee',
+  password_hash VARCHAR(255) NULL,
+  salary DECIMAL(10,2) NULL,
+  pay_frequency ENUM('monthly','biweekly','weekly') DEFAULT 'monthly',
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (manager_id) REFERENCES employees(id) ON DELETE SET NULL
