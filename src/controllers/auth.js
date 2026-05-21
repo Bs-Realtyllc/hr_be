@@ -9,6 +9,12 @@ async function login(req, res) {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
+    const ALLOWED_DOMAINS = ['bsrealtyllc.com', 'gitgi.com'];
+    const domain = email.split('@')[1]?.toLowerCase();
+    if (!ALLOWED_DOMAINS.includes(domain)) {
+      return res.status(403).json({ error: 'Access restricted to organization members only. Please use your company email.' });
+    }
+
     const [rows] = await db.query(
       `SELECT id, name, email, role, designation, department, password_hash
        FROM employees WHERE email = ? AND is_active = TRUE`,
