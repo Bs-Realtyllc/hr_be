@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { handleStandupWebhook } = require('../controllers/discordWebhook');
+const { handleStandupWebhook, handleInternalStandup } = require('../controllers/discordWebhook');
 
-// POST /api/discord/standup
-// Receives Discord Webhook Events for daily standups.
-// No JWT auth — Discord validates via Ed25519 signature headers instead.
+// POST /api/discord/standup — Discord Webhook Events endpoint (Ed25519 signature required)
 router.post('/standup', handleStandupWebhook);
+
+// POST /api/discord/standup-submit — called by the discord.js bot after confirming a standup
+router.post('/standup-submit', handleInternalStandup);
 
 module.exports = router;
