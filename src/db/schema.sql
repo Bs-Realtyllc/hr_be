@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS employees (
   name VARCHAR(100) NOT NULL,
   email VARCHAR(150) UNIQUE NOT NULL,
   phone VARCHAR(20),
+  discord_username VARCHAR(100) NULL UNIQUE,
   emergency_contact VARCHAR(150),
   profile_picture VARCHAR(255),
   designation VARCHAR(100),

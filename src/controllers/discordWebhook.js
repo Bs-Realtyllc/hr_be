@@ -20,11 +20,28 @@ function verifyDiscordSignature(publicKeyHex, rawBody, signatureHex, timestamp) 
 
 async function findEmployeeByDiscordName(discordName) {
   if (!discordName) return null;
-  const [rows] = await db.query(
+
+  // 1. Exact match on the discord_username column (most reliable)
+  const [byUsername] = await db.query(
+    'SELECT id, name FROM employees WHERE discord_username = ? LIMIT 1',
+    [discordName]
+  );
+  if (byUsername[0]) {
+    console.log(`[discord] Matched "${discordName}" via discord_username → ${byUsername[0].name}`);
+    return byUsername[0];
+  }
+
+  // 2. Case-insensitive partial match on the name column (fallback)
+  const [byName] = await db.query(
     'SELECT id, name FROM employees WHERE LOWER(name) LIKE LOWER(?) LIMIT 1',
     [`%${discordName}%`]
   );
-  return rows[0] || null;
+  if (byName[0]) {
+    console.log(`[discord] Matched "${discordName}" via name fallback → ${byName[0].name}`);
+    return byName[0];
+  }
+
+  return null;
 }
 
 async function saveStandup(employeeId, yesterday, today, blockers) {
@@ -132,12 +149,21 @@ exports.handleStandupWebhook = async (req, res) => {
 // Called internally by the discord.js bot after a standup is confirmed.
 // Protected by a shared secret — no Discord signature required.
 exports.handleInternalStandup = async (req, res) => {
+  console.log('[discord-internal] ← Incoming standup submission from bot');
+
   const INTERNAL_TOKEN = process.env.DISCORD_INTERNAL_TOKEN;
-  if (!INTERNAL_TOKEN || req.headers['x-internal-token'] !== INTERNAL_TOKEN) {
+  if (!INTERNAL_TOKEN) {
+    console.error('[discord-internal] DISCORD_INTERNAL_TOKEN not set in .env');
+    return res.status(500).json({ error: 'Server misconfiguration' });
+  }
+  if (req.headers['x-internal-token'] !== INTERNAL_TOKEN) {
+    console.warn('[discord-internal] Rejected: wrong internal token');
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const { discordName, yesterday, today, blockers } = req.body;
+  console.log(`[discord-internal] discordName="${discordName}" yesterday="${yesterday?.slice(0, 40)}..." today="${today?.slice(0, 40)}..."`);
+
   if (!discordName || !yesterday || !today) {
     return res.status(400).json({ error: 'Missing required fields: discordName, yesterday, today' });
   }
@@ -145,12 +171,12 @@ exports.handleInternalStandup = async (req, res) => {
   try {
     const employee = await findEmployeeByDiscordName(discordName);
     if (!employee) {
-      console.warn(`[discord-internal] No employee matched for "${discordName}"`);
-      return res.status(404).json({ error: `No employee found matching "${discordName}"` });
+      console.warn(`[discord-internal] No employee matched for "${discordName}" — set their discord_username in the HR platform`);
+      return res.status(404).json({ error: `No employee found matching "${discordName}". Set the discord_username field on their employee profile.` });
     }
 
     await saveStandup(employee.id, yesterday, today, blockers);
-    console.log(`[discord-internal] Standup saved — ${employee.name} (id ${employee.id})`);
+    console.log(`[discord-internal] ✔ Standup saved — ${employee.name} (id ${employee.id})`);
     return res.json({ success: true, employee: employee.name });
   } catch (err) {
     console.error('[discord-internal] DB error:', err.message);

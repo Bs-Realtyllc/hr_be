@@ -63,7 +63,7 @@ exports.create = async (req, res) => {
 };
 
 exports.update = async (req, res) => {
-  const fields = ['name', 'phone', 'emergency_contact', 'designation', 'department',
+  const fields = ['name', 'phone', 'discord_username', 'emergency_contact', 'designation', 'department',
                   'manager_id', 'timezone', 'work_hours', 'tech_stack', 'role'];
   const updates = [];
   const values = [];
