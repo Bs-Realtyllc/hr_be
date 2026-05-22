@@ -28,7 +28,9 @@ const ENV = {
 const app = express();
 
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:6001' }));
-app.use(express.json());
+app.use(express.json({
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+}));
 
 app.use('/api', routes);
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));

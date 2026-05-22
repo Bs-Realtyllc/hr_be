@@ -10,5 +10,6 @@ router.use('/projects', require('./projects'));
 router.use('/events', require('./events'));
 router.use('/servers', require('./servers'));
 router.use('/payroll', require('./payroll'));
+router.use('/discord', require('./discord'));
 
 module.exports = router;
