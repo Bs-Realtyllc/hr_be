@@ -43,6 +43,24 @@ exports.create = async (req, res) => {
        ON DUPLICATE KEY UPDATE yesterday = VALUES(yesterday), today = VALUES(today), blockers = VALUES(blockers)`,
       [employee_id, yesterday, today, blockers, date]
     );
+
+    // Fire-and-forget: mirror the standup to the Discord channel via the bot
+    const botUrl   = process.env.DISCORD_BOT_URL;
+    const botToken = process.env.DISCORD_INTERNAL_TOKEN;
+    if (botUrl && botToken) {
+      const [[employee]] = await db.query('SELECT name FROM employees WHERE id = ? LIMIT 1', [employee_id]);
+      fetch(`${botUrl}/internal/standup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Internal-Token': botToken },
+        body: JSON.stringify({
+          employeeName: employee?.name || `Employee #${employee_id}`,
+          yesterday,
+          today,
+          blockers,
+        }),
+      }).catch(err => console.error('[discord-bot] HR → Discord sync failed:', err.message));
+    }
+
     res.status(201).json({ id: result.insertId });
   } catch (err) {
     res.status(500).json({ error: err.message });
