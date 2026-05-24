@@ -11,5 +11,8 @@ router.use('/events', require('./events'));
 router.use('/servers', require('./servers'));
 router.use('/payroll', require('./payroll'));
 router.use('/discord', require('./discord'));
+router.use('/email-settings', require('./emailSettings'));
+router.use('/reports', require('./reports'));
+router.use('/service-credentials/:employeeId', require('./serviceCredentials'));
 
 module.exports = router;

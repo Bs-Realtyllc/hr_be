@@ -9,5 +9,6 @@ router.get('/', ctrl.list);
 router.post('/', ctrl.create);
 router.put('/:id/approve', ctrl.approve);
 router.put('/:id/reject', ctrl.reject);
+router.post('/send-email', ctrl.sendEmail);
 
 module.exports = router;

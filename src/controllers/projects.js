@@ -1,14 +1,31 @@
 const db = require('../db');
 
+function toArr(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch { return []; }
+}
+
+function toJSON(v) {
+  if (!v) return null;
+  const arr = Array.isArray(v) ? v : [v];
+  const clean = arr.map(s => String(s).trim()).filter(Boolean);
+  return clean.length ? JSON.stringify(clean) : null;
+}
+
+function parse(row) {
+  return { ...row, repo_url: toArr(row.repo_url), docs_url: toArr(row.docs_url) };
+}
+
 exports.list = async (req, res) => {
   try {
     const { status } = req.query;
-    let query = 'SELECT * FROM projects WHERE 1=1';
-    const params = [];
-    if (status) { query += ' AND status = ?'; params.push(status); }
-    query += ' ORDER BY created_at DESC';
-    const [rows] = await db.query(query, params);
-    res.json(rows);
+    let q = 'SELECT * FROM projects WHERE 1=1';
+    const p = [];
+    if (status) { q += ' AND status = ?'; p.push(status); }
+    q += ' ORDER BY created_at DESC';
+    const [rows] = await db.query(q, p);
+    res.json(rows.map(parse));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -20,7 +37,7 @@ exports.create = async (req, res) => {
     const [result] = await db.query(
       `INSERT INTO projects (name, description, repo_url, docs_url, status, start_date, expected_end_date)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, description, repo_url, docs_url, status || 'active', start_date, expected_end_date]
+      [name, description, toJSON(repo_url), toJSON(docs_url), status || 'active', start_date || null, expected_end_date || null]
     );
     res.status(201).json({ id: result.insertId });
   } catch (err) {
@@ -29,12 +46,19 @@ exports.create = async (req, res) => {
 };
 
 exports.update = async (req, res) => {
-  const fields = ['name', 'description', 'repo_url', 'docs_url', 'status', 'start_date', 'expected_end_date'];
+  const allowed = ['name', 'description', 'repo_url', 'docs_url', 'status', 'start_date', 'expected_end_date'];
   const updates = [];
   const values = [];
-  fields.forEach(f => {
-    if (req.body[f] !== undefined) { updates.push(`${f} = ?`); values.push(req.body[f]); }
-  });
+  for (const f of allowed) {
+    if (req.body[f] === undefined) continue;
+    if (f === 'repo_url' || f === 'docs_url') {
+      updates.push(`${f} = ?`);
+      values.push(toJSON(req.body[f]));
+    } else {
+      updates.push(`${f} = ?`);
+      values.push(req.body[f]);
+    }
+  }
   if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
   values.push(req.params.id);
   try {
@@ -64,7 +88,8 @@ exports.addAssignment = async (req, res) => {
   const { employee_id, role } = req.body;
   try {
     await db.query(
-      `INSERT INTO project_assignments (project_id, employee_id, role) VALUES (?, ?, ?)`,
+      `INSERT INTO project_assignments (project_id, employee_id, role) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE role = VALUES(role)`,
       [req.params.id, employee_id, role]
     );
     res.status(201).json({ success: true });
@@ -119,6 +144,34 @@ exports.updateMilestone = async (req, res) => {
       [title, due_date, status, req.params.mid, req.params.id]
     );
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Returns all projects an employee is assigned to, with their role + milestones
+exports.byEmployee = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT p.*, pa.role AS assigned_role
+       FROM project_assignments pa
+       JOIN projects p ON pa.project_id = p.id
+       WHERE pa.employee_id = ?
+       ORDER BY p.created_at DESC`,
+      [req.params.empId]
+    );
+    const projects = rows.map(parse);
+
+    // Attach milestones to each project
+    for (const proj of projects) {
+      const [ms] = await db.query(
+        `SELECT * FROM milestones WHERE project_id = ? ORDER BY due_date ASC`,
+        [proj.id]
+      );
+      proj.milestones = ms;
+    }
+
+    res.json(projects);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
