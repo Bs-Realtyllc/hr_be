@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS project_assignments (
   id INT PRIMARY KEY AUTO_INCREMENT,
   project_id INT NOT NULL,
   employee_id INT NOT NULL,
-  role ENUM('lead', 'backend', 'frontend', 'ui_ux', 'qa', 'devops') NOT NULL,
+  role VARCHAR(100) NOT NULL DEFAULT 'developer',
   assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY unique_assignment (project_id, employee_id),
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,

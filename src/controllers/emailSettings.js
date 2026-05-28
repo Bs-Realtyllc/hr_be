@@ -20,6 +20,7 @@ exports.save = async (req, res) => {
     return res.status(400).json({ error: 'smtp_host, smtp_user and smtp_pass are required' });
   }
 
+  const port = smtp_port || 587;
   try {
     await db.query(
       `INSERT INTO email_settings (employee_id, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, default_to, default_cc, default_bcc)
@@ -33,13 +34,25 @@ exports.save = async (req, res) => {
          default_to  = VALUES(default_to),
          default_cc  = VALUES(default_cc),
          default_bcc = VALUES(default_bcc)`,
-      [req.params.employeeId, smtp_host, smtp_port || 587, smtp_user, smtp_pass, smtp_from || smtp_user, default_to || '', default_cc || '', default_bcc || '']
+      [req.params.employeeId, smtp_host, port, smtp_user, smtp_pass, smtp_from || smtp_user, default_to || '', default_cc || '', default_bcc || '']
     );
     res.json({ success: true });
+    testSmtpAsync(smtp_host, port, smtp_user, smtp_pass);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
+async function testSmtpAsync(host, port, user, pass) {
+  const nodemailer = require('nodemailer');
+  try {
+    const t = nodemailer.createTransport({ host, port: +port, secure: +port === 465, auth: { user, pass } });
+    await t.verify();
+    console.log(`[email] SMTP OK — ${user}@${host}:${port}`);
+  } catch (err) {
+    console.error(`[email] SMTP test failed — ${err.message}`);
+  }
+}
 
 // Called by the leave email sender — returns full row including password
 exports.getForSending = async (employeeId) => {

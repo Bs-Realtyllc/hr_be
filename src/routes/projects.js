@@ -13,4 +13,8 @@ router.get('/:id/milestones', ctrl.getMilestones);
 router.post('/:id/milestones', ctrl.addMilestone);
 router.put('/:id/milestones/:mid', ctrl.updateMilestone);
 
+router.get('/:id/services', ctrl.getServices);
+router.post('/:id/services', ctrl.addService);
+router.delete('/:id/services/:serviceKey', ctrl.removeService);
+
 module.exports = router;

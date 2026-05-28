@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/standups');
+const { authenticate } = require('../middleware/auth');
 
-router.get('/today', ctrl.today);
-router.get('/', ctrl.list);
-router.post('/', ctrl.create);
+router.get('/today', authenticate, ctrl.today);
+router.get('/', authenticate, ctrl.list);
+router.post('/', authenticate, ctrl.create);
 
 module.exports = router;

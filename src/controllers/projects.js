@@ -149,6 +149,44 @@ exports.updateMilestone = async (req, res) => {
   }
 };
 
+exports.getServices = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT service_key FROM project_services WHERE project_id = ?`,
+      [req.params.id]
+    );
+    res.json(rows.map(r => r.service_key));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.addService = async (req, res) => {
+  const { service_key } = req.body;
+  if (!service_key) return res.status(400).json({ error: 'service_key required' });
+  try {
+    await db.query(
+      `INSERT IGNORE INTO project_services (project_id, service_key) VALUES (?, ?)`,
+      [req.params.id, service_key]
+    );
+    res.status(201).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.removeService = async (req, res) => {
+  try {
+    await db.query(
+      `DELETE FROM project_services WHERE project_id = ? AND service_key = ?`,
+      [req.params.id, req.params.serviceKey]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Returns all projects an employee is assigned to, with their role + milestones
 exports.byEmployee = async (req, res) => {
   try {

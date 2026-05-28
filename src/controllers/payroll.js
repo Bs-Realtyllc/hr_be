@@ -3,10 +3,12 @@ const bcrypt = require('bcryptjs');
 
 async function getPayroll(req, res) {
   try {
-    const [rows] = await db.query(
-      `SELECT id, name, designation, department, role, salary, pay_frequency
-       FROM employees WHERE is_active = TRUE ORDER BY name`
-    );
+    const privileged = ['admin', 'lead'].includes(req.user?.role);
+    const query = privileged
+      ? `SELECT id, name, designation, department, role, salary, pay_frequency FROM employees WHERE is_active = TRUE ORDER BY name`
+      : `SELECT id, name, designation, department, role, salary, pay_frequency FROM employees WHERE is_active = TRUE AND id = ? ORDER BY name`;
+    const params = privileged ? [] : [req.user.id];
+    const [rows] = await db.query(query, params);
     res.json(rows);
   } catch (err) {
     console.error(err);
