@@ -1,4 +1,5 @@
 const db = require('../db');
+const { buildLeaveEmailSubject, buildLeaveEmailHtml } = require('./leaveEmailTemplate');
 
 async function sendEmailAsync(leave_id, employee_id, to, cc, bcc) {
   const nodemailer = require('nodemailer');
@@ -16,47 +17,12 @@ async function sendEmailAsync(leave_id, employee_id, to, cc, bcc) {
     );
     if (!leave) { console.error('[email] Leave not found', leave_id); return; }
 
-    const start = new Date(leave.start_date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-    const end   = new Date(leave.end_date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-    const days  = Math.ceil((new Date(leave.end_date) - new Date(leave.start_date)) / 86400000) + 1;
+    const fmt = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+    const start = new Date(leave.start_date).toLocaleDateString('en-US', fmt);
+    const end   = new Date(leave.end_date).toLocaleDateString('en-US', fmt);
+    const isSingleDay = leave.start_date === leave.end_date;
 
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <style>
-    body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px}
-    .card{background:#fff;border-radius:8px;padding:32px;max-width:560px;margin:auto;box-shadow:0 2px 8px rgba(0,0,0,.08)}
-    .header{border-bottom:3px solid #6366f1;padding-bottom:16px;margin-bottom:24px}
-    .header h2{margin:0;color:#6366f1;font-size:20px}
-    .header p{margin:4px 0 0;color:#666;font-size:13px}
-    .row{display:flex;margin-bottom:10px}
-    .label{width:140px;font-weight:600;color:#444;font-size:13px;flex-shrink:0}
-    .value{color:#222;font-size:13px}
-    .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;background:#f0f0ff;color:#6366f1;text-transform:capitalize}
-    .pending{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;background:#fff7ed;color:#ea580c}
-    .footer{margin-top:24px;padding-top:16px;border-top:1px solid #eee;font-size:12px;color:#999}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="header">
-      <h2>Leave Request Notification</h2>
-      <p>Sent by ${leave.employee_name} via HR Management Platform</p>
-    </div>
-    <div class="row"><span class="label">Employee</span><span class="value">${leave.employee_name}</span></div>
-    <div class="row"><span class="label">Designation</span><span class="value">${leave.designation}</span></div>
-    <div class="row"><span class="label">Department</span><span class="value">${leave.department || '—'}</span></div>
-    <div class="row"><span class="label">Leave Type</span><span class="value"><span class="badge">${leave.leave_type}</span></span></div>
-    <div class="row"><span class="label">From</span><span class="value">${start}</span></div>
-    <div class="row"><span class="label">To</span><span class="value">${end}</span></div>
-    <div class="row"><span class="label">Duration</span><span class="value">${days} day${days !== 1 ? 's' : ''}</span></div>
-    <div class="row"><span class="label">Reason</span><span class="value">${leave.reason || '—'}</span></div>
-    <div class="row"><span class="label">Status</span><span class="value"><span class="pending">${leave.status}</span></span></div>
-    <div class="footer">Sent from HR Management Platform &bull; Please do not reply to this email</div>
-  </div>
-</body>
-</html>`;
+    const html = buildLeaveEmailHtml(leave, start, end, isSingleDay);
 
     const transporter = nodemailer.createTransport({
       host:   cfg.smtp_host,
@@ -69,7 +35,7 @@ async function sendEmailAsync(leave_id, employee_id, to, cc, bcc) {
       to,
       cc:      cc  || undefined,
       bcc:     bcc || undefined,
-      subject: `Leave Request — ${leave.employee_name} | ${leave.leave_type} (${start} → ${end})`,
+      subject: buildLeaveEmailSubject(),
       html,
     });
     console.log('[email] Leave notification sent for leave', leave_id);
