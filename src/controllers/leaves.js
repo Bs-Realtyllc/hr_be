@@ -157,6 +157,11 @@ exports.approve = async (req, res) => {
       return res.status(403).json({ error: 'Team leads cannot approve their own leave requests' });
     }
 
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (new Date(leave.end_date) < today) {
+      return res.status(400).json({ error: 'Cannot approve a leave request whose dates have already passed.' });
+    }
+
     const start = new Date(leave.start_date);
     const end = new Date(leave.end_date);
     const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
@@ -188,6 +193,11 @@ exports.reject = async (req, res) => {
 
     if (role === 'lead' && leave.employee_id === req.user.id) {
       return res.status(403).json({ error: 'Team leads cannot reject their own leave requests' });
+    }
+
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (new Date(leave.end_date) < today) {
+      return res.status(400).json({ error: 'Cannot reject a leave request whose dates have already passed.' });
     }
 
     await db.query(
