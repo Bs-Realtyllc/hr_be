@@ -14,6 +14,7 @@ router.use('/discord', require('./discord'));
 router.use('/email-settings', require('./emailSettings'));
 router.use('/reports', require('./reports'));
 router.use('/service-credentials/:employeeId', require('./serviceCredentials'));
-router.use('/google', require('./google'));
+router.use('/google',  require('./google'));
+router.use('/profile', require('./profile'));
 
 module.exports = router;

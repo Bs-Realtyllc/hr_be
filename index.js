@@ -1,6 +1,7 @@
 require('dotenv').config();
+const path    = require('path');
 const express = require('express');
-const cors = require('cors');
+const cors    = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./src/swagger');
 const routes = require('./src/routes');
@@ -29,6 +30,7 @@ const ENV = {
 const app = express();
 
 app.use(cors({ origin: process.env.FRONTEND_URL }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.json({
   verify: (req, _res, buf) => { req.rawBody = buf; },
 }));
