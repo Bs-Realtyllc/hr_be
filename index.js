@@ -5,6 +5,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./src/swagger');
 const routes = require('./src/routes');
 const db = require('./src/db');
+const { renewWebhookChannelIfNeeded } = require('./src/services/googleCalendar');
 
 // ── Env validation ────────────────────────────────────────────────────────────
 const REQUIRED_ENV = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
@@ -27,7 +28,7 @@ const ENV = {
 // ── App setup ─────────────────────────────────────────────────────────────────
 const app = express();
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:6001' }));
+app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json({
   verify: (req, _res, buf) => { req.rawBody = buf; },
 }));
@@ -56,6 +57,13 @@ async function start() {
     console.log(`✔ Backend running     →  http://localhost:${ENV.PORT}`);
     console.log(`✔ Swagger UI          →  http://localhost:${ENV.PORT}/api/docs`);
   });
+
+  // Renew Google push-notification channel if it's expiring within 24 h.
+  // Runs once on startup; also set a daily interval for long-running servers.
+  renewWebhookChannelIfNeeded().catch(err => console.warn('[google] Channel renewal skipped:', err.message));
+  setInterval(() => {
+    renewWebhookChannelIfNeeded().catch(err => console.warn('[google] Channel renewal failed:', err.message));
+  }, 12 * 60 * 60 * 1000); // every 12 hours
 }
 
 start();

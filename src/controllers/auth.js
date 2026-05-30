@@ -32,7 +32,7 @@ async function login(req, res) {
     }
 
     const { password_hash, ...user } = emp;
-    const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '8h' });
+    const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user });
   } catch (err) {
     console.error(err);
