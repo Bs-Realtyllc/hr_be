@@ -3,6 +3,7 @@ const multer  = require('multer');
 const path    = require('path');
 const router  = express.Router();
 const ctrl    = require('../controllers/reports');
+const { authenticate } = require('../middleware/auth');
 
 const ALLOWED = ['.pdf', '.pptx', '.ppt', '.docx', '.doc'];
 
@@ -25,9 +26,9 @@ const upload = multer({
   },
 });
 
-router.get('/',           ctrl.list);
-router.post('/', upload.single('file'), ctrl.submit);
-router.get('/:id/download', ctrl.download);
-router.delete('/:id',     ctrl.remove);
+router.get('/',                               authenticate, ctrl.list);
+router.post('/',    upload.single('file'),    authenticate, ctrl.submit);
+router.get('/:id/download',                  authenticate, ctrl.download);
+router.delete('/:id',                        authenticate, ctrl.remove);
 
 module.exports = router;

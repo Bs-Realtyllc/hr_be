@@ -4,16 +4,26 @@ const db   = require('../db');
 
 exports.list = async (req, res) => {
   try {
-    const { employee_id, month, year } = req.query;
-    let q = `SELECT r.*, e.name AS employee_name, e.designation
+    const { month, year } = req.query;
+    const privileged = ['admin', 'lead'].includes(req.user?.role);
+
+    let q = `SELECT r.*, e.name AS employee_name, e.designation, e.department
              FROM monthly_reports r
              JOIN employees e ON r.employee_id = e.id
              WHERE 1=1`;
     const p = [];
-    if (employee_id) { q += ' AND r.employee_id = ?'; p.push(employee_id); }
-    if (month)       { q += ' AND r.month = ?';       p.push(month); }
-    if (year)        { q += ' AND r.year = ?';         p.push(year); }
-    q += ' ORDER BY r.submitted_at DESC';
+
+    if (!privileged) {
+      // Employees see only their own submissions
+      q += ' AND r.employee_id = ?';
+      p.push(req.user.id);
+    }
+
+    if (month) { q += ' AND r.month = ?'; p.push(month); }
+    if (year)  { q += ' AND r.year = ?';  p.push(year);  }
+
+    q += ' ORDER BY r.year DESC, r.month DESC, r.submitted_at DESC';
+
     const [rows] = await db.query(q, p);
     res.json(rows);
   } catch (err) {
@@ -47,6 +57,13 @@ exports.download = async (req, res) => {
   try {
     const [[report]] = await db.query('SELECT * FROM monthly_reports WHERE id = ?', [req.params.id]);
     if (!report) return res.status(404).json({ error: 'Not found' });
+
+    // Employees can only download their own reports
+    const privileged = ['admin', 'lead'].includes(req.user?.role);
+    if (!privileged && report.employee_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     res.download(path.resolve(report.file_path), report.file_name);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -57,6 +74,12 @@ exports.remove = async (req, res) => {
   try {
     const [[report]] = await db.query('SELECT * FROM monthly_reports WHERE id = ?', [req.params.id]);
     if (!report) return res.status(404).json({ error: 'Not found' });
+
+    const privileged = ['admin', 'lead'].includes(req.user?.role);
+    if (!privileged && report.employee_id !== req.user.id) {
+      return res.status(403).json({ error: 'You can only delete your own reports' });
+    }
+
     fs.unlink(report.file_path, () => {});
     await db.query('DELETE FROM monthly_reports WHERE id = ?', [req.params.id]);
     res.json({ success: true });
