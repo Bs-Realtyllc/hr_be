@@ -48,4 +48,34 @@ async function getStats(req, res) {
   }
 }
 
-module.exports = { getStats };
+async function standupTrend(req, res) {
+  try {
+    const [rows] = await db.query(`
+      SELECT standup_date AS date, COUNT(*) AS count
+      FROM standups
+      WHERE standup_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      GROUP BY standup_date
+      ORDER BY standup_date ASC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function leaveTrend(req, res) {
+  try {
+    const [rows] = await db.query(`
+      SELECT DATE(created_at) AS date, COUNT(*) AS count
+      FROM leave_requests
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { getStats, standupTrend, leaveTrend };

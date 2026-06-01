@@ -2,7 +2,7 @@ const db = require('../db');
 
 exports.list = async (req, res) => {
   try {
-    const { date, employee_id } = req.query;
+    const { date, start_date, end_date, employee_id } = req.query;
     const privileged = ['admin', 'lead'].includes(req.user?.role);
 
     let query = `
@@ -19,8 +19,14 @@ exports.list = async (req, res) => {
       params.push(employee_id);
     }
 
-    if (date) { query += ' AND s.standup_date = ?'; params.push(date); }
-    query += ' ORDER BY s.created_at DESC LIMIT 100';
+    if (date) {
+      query += ' AND s.standup_date = ?';
+      params.push(date);
+    } else {
+      if (start_date) { query += ' AND s.standup_date >= ?'; params.push(start_date); }
+      if (end_date)   { query += ' AND s.standup_date <= ?'; params.push(end_date); }
+    }
+    query += ' ORDER BY s.standup_date DESC, s.created_at DESC LIMIT 200';
     const [rows] = await db.query(query, params);
     res.json(rows);
   } catch (err) {
