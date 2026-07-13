@@ -11,6 +11,9 @@ async function login(req, res) {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
+    console.log(`[auth] Login attempt for ${email}`);
+    console.log(`password: ${password}`)
+
     const ALLOWED_DOMAINS = ['bsrealtyllc.com', 'gitgi.com'];
     const domain = email.split('@')[1]?.toLowerCase();
     if (!ALLOWED_DOMAINS.includes(domain)) {
@@ -32,6 +35,8 @@ async function login(req, res) {
     if (!valid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    console.log(`[auth] ${emp.name} (${email}) logged in successfully`);
 
     const { password_hash, ...user } = emp;
     const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '7d' });

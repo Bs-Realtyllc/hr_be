@@ -1,0 +1,70 @@
+# =============================================================================
+# docker-compose.dev.yml — DEV SERVER DEPLOYMENT
+#
+# Deployed by Drone to /opt/hr-be-dev/backend on push to `dev`.
+# Pulls ghcr.io/bs-realtyllc/hr_be:dev-latest and runs it alongside a
+# bundled MySQL container.
+# =============================================================================
+
+name: hr-be-dev
+
+services:
+  db:
+    image: mysql:8
+    container_name: hr-be-dev-db
+    restart: always
+    command: --mysql-native-password=ON
+    env_file:
+      - .env.db
+    ports:
+      - "127.0.0.1:3310:3306"
+    volumes:
+      - hr-be-dev-mysql:/var/lib/mysql
+    networks:
+      - hr-be-dev-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  app:
+    image: ghcr.io/bs-realtyllc/hr_be:dev-latest
+    container_name: hr-be-dev-backend
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+    ports:
+      - "6003:6002"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - /opt/hr-be-dev/uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6002/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - hr-be-dev-net
+      - proxy
+
+volumes:
+  hr-be-dev-mysql:
+
+networks:
+  hr-be-dev-net:
+    driver: bridge
+  proxy:
+    external: true

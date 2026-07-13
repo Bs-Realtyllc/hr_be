@@ -1,0 +1,46 @@
+# =============================================================================
+# docker-compose.yml — LOCAL DEVELOPMENT
+#
+# Builds the image from source and uses your LOCAL MySQL (already running
+# on the host).
+#
+# Usage:
+#   docker compose -f docker-compose.yml up --build
+#
+# Make sure your local MySQL has the database and user the app expects
+# (see .env.example).
+# =============================================================================
+
+services:
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hr-be-backend-dev
+    restart: unless-stopped
+
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      # host.docker.internal resolves to the host machine (your laptop).
+      # On Linux this requires the extra_hosts entry below.
+      DB_HOST: host.docker.internal
+
+    ports:
+      - "${PORT:-6002}:6002"
+
+    volumes:
+      - ./uploads:/app/uploads
+
+    extra_hosts:
+      # Makes host.docker.internal work on Linux
+      - "host.docker.internal:host-gateway"
+
+    networks:
+      - hr-be-net
+
+networks:
+  hr-be-net:
+    driver: bridge

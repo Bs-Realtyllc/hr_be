@@ -1,0 +1,44 @@
+# =============================================================================
+# docker-compose.main.yml — PRODUCTION DEPLOYMENT
+#
+# Deployed by Drone to /opt/hr-be/backend on push to `main`.
+# Pulls ghcr.io/bs-realtyllc/hr_be:latest and connects to the MySQL
+# instance already running on the host.
+# =============================================================================
+
+name: hr-be-backend
+
+services:
+  app:
+    image: ghcr.io/bs-realtyllc/hr_be:latest
+    container_name: hr-be-backend
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      DB_HOST: host.docker.internal
+    ports:
+      - "6002:6002"
+    volumes:
+      - /opt/hr-be/uploads:/app/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:6002/api/health', r => process.exit(r.statusCode >= 200 && r.statusCode < 400 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - hr-be-net
+
+networks:
+  hr-be-net:
+    external: true
+    name: hr-be-network
