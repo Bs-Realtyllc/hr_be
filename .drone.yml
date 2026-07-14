@@ -15,7 +15,7 @@ clone:
 
 steps:
 
-  # ── build & push ghcr.io/bs-realtyllc/hr_be:<branch>-* ──────────────────────
+  # ── build & push ghcr.io/bs-realtyllc/hr_be:<branch> and :<branch>-<sha> ────
   - name: build-and-push
     image: plugins/docker
     settings:

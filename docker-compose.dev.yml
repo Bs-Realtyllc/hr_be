@@ -2,7 +2,7 @@
 # docker-compose.dev.yml — DEV SERVER DEPLOYMENT
 #
 # Deployed by Drone to /opt/hr-be-dev/backend on push to `dev`.
-# Pulls ghcr.io/bs-realtyllc/hr_be:dev-latest and runs it alongside a
+# Pulls ghcr.io/bs-realtyllc/hr_be:dev and runs it alongside a
 # bundled MySQL container.
 # =============================================================================
 

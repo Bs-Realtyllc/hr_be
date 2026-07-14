@@ -2,7 +2,7 @@
 # docker-compose.main.yml — PRODUCTION DEPLOYMENT
 #
 # Deployed by Drone to /opt/hr-be/backend on push to `main`.
-# Pulls ghcr.io/bs-realtyllc/hr_be:main-latest and connects to the MySQL
+# Pulls ghcr.io/bs-realtyllc/hr_be:main and connects to the MySQL
 # instance already running on the host.
 # =============================================================================
 
