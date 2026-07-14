@@ -15,45 +15,22 @@ clone:
 
 steps:
 
-  # ── dev branch: build & push ghcr.io/bs-realtyllc/hr_be:dev-* ──────────────
-  - name: build-and-push-dev
+  # ── build & push ghcr.io/bs-realtyllc/hr_be:<branch>-* ──────────────────────
+  - name: build-and-push
     image: plugins/docker
     settings:
       registry: ghcr.io
       repo: ghcr.io/bs-realtyllc/hr_be
       tags:
-        - dev-latest
-        - "dev-${DRONE_COMMIT_SHA:0:8}"
+        - "${DRONE_COMMIT_BRANCH}"
+        - "${DRONE_COMMIT_BRANCH}-${DRONE_COMMIT_SHA:0:8}"
       dockerfile: Dockerfile
       context:    .
       username:
         from_secret: ghcr_username
       password:
         from_secret: ghcr_token
-      cache_from: ghcr.io/bs-realtyllc/hr_be:dev-latest
-    when:
-      branch:
-        - dev
-
-  # ── main branch: build & push ghcr.io/bs-realtyllc/hr_be:latest ────────────
-  - name: build-and-push-main
-    image: plugins/docker
-    settings:
-      registry: ghcr.io
-      repo: ghcr.io/bs-realtyllc/hr_be
-      tags:
-        - latest
-        - "${DRONE_COMMIT_SHA:0:8}"
-      dockerfile: Dockerfile
-      context:    .
-      username:
-        from_secret: ghcr_username
-      password:
-        from_secret: ghcr_token
-      cache_from: ghcr.io/bs-realtyllc/hr_be:latest
-    when:
-      branch:
-        - main
+      cache_from: "ghcr.io/bs-realtyllc/hr_be:${DRONE_COMMIT_BRANCH}"
 
   - name: copy-configs-dev
     image: appleboy/drone-scp
@@ -71,7 +48,7 @@ steps:
       branch:
         - dev
     depends_on:
-      - build-and-push-dev
+      - build-and-push
 
   - name: copy-configs-main
     image: appleboy/drone-scp
@@ -89,7 +66,7 @@ steps:
       branch:
         - main
     depends_on:
-      - build-and-push-main
+      - build-and-push
 
   # ── deploy: branch picks the compose file, target dir, and container name ──
   - name: deploy
