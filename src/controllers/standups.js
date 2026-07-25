@@ -1,33 +1,19 @@
-const db = require('../db');
+const Standup = require('../models/Standup');
+const Employee = require('../models/Employee');
+const standupDto = require('../dtos/standupDto');
 
 exports.list = async (req, res) => {
   try {
     const { date, start_date, end_date, employee_id } = req.query;
     const privileged = ['admin', 'lead'].includes(req.user?.role);
+    const filterEmployeeId = privileged ? employee_id : req.user.id;
 
-    let query = `
-      SELECT s.*, e.name AS employee_name, e.designation, e.profile_picture
-      FROM standups s JOIN employees e ON s.employee_id = e.id
-      WHERE 1=1`;
-    const params = [];
-
-    if (!privileged) {
-      query += ' AND s.employee_id = ?';
-      params.push(req.user.id);
-    } else if (employee_id) {
-      query += ' AND s.employee_id = ?';
-      params.push(employee_id);
-    }
-
-    if (date) {
-      query += ' AND s.standup_date = ?';
-      params.push(date);
-    } else {
-      if (start_date) { query += ' AND s.standup_date >= ?'; params.push(start_date); }
-      if (end_date)   { query += ' AND s.standup_date <= ?'; params.push(end_date); }
-    }
-    query += ' ORDER BY s.standup_date DESC, s.created_at DESC LIMIT 200';
-    const [rows] = await db.query(query, params);
+    const rows = await Standup.findWithNames({
+      employeeId: filterEmployeeId,
+      date,
+      startDate: start_date,
+      endDate: end_date,
+    });
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -38,19 +24,9 @@ exports.today = async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
     const privileged = ['admin', 'lead'].includes(req.user?.role);
+    const filterEmployeeId = privileged ? undefined : req.user.id;
 
-    let query = `
-      SELECT s.*, e.name AS employee_name, e.designation, e.profile_picture
-      FROM standups s JOIN employees e ON s.employee_id = e.id
-      WHERE s.standup_date = ?`;
-    const params = [today];
-
-    if (!privileged) {
-      query += ' AND s.employee_id = ?';
-      params.push(req.user.id);
-    }
-    query += ' ORDER BY s.created_at DESC';
-    const [rows] = await db.query(query, params);
+    const rows = await Standup.findToday(today, filterEmployeeId);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -58,34 +34,28 @@ exports.today = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { employee_id, yesterday, today, blockers, standup_date } = req.body;
   try {
-    const date = standup_date || new Date().toISOString().split('T')[0];
-    const [result] = await db.query(
-      `INSERT INTO standups (employee_id, yesterday, today, blockers, standup_date)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE yesterday = VALUES(yesterday), today = VALUES(today), blockers = VALUES(blockers)`,
-      [employee_id, yesterday, today, blockers, date]
-    );
+    const data = standupDto.toCreateInput(req.body);
+    const id = await Standup.upsert(data);
 
     // Fire-and-forget: mirror the standup to the Discord channel via the bot
     const botUrl   = process.env.DISCORD_BOT_URL;
     const botToken = process.env.DISCORD_INTERNAL_TOKEN;
     if (botUrl && botToken) {
-      const [[employee]] = await db.query('SELECT name FROM employees WHERE id = ? LIMIT 1', [employee_id]);
+      const employee = await Employee.findNameById(data.employee_id);
       fetch(`${botUrl}/internal/standup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Internal-Token': botToken },
         body: JSON.stringify({
-          employeeName: employee?.name || `Employee #${employee_id}`,
-          yesterday,
-          today,
-          blockers,
+          employeeName: employee?.name || `Employee #${data.employee_id}`,
+          yesterday: data.yesterday,
+          today: data.today,
+          blockers: data.blockers,
         }),
       }).catch(err => console.error('[discord-bot] HR → Discord sync failed:', err.message));
     }
 
-    res.status(201).json({ id: result.insertId });
+    res.status(201).json({ id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

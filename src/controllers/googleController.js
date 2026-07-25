@@ -1,10 +1,31 @@
-const db = require('../db');
+const GoogleSettings = require('../models/GoogleSettings');
+const Meeting = require('../models/Meeting');
 const gc = require('../services/googleCalendar');
 
 // Convert any ISO-8601 string (with or without tz offset) to MySQL DATETIME format (UTC)
 function toMySQLDatetime(iso) {
   if (!iso) return null;
   return new Date(iso).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+// Shape a Google Calendar event object into a meetings row ready for Meeting.upsertFromGoogleEvent.
+// Returns null for events without a start time (skipped, same as the original loops).
+function shapeGoogleEvent(event) {
+  if (!event.start) return null;
+  const startDt   = toMySQLDatetime(event.start.dateTime || `${event.start.date}T00:00:00`);
+  const endDt     = toMySQLDatetime(event.end?.dateTime  || `${event.end?.date}T00:00:00`);
+  const meetLink  = event.conferenceData?.entryPoints?.find(e => e.entryPointType === 'video')?.uri || null;
+  const attendees = JSON.stringify((event.attendees || []).map(a => a.email));
+
+  return {
+    title: event.summary || 'Untitled',
+    description: event.description || null,
+    start_datetime: startDt,
+    end_datetime: endDt,
+    attendees,
+    google_event_id: event.id,
+    meet_link: meetLink,
+  };
 }
 
 exports.getAuthUrl = async (req, res) => {
@@ -25,18 +46,11 @@ exports.handleCallback = async (req, res) => {
     const expiry = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
 
     // Upsert into the single-row google_settings table
-    const [[existing]] = await db.query('SELECT id FROM google_settings LIMIT 1');
-    if (existing) {
-      await db.query(
-        `UPDATE google_settings SET refresh_token = ?, access_token = ?, token_expiry = ? WHERE id = ?`,
-        [tokens.refresh_token || existing.refresh_token, tokens.access_token, expiry, existing.id]
-      );
-    } else {
-      await db.query(
-        `INSERT INTO google_settings (refresh_token, access_token, token_expiry) VALUES (?, ?, ?)`,
-        [tokens.refresh_token, tokens.access_token, expiry]
-      );
-    }
+    const existing = await GoogleSettings.findSingleton();
+    await GoogleSettings.upsertTokens(
+      { refresh_token: tokens.refresh_token, access_token: tokens.access_token, token_expiry: expiry },
+      existing?.id
+    );
 
     // Set up push notifications if a public webhook URL is configured
     if (process.env.GOOGLE_WEBHOOK_URL) {
@@ -56,7 +70,7 @@ exports.handleCallback = async (req, res) => {
 
 exports.getStatus = async (req, res) => {
   try {
-    const [[row]] = await db.query('SELECT refresh_token, channel_expiry FROM google_settings LIMIT 1');
+    const row = await GoogleSettings.findConnectionStatus();
     res.json({
       connected: !!row?.refresh_token,
       webhookActive: !!(row?.channel_expiry && new Date(row.channel_expiry) > new Date()),
@@ -75,7 +89,7 @@ function handleGoogleError(err, res) {
 exports.disconnect = async (req, res) => {
   try {
     await gc.stopWebhookChannel();
-    await db.query(`UPDATE google_settings SET refresh_token = NULL, access_token = NULL, token_expiry = NULL`);
+    await GoogleSettings.clearTokens();
     res.json({ success: true });
   } catch (err) {
     handleGoogleError(err, res);
@@ -88,24 +102,9 @@ exports.sync = async (req, res) => {
     let upserted = 0;
 
     for (const event of events) {
-      if (!event.start) continue;
-      const startDt   = toMySQLDatetime(event.start.dateTime || `${event.start.date}T00:00:00`);
-      const endDt     = toMySQLDatetime(event.end?.dateTime  || `${event.end?.date}T00:00:00`);
-      const meetLink  = event.conferenceData?.entryPoints?.find(e => e.entryPointType === 'video')?.uri || null;
-      const attendees = JSON.stringify((event.attendees || []).map(a => a.email));
-
-      await db.query(
-        `INSERT INTO meetings (title, description, start_datetime, end_datetime, attendees, google_event_id, meet_link)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           title          = VALUES(title),
-           description    = VALUES(description),
-           start_datetime = VALUES(start_datetime),
-           end_datetime   = VALUES(end_datetime),
-           attendees      = VALUES(attendees),
-           meet_link      = VALUES(meet_link)`,
-        [event.summary || 'Untitled', event.description || null, startDt, endDt, attendees, event.id, meetLink]
-      );
+      const shaped = shapeGoogleEvent(event);
+      if (!shaped) continue;
+      await Meeting.upsertFromGoogleEvent(shaped);
       upserted++;
     }
 
@@ -125,23 +124,9 @@ exports.webhook = async (req, res) => {
   try {
     const events = await gc.listUpcomingEvents(50);
     for (const event of events) {
-      if (!event.start) continue;
-      const startDt   = toMySQLDatetime(event.start.dateTime || `${event.start.date}T00:00:00`);
-      const endDt     = toMySQLDatetime(event.end?.dateTime  || `${event.end?.date}T00:00:00`);
-      const meetLink  = event.conferenceData?.entryPoints?.find(e => e.entryPointType === 'video')?.uri || null;
-      const attendees = JSON.stringify((event.attendees || []).map(a => a.email));
-
-      await db.query(
-        `INSERT INTO meetings (title, description, start_datetime, end_datetime, attendees, google_event_id, meet_link)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           title          = VALUES(title),
-           start_datetime = VALUES(start_datetime),
-           end_datetime   = VALUES(end_datetime),
-           attendees      = VALUES(attendees),
-           meet_link      = VALUES(meet_link)`,
-        [event.summary || 'Untitled', event.description || null, startDt, endDt, attendees, event.id, meetLink]
-      );
+      const shaped = shapeGoogleEvent(event);
+      if (!shaped) continue;
+      await Meeting.upsertFromGoogleEvent(shaped);
     }
   } catch (err) {
     console.error('[google] Webhook sync error:', err.message);

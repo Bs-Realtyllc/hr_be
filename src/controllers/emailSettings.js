@@ -1,11 +1,9 @@
-const db = require('../db');
+const EmailSettings = require('../models/EmailSettings');
+const emailSettingsDto = require('../dtos/emailSettingsDto');
 
 exports.get = async (req, res) => {
   try {
-    const [[row]] = await db.query(
-      'SELECT smtp_host, smtp_port, smtp_user, smtp_from, default_to, default_cc, default_bcc FROM email_settings WHERE employee_id = ?',
-      [req.params.employeeId]
-    );
+    const row = await EmailSettings.findPublicByEmployeeId(req.params.employeeId);
     // Never return the password to the client
     res.json(row || null);
   } catch (err) {
@@ -14,53 +12,25 @@ exports.get = async (req, res) => {
 };
 
 exports.save = async (req, res) => {
-  const { smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, default_to, default_cc, default_bcc } = req.body;
-
-  if (!smtp_host || !smtp_user) {
-    return res.status(400).json({ error: 'smtp_host and smtp_user are required' });
-  }
-
-  const port = smtp_port || 587;
-  const from = smtp_from || smtp_user;
-  const to   = default_to  || '';
-  const cc   = default_cc  || '';
-  const bcc  = default_bcc || '';
-
   try {
-    const [[existing]] = await db.query(
-      'SELECT id FROM email_settings WHERE employee_id = ?',
-      [req.params.employeeId]
-    );
+    const data = emailSettingsDto.toSaveInput(req.body);
+    const existing = await EmailSettings.findFullByEmployeeId(req.params.employeeId);
 
-    if (!existing && !smtp_pass) {
+    if (!existing && !data.smtp_pass) {
       return res.status(400).json({ error: 'Password is required for initial setup' });
     }
 
-    if (smtp_pass) {
-      await db.query(
-        `INSERT INTO email_settings (employee_id, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, default_to, default_cc, default_bcc)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           smtp_host = VALUES(smtp_host), smtp_port = VALUES(smtp_port),
-           smtp_user = VALUES(smtp_user), smtp_pass = VALUES(smtp_pass),
-           smtp_from = VALUES(smtp_from), default_to = VALUES(default_to),
-           default_cc = VALUES(default_cc), default_bcc = VALUES(default_bcc)`,
-        [req.params.employeeId, smtp_host, port, smtp_user, smtp_pass, from, to, cc, bcc]
-      );
-      testSmtpAsync(smtp_host, port, smtp_user, smtp_pass);
+    if (data.smtp_pass) {
+      await EmailSettings.upsertWithPassword(req.params.employeeId, data);
+      testSmtpAsync(data.smtp_host, data.smtp_port, data.smtp_user, data.smtp_pass);
     } else {
       // Update without touching the stored password
-      await db.query(
-        `UPDATE email_settings SET
-           smtp_host = ?, smtp_port = ?, smtp_user = ?,
-           smtp_from = ?, default_to = ?, default_cc = ?, default_bcc = ?
-         WHERE employee_id = ?`,
-        [smtp_host, port, smtp_user, from, to, cc, bcc, req.params.employeeId]
-      );
+      await EmailSettings.updateWithoutPassword(req.params.employeeId, data);
     }
 
     res.json({ success: true });
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     res.status(500).json({ error: err.message });
   }
 };
@@ -77,10 +47,4 @@ async function testSmtpAsync(host, port, user, pass) {
 }
 
 // Called by the leave email sender — returns full row including password
-exports.getForSending = async (employeeId) => {
-  const [[row]] = await db.query(
-    'SELECT * FROM email_settings WHERE employee_id = ?',
-    [employeeId]
-  );
-  return row || null;
-};
+exports.getForSending = async (employeeId) => EmailSettings.findFullByEmployeeId(employeeId);

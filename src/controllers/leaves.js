@@ -1,4 +1,5 @@
-const db = require('../db');
+const LeaveRequest = require('../models/LeaveRequest');
+const leaveDto = require('../dtos/leaveDto');
 const { buildLeaveEmailSubject, buildLeaveEmailHtml } = require('./leaveEmailTemplate');
 
 async function sendEmailAsync(leave_id, employee_id, to, cc, bcc) {
@@ -8,13 +9,7 @@ async function sendEmailAsync(leave_id, employee_id, to, cc, bcc) {
     const cfg = await getForSending(employee_id);
     if (!cfg) { console.error('[email] No config for employee', employee_id); return; }
 
-    const [[leave]] = await db.query(
-      `SELECT lr.*, e.name AS employee_name, e.designation, e.department
-       FROM leave_requests lr
-       JOIN employees e ON lr.employee_id = e.id
-       WHERE lr.id = ?`,
-      [leave_id]
-    );
+    const leave = await LeaveRequest.findWithEmployeeById(leave_id);
     if (!leave) { console.error('[email] Leave not found', leave_id); return; }
 
     const fmt = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
@@ -49,26 +44,8 @@ exports.list = async (req, res) => {
     const { employee_id, status } = req.query;
     const privileged = ['admin', 'lead'].includes(req.user?.role);
 
-    let query = `
-      SELECT lr.*, e.name AS employee_name, e.designation,
-             r.name AS reviewer_name
-      FROM leave_requests lr
-      JOIN employees e ON lr.employee_id = e.id
-      LEFT JOIN employees r ON lr.reviewed_by = r.id
-      WHERE 1=1`;
-    const params = [];
-
-    if (!privileged) {
-      query += ' AND lr.employee_id = ?';
-      params.push(req.user.id);
-    } else if (employee_id) {
-      query += ' AND lr.employee_id = ?';
-      params.push(employee_id);
-    }
-
-    if (status) { query += ' AND lr.status = ?'; params.push(status); }
-    query += ' ORDER BY lr.created_at DESC';
-    const [rows] = await db.query(query, params);
+    const filterEmployeeId = privileged ? employee_id : req.user.id;
+    const rows = await LeaveRequest.findWithNames({ employeeId: filterEmployeeId, status });
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -78,12 +55,7 @@ exports.list = async (req, res) => {
 exports.balances = async (req, res) => {
   try {
     const year = new Date().getFullYear();
-    const [rows] = await db.query(
-      `SELECT *, (total - taken) AS remaining
-       FROM leave_balances
-       WHERE employee_id = ? AND year = ?`,
-      [req.params.employeeId, year]
-    );
+    const rows = await LeaveRequest.findBalances(req.params.employeeId, year);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -93,13 +65,7 @@ exports.balances = async (req, res) => {
 exports.outToday = async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    const [rows] = await db.query(
-      `SELECT e.name, e.designation, e.profile_picture, lr.leave_type, lr.end_date
-       FROM leave_requests lr
-       JOIN employees e ON lr.employee_id = e.id
-       WHERE lr.status = 'approved' AND ? BETWEEN lr.start_date AND lr.end_date`,
-      [today]
-    );
+    const rows = await LeaveRequest.findOutToday(today);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -114,14 +80,7 @@ exports.outThisWeek = async (req, res) => {
     monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
     const friday = new Date(monday);
     friday.setDate(monday.getDate() + 6);
-    const [rows] = await db.query(
-      `SELECT e.name, e.designation, lr.leave_type, lr.start_date, lr.end_date
-       FROM leave_requests lr
-       JOIN employees e ON lr.employee_id = e.id
-       WHERE lr.status = 'approved'
-         AND lr.start_date <= ? AND lr.end_date >= ?`,
-      [friday.toISOString().split('T')[0], monday.toISOString().split('T')[0]]
-    );
+    const rows = await LeaveRequest.findOutInRange(monday.toISOString().split('T')[0], friday.toISOString().split('T')[0]);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -129,16 +88,12 @@ exports.outThisWeek = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { employee_id, leave_type, start_date, end_date, reason, to, cc, bcc } = req.body;
+  const { to, cc, bcc } = req.body;
   try {
-    const [result] = await db.query(
-      `INSERT INTO leave_requests (employee_id, leave_type, start_date, end_date, reason)
-       VALUES (?, ?, ?, ?, ?)`,
-      [employee_id, leave_type, start_date, end_date, reason]
-    );
-    const leave_id = result.insertId;
+    const data = leaveDto.toCreateInput(req.body);
+    const leave_id = await LeaveRequest.create(data);
     res.status(201).json({ id: leave_id });
-    if (to) sendEmailAsync(leave_id, employee_id, to, cc, bcc);
+    if (to) sendEmailAsync(leave_id, data.employee_id, to, cc, bcc);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -149,9 +104,8 @@ exports.approve = async (req, res) => {
   if (role === 'employee') return res.status(403).json({ error: 'Insufficient permissions' });
 
   try {
-    const [req_rows] = await db.query(`SELECT * FROM leave_requests WHERE id = ?`, [req.params.id]);
-    if (!req_rows.length) return res.status(404).json({ error: 'Not found' });
-    const leave = req_rows[0];
+    const leave = await LeaveRequest.findById(req.params.id);
+    if (!leave) return res.status(404).json({ error: 'Not found' });
 
     if (role === 'lead' && leave.employee_id === req.user.id) {
       return res.status(403).json({ error: 'Team leads cannot approve their own leave requests' });
@@ -167,15 +121,8 @@ exports.approve = async (req, res) => {
     const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
     const year = start.getFullYear();
 
-    await db.query(
-      `UPDATE leave_requests SET status = 'approved', reviewed_by = ?, reviewed_at = NOW() WHERE id = ?`,
-      [req.user.id, req.params.id]
-    );
-    await db.query(
-      `UPDATE leave_balances SET taken = taken + ?
-       WHERE employee_id = ? AND leave_type = ? AND year = ?`,
-      [days, leave.employee_id, leave.leave_type, year]
-    );
+    await LeaveRequest.approve(req.params.id, req.user.id);
+    await LeaveRequest.incrementBalanceTaken(leave.employee_id, leave.leave_type, year, days);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -187,9 +134,8 @@ exports.reject = async (req, res) => {
   if (role === 'employee') return res.status(403).json({ error: 'Insufficient permissions' });
 
   try {
-    const [req_rows] = await db.query(`SELECT * FROM leave_requests WHERE id = ?`, [req.params.id]);
-    if (!req_rows.length) return res.status(404).json({ error: 'Not found' });
-    const leave = req_rows[0];
+    const leave = await LeaveRequest.findById(req.params.id);
+    if (!leave) return res.status(404).json({ error: 'Not found' });
 
     if (role === 'lead' && leave.employee_id === req.user.id) {
       return res.status(403).json({ error: 'Team leads cannot reject their own leave requests' });
@@ -200,10 +146,7 @@ exports.reject = async (req, res) => {
       return res.status(400).json({ error: 'Cannot reject a leave request whose dates have already passed.' });
     }
 
-    await db.query(
-      `UPDATE leave_requests SET status = 'rejected', reviewed_by = ?, reviewed_at = NOW() WHERE id = ?`,
-      [req.user.id, req.params.id]
-    );
+    await LeaveRequest.reject(req.params.id, req.user.id);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -212,9 +155,8 @@ exports.reject = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM leave_requests WHERE id = ?', [req.params.id]);
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    const leave = rows[0];
+    const leave = await LeaveRequest.findById(req.params.id);
+    if (!leave) return res.status(404).json({ error: 'Not found' });
 
     if (leave.employee_id !== req.user.id) {
       return res.status(403).json({ error: 'You can only edit your own leave requests' });
@@ -223,11 +165,7 @@ exports.update = async (req, res) => {
       return res.status(400).json({ error: 'Only pending leave requests can be edited' });
     }
 
-    const { leave_type, start_date, end_date, reason } = req.body;
-    await db.query(
-      'UPDATE leave_requests SET leave_type = ?, start_date = ?, end_date = ?, reason = ? WHERE id = ?',
-      [leave_type, start_date, end_date, reason, req.params.id]
-    );
+    await LeaveRequest.update(req.params.id, leaveDto.toUpdateInput(req.body));
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -236,9 +174,8 @@ exports.update = async (req, res) => {
 
 exports.cancel = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM leave_requests WHERE id = ?', [req.params.id]);
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    const leave = rows[0];
+    const leave = await LeaveRequest.findById(req.params.id);
+    if (!leave) return res.status(404).json({ error: 'Not found' });
 
     if (leave.employee_id !== req.user.id) {
       return res.status(403).json({ error: 'You can only cancel your own leave requests' });
@@ -247,10 +184,9 @@ exports.cancel = async (req, res) => {
       return res.status(400).json({ error: 'Only pending leave requests can be cancelled' });
     }
 
-    await db.query('DELETE FROM leave_requests WHERE id = ?', [req.params.id]);
+    await LeaveRequest.remove(req.params.id);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-

@@ -1,5 +1,6 @@
 const crypto = require('crypto');
-const db = require('../db');
+const Employee = require('../models/Employee');
+const Standup = require('../models/Standup');
 
 // Ed25519 SubjectPublicKeyInfo DER prefix for wrapping raw 32-byte public keys
 const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
@@ -22,23 +23,17 @@ async function findEmployeeByDiscordName(discordName) {
   if (!discordName) return null;
 
   // 1. Exact match on the discord_username column (most reliable)
-  const [byUsername] = await db.query(
-    'SELECT id, name FROM employees WHERE discord_username = ? LIMIT 1',
-    [discordName]
-  );
-  if (byUsername[0]) {
-    console.log(`[discord] Matched "${discordName}" via discord_username → ${byUsername[0].name}`);
-    return byUsername[0];
+  const byUsername = await Employee.findByDiscordUsername(discordName);
+  if (byUsername) {
+    console.log(`[discord] Matched "${discordName}" via discord_username → ${byUsername.name}`);
+    return byUsername;
   }
 
   // 2. Case-insensitive partial match on the name column (fallback)
-  const [byName] = await db.query(
-    'SELECT id, name FROM employees WHERE LOWER(name) LIKE LOWER(?) LIMIT 1',
-    [`%${discordName}%`]
-  );
-  if (byName[0]) {
-    console.log(`[discord] Matched "${discordName}" via name fallback → ${byName[0].name}`);
-    return byName[0];
+  const byName = await Employee.findByNameLike(`%${discordName}%`);
+  if (byName) {
+    console.log(`[discord] Matched "${discordName}" via name fallback → ${byName.name}`);
+    return byName;
   }
 
   return null;
@@ -46,15 +41,13 @@ async function findEmployeeByDiscordName(discordName) {
 
 async function saveStandup(employeeId, yesterday, today, blockers) {
   const date = new Date().toISOString().split('T')[0];
-  await db.query(
-    `INSERT INTO standups (employee_id, yesterday, today, blockers, standup_date)
-     VALUES (?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE
-       yesterday = VALUES(yesterday),
-       today     = VALUES(today),
-       blockers  = VALUES(blockers)`,
-    [employeeId, yesterday, today, blockers || 'None', date]
-  );
+  await Standup.upsert({
+    employee_id: employeeId,
+    yesterday,
+    today,
+    blockers: blockers || 'None',
+    standup_date: date,
+  });
 }
 
 exports.handleStandupWebhook = async (req, res) => {

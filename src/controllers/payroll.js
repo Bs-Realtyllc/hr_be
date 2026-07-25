@@ -1,14 +1,11 @@
-const db = require('../db');
 const bcrypt = require('bcryptjs');
+const Employee = require('../models/Employee');
+const payrollDto = require('../dtos/payrollDto');
 
 async function getPayroll(req, res) {
   try {
     const privileged = ['admin', 'lead'].includes(req.user?.role);
-    const query = privileged
-      ? `SELECT id, name, designation, department, role, salary, pay_frequency FROM employees WHERE is_active = TRUE ORDER BY name`
-      : `SELECT id, name, designation, department, role, salary, pay_frequency FROM employees WHERE is_active = TRUE AND id = ? ORDER BY name`;
-    const params = privileged ? [] : [req.user.id];
-    const [rows] = await db.query(query, params);
+    const rows = await Employee.findPayrollColumns(privileged ? null : req.user.id);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -18,11 +15,8 @@ async function getPayroll(req, res) {
 
 async function updateSalary(req, res) {
   try {
-    const { salary, pay_frequency } = req.body;
-    await db.query(
-      'UPDATE employees SET salary = ?, pay_frequency = ? WHERE id = ?',
-      [salary ?? null, pay_frequency ?? 'monthly', req.params.id]
-    );
+    const { salary, pay_frequency } = payrollDto.toUpdateSalaryInput(req.body);
+    await Employee.updateSalary(req.params.id, salary, pay_frequency);
     res.json({ message: 'Salary updated' });
   } catch (err) {
     console.error(err);
@@ -33,11 +27,12 @@ async function updateSalary(req, res) {
 async function resetPassword(req, res) {
   try {
     const { password } = req.body;
-    if (!password || password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    const validationError = payrollDto.validatePasswordReset(password);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
     }
     const hash = await bcrypt.hash(password, 10);
-    await db.query('UPDATE employees SET password_hash = ? WHERE id = ?', [hash, req.params.id]);
+    await Employee.updatePasswordHash(req.params.id, hash);
     res.json({ message: 'Password reset successfully' });
   } catch (err) {
     console.error(err);
