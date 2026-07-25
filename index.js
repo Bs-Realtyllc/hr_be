@@ -57,7 +57,7 @@ async function start() {
 
   app.listen(ENV.PORT, () => {
     console.log(`✔ Backend running     →  http://localhost:${ENV.PORT}`);
-    console.log(`✔ Swagger UI          →  http://localhost:${ENV.PORT}/api/docs`);
+    console.log(`✔ Swagger UI          →  http://localhost:${ENV.PORT}/api/swagger/index.html`);
   });
 
   // Renew Google push-notification channel if it's expiring within 24 h.

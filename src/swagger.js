@@ -6,18 +6,38 @@ const options = {
     info: {
       title: 'HR Platform API',
       version: '1.0.0',
-      description: 'Internal HR management platform — leaves, standups, employees, projects, servers, and culture events.',
+      description: 'Internal HR management platform — auth, employees, leaves, standups, projects, servers, payroll, profile, reports, and integrations (Google Calendar, Discord, generic webhooks).',
     },
     servers: [{ url: 'http://localhost:6002', description: 'Local development' }],
     tags: [
+      { name: 'Health', description: 'Service health check' },
+      { name: 'Auth', description: 'Login, password change/reset' },
       { name: 'Employees', description: 'Employee profiles and directory' },
       { name: 'Leaves', description: 'Leave requests and balances' },
       { name: 'Standups', description: 'Async daily standup feed' },
-      { name: 'Projects', description: 'Projects, assignments, and milestones' },
+      { name: 'Projects', description: 'Projects, assignments, milestones, and services' },
       { name: 'Servers', description: 'Server and environment configs' },
       { name: 'Events', description: 'Culture events — birthdays, anniversaries, milestones' },
+      { name: 'Payroll', description: 'Salary and pay-frequency management (admin/lead)' },
+      { name: 'Profile', description: 'The logged-in employee\'s own profile' },
+      { name: 'Reports', description: 'Monthly report file submissions' },
+      { name: 'Dashboard', description: 'Aggregate stats and trends' },
+      { name: 'Google Calendar', description: 'Google OAuth connection and calendar sync' },
+      { name: 'Meetings', description: 'Scheduled meetings backed by Google Calendar' },
+      { name: 'Discord', description: 'Discord bot / Webhook Events integration for standups' },
+      { name: 'Email Settings', description: 'Per-employee SMTP configuration for leave notifications' },
+      { name: 'Service Credentials', description: 'Per-employee third-party service credentials' },
+      { name: 'Webhooks', description: 'Generic inbound webhook endpoint for external services' },
     ],
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Obtained from POST /api/auth/login. Send as `Authorization: Bearer <token>`.',
+        },
+      },
       schemas: {
         Employee: {
           type: 'object',
@@ -36,6 +56,10 @@ const options = {
             work_hours: { type: 'string', example: '9 AM - 5 PM' },
             tech_stack: { type: 'array', items: { type: 'string' }, example: ['Go', 'React', 'MySQL'] },
             role: { type: 'string', enum: ['admin', 'lead', 'employee'], example: 'employee' },
+            discord_username: { type: 'string', nullable: true },
+            salary: { type: 'number', nullable: true },
+            pay_frequency: { type: 'string', enum: ['monthly', 'biweekly', 'weekly'], nullable: true },
+            profile_picture: { type: 'string', nullable: true },
             is_active: { type: 'boolean' },
           },
         },
@@ -55,6 +79,24 @@ const options = {
             work_hours: { type: 'string', default: '9 AM - 5 PM' },
             tech_stack: { type: 'array', items: { type: 'string' } },
             role: { type: 'string', enum: ['admin', 'lead', 'employee'], default: 'employee' },
+            discord_username: { type: 'string', description: 'Update only — matched against Discord standup submissions' },
+          },
+        },
+        EmployeePayrollSummary: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            name: { type: 'string' },
+            designation: { type: 'string' },
+            department: { type: 'string' },
+            salary: { type: 'number', nullable: true },
+            pay_frequency: { type: 'string', nullable: true },
+            start_date: { type: 'string', format: 'date' },
+            working_days_this_month: { type: 'integer' },
+            leave_days_this_month: { type: 'integer' },
+            present_days: { type: 'integer' },
+            daily_rate: { type: 'integer' },
+            expected_pay: { type: 'integer' },
           },
         },
         LeaveRequest: {
@@ -72,6 +114,15 @@ const options = {
             reviewer_name: { type: 'string', nullable: true },
             reviewed_at: { type: 'string', format: 'date-time', nullable: true },
             created_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        LeaveUpdateInput: {
+          type: 'object',
+          properties: {
+            leave_type: { type: 'string', enum: ['casual', 'sick', 'annual'] },
+            start_date: { type: 'string', format: 'date' },
+            end_date: { type: 'string', format: 'date' },
+            reason: { type: 'string' },
           },
         },
         LeaveBalance: {
@@ -104,13 +155,25 @@ const options = {
             id: { type: 'integer' },
             name: { type: 'string', example: 'Gitgi Platform' },
             description: { type: 'string' },
-            repo_url: { type: 'string', format: 'uri', nullable: true },
-            docs_url: { type: 'string', format: 'uri', nullable: true },
+            repo_url: { type: 'array', items: { type: 'string', format: 'uri' } },
+            docs_url: { type: 'array', items: { type: 'string', format: 'uri' } },
             status: { type: 'string', enum: ['active', 'archived', 'on_hold'] },
             start_date: { type: 'string', format: 'date', nullable: true },
             expected_end_date: { type: 'string', format: 'date', nullable: true },
             created_at: { type: 'string', format: 'date-time' },
           },
+        },
+        ProjectByEmployee: {
+          allOf: [
+            { $ref: '#/components/schemas/Project' },
+            {
+              type: 'object',
+              properties: {
+                assigned_role: { type: 'string', enum: ['lead', 'backend', 'frontend', 'ui_ux', 'qa', 'devops'] },
+                milestones: { type: 'array', items: { $ref: '#/components/schemas/Milestone' } },
+              },
+            },
+          ],
         },
         Milestone: {
           type: 'object',
@@ -130,6 +193,7 @@ const options = {
             employee_id: { type: 'integer' },
             name: { type: 'string' },
             designation: { type: 'string' },
+            profile_picture: { type: 'string', nullable: true },
             role: { type: 'string', enum: ['lead', 'backend', 'frontend', 'ui_ux', 'qa', 'devops'] },
             timezone: { type: 'string' },
           },
@@ -142,9 +206,9 @@ const options = {
             project_name: { type: 'string', nullable: true },
             name: { type: 'string', example: 'prod-api-01' },
             environment: { type: 'string', enum: ['development', 'staging', 'production'] },
-            ip_address: { type: 'string', example: '192.168.1.10' },
+            ip_address: { type: 'string', example: '192.168.1.10', description: 'Masked as •••••••• when is_sensitive=true and show_sensitive is not requested' },
             domain: { type: 'string', example: 'api.company.com', nullable: true },
-            ssh_user: { type: 'string', example: 'deploy' },
+            ssh_user: { type: 'string', example: 'deploy', description: 'Masked as •••••••• when is_sensitive=true and show_sensitive is not requested' },
             notes: { type: 'string', nullable: true },
             is_sensitive: { type: 'boolean' },
           },
@@ -161,6 +225,275 @@ const options = {
             description: { type: 'string', nullable: true },
           },
         },
+
+        // ── Auth ────────────────────────────────────────────────────────────
+        LoginRequest: {
+          type: 'object',
+          required: ['email', 'password'],
+          properties: {
+            email: { type: 'string', format: 'email', description: 'Must be on an allowed organization domain' },
+            password: { type: 'string', format: 'password' },
+          },
+        },
+        UserSummary: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            name: { type: 'string' },
+            email: { type: 'string', format: 'email' },
+            role: { type: 'string', enum: ['admin', 'lead', 'employee'] },
+            designation: { type: 'string' },
+            department: { type: 'string' },
+          },
+        },
+        LoginResponse: {
+          type: 'object',
+          properties: {
+            token: { type: 'string', description: 'JWT, valid for 7 days' },
+            user: { $ref: '#/components/schemas/UserSummary' },
+          },
+        },
+        ChangePasswordRequest: {
+          type: 'object',
+          required: ['new_password'],
+          properties: {
+            current_password: { type: 'string', format: 'password', description: 'Required if the account already has a password set' },
+            new_password: { type: 'string', format: 'password', minLength: 6 },
+          },
+        },
+        ForgotPasswordRequest: {
+          type: 'object',
+          required: ['email'],
+          properties: { email: { type: 'string', format: 'email' } },
+        },
+        ResetPasswordRequest: {
+          type: 'object',
+          required: ['token', 'new_password'],
+          properties: {
+            token: { type: 'string', description: 'Token from the reset-password email link' },
+            new_password: { type: 'string', format: 'password', minLength: 6 },
+          },
+        },
+        MessageResponse: {
+          type: 'object',
+          properties: { message: { type: 'string' } },
+        },
+
+        // ── Dashboard ───────────────────────────────────────────────────────
+        DashboardStats: {
+          type: 'object',
+          properties: {
+            total_active: { type: 'integer' },
+            on_leave_today: { type: 'integer' },
+            present_today: { type: 'integer' },
+            new_hires_month: { type: 'integer' },
+            pending_leaves: { type: 'integer' },
+            standups_today: { type: 'integer' },
+            active_projects: { type: 'integer' },
+          },
+        },
+        TrendPoint: {
+          type: 'object',
+          properties: {
+            date: { type: 'string', format: 'date' },
+            count: { type: 'integer' },
+          },
+        },
+
+        // ── Payroll ─────────────────────────────────────────────────────────
+        PayrollEmployee: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            name: { type: 'string' },
+            designation: { type: 'string' },
+            department: { type: 'string' },
+            role: { type: 'string', enum: ['admin', 'lead', 'employee'] },
+            salary: { type: 'number', nullable: true },
+            pay_frequency: { type: 'string', enum: ['monthly', 'biweekly', 'weekly'], nullable: true },
+          },
+        },
+        SalaryUpdateInput: {
+          type: 'object',
+          properties: {
+            salary: { type: 'number', nullable: true },
+            pay_frequency: { type: 'string', enum: ['monthly', 'biweekly', 'weekly'], default: 'monthly' },
+          },
+        },
+        AdminPasswordResetInput: {
+          type: 'object',
+          required: ['password'],
+          properties: { password: { type: 'string', format: 'password', minLength: 6 } },
+        },
+
+        // ── Profile ─────────────────────────────────────────────────────────
+        Profile: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            name: { type: 'string' },
+            email: { type: 'string', format: 'email' },
+            phone: { type: 'string', nullable: true },
+            alt_phone: { type: 'string', nullable: true },
+            emergency_contact: { type: 'string', nullable: true },
+            designation: { type: 'string' },
+            department: { type: 'string' },
+            dob: { type: 'string', format: 'date', nullable: true },
+            bio: { type: 'string', nullable: true },
+            address: { type: 'string', nullable: true },
+            qualifications: { type: 'array', items: { type: 'string' }, nullable: true },
+            profile_picture: { type: 'string', nullable: true },
+            citizenship_front: { type: 'string', nullable: true },
+            citizenship_back: { type: 'string', nullable: true },
+            timezone: { type: 'string' },
+            work_hours: { type: 'string' },
+            tech_stack: { type: 'array', items: { type: 'string' } },
+            role: { type: 'string', enum: ['admin', 'lead', 'employee'] },
+            start_date: { type: 'string', format: 'date' },
+          },
+        },
+        ProfileUpdateInput: {
+          type: 'object',
+          properties: {
+            phone: { type: 'string' },
+            alt_phone: { type: 'string' },
+            emergency_contact: { type: 'string' },
+            dob: { type: 'string', format: 'date' },
+            bio: { type: 'string' },
+            address: { type: 'string' },
+            timezone: { type: 'string' },
+            work_hours: { type: 'string' },
+            qualifications: { type: 'array', items: { type: 'string' } },
+          },
+        },
+        UploadResponse: {
+          type: 'object',
+          properties: { filename: { type: 'string' } },
+        },
+
+        // ── Reports ─────────────────────────────────────────────────────────
+        MonthlyReport: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            employee_id: { type: 'integer' },
+            employee_name: { type: 'string' },
+            designation: { type: 'string' },
+            department: { type: 'string' },
+            title: { type: 'string' },
+            month: { type: 'integer', minimum: 1, maximum: 12 },
+            year: { type: 'integer' },
+            file_name: { type: 'string' },
+            file_size: { type: 'integer' },
+            notes: { type: 'string', nullable: true },
+            submitted_at: { type: 'string', format: 'date-time' },
+          },
+        },
+
+        // ── Google Calendar / Meetings ──────────────────────────────────────
+        GoogleAuthUrl: {
+          type: 'object',
+          properties: { url: { type: 'string', format: 'uri' } },
+        },
+        GoogleStatus: {
+          type: 'object',
+          properties: {
+            connected: { type: 'boolean' },
+            webhookActive: { type: 'boolean' },
+          },
+        },
+        GoogleSyncResult: {
+          type: 'object',
+          properties: { synced: { type: 'integer' } },
+        },
+        Meeting: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            title: { type: 'string' },
+            description: { type: 'string', nullable: true },
+            start_datetime: { type: 'string', format: 'date-time' },
+            end_datetime: { type: 'string', format: 'date-time' },
+            attendees: { type: 'array', items: { type: 'string', format: 'email' } },
+            google_event_id: { type: 'string', nullable: true },
+            meet_link: { type: 'string', format: 'uri', nullable: true },
+            status: { type: 'string', enum: ['scheduled', 'cancelled'] },
+            created_by: { type: 'integer' },
+            creator_name: { type: 'string', nullable: true },
+          },
+        },
+        MeetingInput: {
+          type: 'object',
+          required: ['title', 'start_datetime', 'end_datetime'],
+          properties: {
+            title: { type: 'string' },
+            description: { type: 'string' },
+            start_datetime: { type: 'string', format: 'date-time' },
+            end_datetime: { type: 'string', format: 'date-time' },
+            attendees: { type: 'array', items: { type: 'string', format: 'email' } },
+          },
+        },
+        MeetingCreated: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            title: { type: 'string' },
+            start_datetime: { type: 'string', format: 'date-time' },
+            end_datetime: { type: 'string', format: 'date-time' },
+            meetLink: { type: 'string', format: 'uri', nullable: true },
+            googleEventId: { type: 'string', nullable: true },
+          },
+        },
+
+        // ── Email settings ──────────────────────────────────────────────────
+        EmailSettings: {
+          type: 'object',
+          properties: {
+            smtp_host: { type: 'string' },
+            smtp_port: { type: 'integer' },
+            smtp_user: { type: 'string' },
+            smtp_from: { type: 'string' },
+            default_to: { type: 'string', nullable: true },
+            default_cc: { type: 'string', nullable: true },
+            default_bcc: { type: 'string', nullable: true },
+          },
+        },
+        EmailSettingsInput: {
+          type: 'object',
+          required: ['smtp_host', 'smtp_user'],
+          properties: {
+            smtp_host: { type: 'string' },
+            smtp_port: { type: 'integer', default: 587 },
+            smtp_user: { type: 'string' },
+            smtp_pass: { type: 'string', format: 'password', description: 'Required on initial setup; omit to keep the stored password unchanged' },
+            smtp_from: { type: 'string' },
+            default_to: { type: 'string' },
+            default_cc: { type: 'string' },
+            default_bcc: { type: 'string' },
+          },
+        },
+
+        // ── Service credentials ─────────────────────────────────────────────
+        ServiceCredential: {
+          type: 'object',
+          properties: {
+            service_name: { type: 'string', example: 'AWS Console' },
+            username: { type: 'string' },
+            notes: { type: 'string', nullable: true },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        ServiceCredentialInput: {
+          type: 'object',
+          required: ['service_name'],
+          properties: {
+            service_name: { type: 'string' },
+            username: { type: 'string' },
+            password: { type: 'string', format: 'password', description: 'Left unchanged if omitted/blank on update' },
+            notes: { type: 'string' },
+          },
+        },
+
         Error: {
           type: 'object',
           properties: { error: { type: 'string' } },
@@ -183,6 +516,89 @@ const options = {
           summary: 'Health check',
           responses: {
             200: { description: 'Server is up', content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string' }, timestamp: { type: 'string' } } } } } },
+          },
+        },
+      },
+
+      // ── Auth ─────────────────────────────────────────────────────────────
+      '/api/auth/login': {
+        post: {
+          tags: ['Auth'],
+          summary: 'Log in with company email and password',
+          description: 'Restricted to allowed organization email domains. Returns a JWT valid for 7 days.',
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginRequest' } } } },
+          responses: {
+            200: { description: 'Authenticated', content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginResponse' } } } },
+            400: { description: 'Missing email or password', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            401: { description: 'Invalid credentials', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            403: { description: 'Email domain not allowed', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/auth/password': {
+        put: {
+          tags: ['Auth'],
+          summary: 'Change the logged-in user\'s password',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ChangePasswordRequest' } } } },
+          responses: {
+            200: { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/MessageResponse' } } } },
+            400: { description: 'Password too short', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            401: { description: 'Current password incorrect / not authenticated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/auth/forgot-password': {
+        post: {
+          tags: ['Auth'],
+          summary: 'Request a password reset email',
+          description: 'Always responds with the same message regardless of whether the email exists, to prevent enumeration.',
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ForgotPasswordRequest' } } } },
+          responses: {
+            200: { description: 'Request accepted', content: { 'application/json': { schema: { $ref: '#/components/schemas/MessageResponse' } } } },
+          },
+        },
+      },
+      '/api/auth/reset-password': {
+        post: {
+          tags: ['Auth'],
+          summary: 'Reset password using a token from the reset email',
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ResetPasswordRequest' } } } },
+          responses: {
+            200: { description: 'Password reset', content: { 'application/json': { schema: { $ref: '#/components/schemas/MessageResponse' } } } },
+            400: { description: 'Invalid/expired token or bad password', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+
+      // ── Dashboard ────────────────────────────────────────────────────────
+      '/api/dashboard/stats': {
+        get: {
+          tags: ['Dashboard'],
+          summary: 'Aggregate headcount, leave, and project stats',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Stats', content: { 'application/json': { schema: { $ref: '#/components/schemas/DashboardStats' } } } },
+          },
+        },
+      },
+      '/api/dashboard/standup-trend': {
+        get: {
+          tags: ['Dashboard'],
+          summary: 'Standup submission counts for the last 30 days',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Array of daily counts', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/TrendPoint' } } } } },
+          },
+        },
+      },
+      '/api/dashboard/leave-trend': {
+        get: {
+          tags: ['Dashboard'],
+          summary: 'Leave request submission counts for the last 30 days',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Array of daily counts', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/TrendPoint' } } } } },
           },
         },
       },
@@ -224,6 +640,7 @@ const options = {
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/EmployeeInput' } } } },
           responses: {
             200: { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'Nothing to update', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
           },
         },
         delete: {
@@ -235,12 +652,26 @@ const options = {
           },
         },
       },
+      '/api/employees/{id}/payroll-summary': {
+        get: {
+          tags: ['Employees'],
+          summary: 'Payroll summary for an employee for the current month',
+          description: 'Computes working days, approved-leave days, present days, and expected pay based on salary ÷ working days.',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Payroll summary', content: { 'application/json': { schema: { $ref: '#/components/schemas/EmployeePayrollSummary' } } } },
+            404: { description: 'Not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
 
       // ── Leaves ───────────────────────────────────────────────────────────
       '/api/leaves': {
         get: {
           tags: ['Leaves'],
           summary: 'List leave requests',
+          description: 'Employees see only their own requests; admins/leads see all and may filter by employee_id.',
+          security: [{ bearerAuth: [] }],
           parameters: [
             { name: 'employee_id', in: 'query', schema: { type: 'integer' } },
             { name: 'status', in: 'query', schema: { type: 'string', enum: ['pending', 'approved', 'rejected'] } },
@@ -252,6 +683,7 @@ const options = {
         post: {
           tags: ['Leaves'],
           summary: 'Submit a leave request',
+          security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
             content: {
@@ -265,6 +697,9 @@ const options = {
                     start_date: { type: 'string', format: 'date' },
                     end_date: { type: 'string', format: 'date' },
                     reason: { type: 'string' },
+                    to: { type: 'string', format: 'email', description: 'If provided, sends a notification email via the employee\'s configured SMTP settings' },
+                    cc: { type: 'string' },
+                    bcc: { type: 'string' },
                   },
                 },
               },
@@ -275,21 +710,50 @@ const options = {
           },
         },
       },
+      '/api/leaves/{id}': {
+        put: {
+          tags: ['Leaves'],
+          summary: 'Edit a pending leave request',
+          description: 'Only the owning employee may edit, and only while status is still "pending".',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/LeaveUpdateInput' } } } },
+          responses: {
+            200: { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'Not pending', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            403: { description: 'Not the owner', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found' },
+          },
+        },
+        delete: {
+          tags: ['Leaves'],
+          summary: 'Cancel a pending leave request',
+          description: 'Only the owning employee may cancel, and only while status is still "pending". Permanently deletes the row.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Cancelled', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'Not pending', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            403: { description: 'Not the owner', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found' },
+          },
+        },
+      },
       '/api/leaves/out/today': {
         get: {
           tags: ['Leaves'],
           summary: 'Employees on approved leave today',
           responses: {
-            200: { description: 'Array of employees out today', content: { 'application/json': { schema: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, designation: { type: 'string' }, leave_type: { type: 'string' }, end_date: { type: 'string', format: 'date' } } } } } } },
+            200: { description: 'Array of employees out today', content: { 'application/json': { schema: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, designation: { type: 'string' }, profile_picture: { type: 'string', nullable: true }, leave_type: { type: 'string' }, end_date: { type: 'string', format: 'date' } } } } } } },
           },
         },
       },
       '/api/leaves/out/week': {
         get: {
           tags: ['Leaves'],
-          summary: 'Employees on approved leave this week',
+          summary: 'Employees on approved leave this week (Mon–Fri)',
           responses: {
-            200: { description: 'Array of employees out this week' },
+            200: { description: 'Array of employees out this week', content: { 'application/json': { schema: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, designation: { type: 'string' }, leave_type: { type: 'string' }, start_date: { type: 'string', format: 'date' }, end_date: { type: 'string', format: 'date' } } } } } } },
           },
         },
       },
@@ -307,11 +771,14 @@ const options = {
         put: {
           tags: ['Leaves'],
           summary: 'Approve a leave request',
-          description: 'Automatically deducts the leave days from the employee balance.',
+          description: 'Admin/lead only (leads cannot approve their own request). Deducts the leave days from the employee balance. Fails if the leave\'s dates have already passed.',
+          security: [{ bearerAuth: [] }],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
           requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { reviewed_by: { type: 'integer' } } } } } },
           responses: {
             200: { description: 'Approved', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'Dates already passed', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
             404: { description: 'Not found' },
           },
         },
@@ -320,10 +787,15 @@ const options = {
         put: {
           tags: ['Leaves'],
           summary: 'Reject a leave request',
+          description: 'Admin/lead only (leads cannot reject their own request). Fails if the leave\'s dates have already passed.',
+          security: [{ bearerAuth: [] }],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
           requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { reviewed_by: { type: 'integer' } } } } } },
           responses: {
             200: { description: 'Rejected', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'Dates already passed', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found' },
           },
         },
       },
@@ -333,8 +805,12 @@ const options = {
         get: {
           tags: ['Standups'],
           summary: 'List standups',
+          description: 'Employees see only their own standups; admins/leads see all and may filter by employee_id. Capped at 200 rows.',
+          security: [{ bearerAuth: [] }],
           parameters: [
-            { name: 'date', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Filter by specific date (YYYY-MM-DD)' },
+            { name: 'date', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Exact date filter (YYYY-MM-DD)' },
+            { name: 'start_date', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Ignored if `date` is set' },
+            { name: 'end_date', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Ignored if `date` is set' },
             { name: 'employee_id', in: 'query', schema: { type: 'integer' } },
           ],
           responses: {
@@ -344,7 +820,8 @@ const options = {
         post: {
           tags: ['Standups'],
           summary: 'Submit a standup',
-          description: 'Upserts — submitting again for the same day overwrites the previous entry.',
+          description: 'Upserts — submitting again for the same day overwrites the previous entry. Also mirrors the standup to Discord if DISCORD_BOT_URL is configured.',
+          security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
             content: {
@@ -371,7 +848,8 @@ const options = {
       '/api/standups/today': {
         get: {
           tags: ['Standups'],
-          summary: "All standups submitted today",
+          summary: "All standups submitted today (own only unless admin/lead)",
+          security: [{ bearerAuth: [] }],
           responses: {
             200: { description: 'Array of today\'s standups', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Standup' } } } } },
           },
@@ -379,6 +857,16 @@ const options = {
       },
 
       // ── Projects ─────────────────────────────────────────────────────────
+      '/api/projects/by-employee/{empId}': {
+        get: {
+          tags: ['Projects'],
+          summary: 'Projects an employee is assigned to (with role and milestones)',
+          parameters: [{ name: 'empId', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Array of projects', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/ProjectByEmployee' } } } } },
+          },
+        },
+      },
       '/api/projects': {
         get: {
           tags: ['Projects'],
@@ -401,8 +889,8 @@ const options = {
                   properties: {
                     name: { type: 'string' },
                     description: { type: 'string' },
-                    repo_url: { type: 'string', format: 'uri' },
-                    docs_url: { type: 'string', format: 'uri' },
+                    repo_url: { type: 'array', items: { type: 'string', format: 'uri' } },
+                    docs_url: { type: 'array', items: { type: 'string', format: 'uri' } },
                     status: { type: 'string', enum: ['active', 'archived', 'on_hold'], default: 'active' },
                     start_date: { type: 'string', format: 'date' },
                     expected_end_date: { type: 'string', format: 'date' },
@@ -424,6 +912,7 @@ const options = {
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Project' } } } },
           responses: {
             200: { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'Nothing to update', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
           },
         },
       },
@@ -439,6 +928,7 @@ const options = {
         post: {
           tags: ['Projects'],
           summary: 'Assign an employee to a project',
+          description: 'Upserts — re-assigning the same employee updates their role.',
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
           requestBody: {
             required: true,
@@ -511,6 +1001,7 @@ const options = {
         put: {
           tags: ['Projects'],
           summary: 'Update a milestone',
+          description: 'Fields are updated only if provided (COALESCE against existing values).',
           parameters: [
             { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
             { name: 'mid', in: 'path', required: true, schema: { type: 'integer' } },
@@ -531,6 +1022,42 @@ const options = {
           },
           responses: {
             200: { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+          },
+        },
+      },
+      '/api/projects/{id}/services': {
+        get: {
+          tags: ['Projects'],
+          summary: 'List linked service keys for a project',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Array of service keys', content: { 'application/json': { schema: { type: 'array', items: { type: 'string' } } } } },
+          },
+        },
+        post: {
+          tags: ['Projects'],
+          summary: 'Link a service to a project',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: {
+            required: true,
+            content: { 'application/json': { schema: { type: 'object', required: ['service_key'], properties: { service_key: { type: 'string' } } } } },
+          },
+          responses: {
+            201: { description: 'Linked (idempotent)', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'service_key required', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/projects/{id}/services/{serviceKey}': {
+        delete: {
+          tags: ['Projects'],
+          summary: 'Unlink a service from a project',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
+            { name: 'serviceKey', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          responses: {
+            200: { description: 'Unlinked', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
           },
         },
       },
@@ -638,6 +1165,417 @@ const options = {
           summary: 'Events in the next 30 days',
           responses: {
             200: { description: 'Array of upcoming events', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/CultureEvent' } } } } },
+          },
+        },
+      },
+
+      // ── Payroll ──────────────────────────────────────────────────────────
+      '/api/payroll': {
+        get: {
+          tags: ['Payroll'],
+          summary: 'List payroll data',
+          description: 'Admins/leads see all active employees; other roles see only their own record.',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Array of payroll records', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/PayrollEmployee' } } } } },
+          },
+        },
+      },
+      '/api/payroll/{id}/salary': {
+        put: {
+          tags: ['Payroll'],
+          summary: 'Update an employee\'s salary and pay frequency',
+          description: 'Admin only.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/SalaryUpdateInput' } } } },
+          responses: {
+            200: { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/MessageResponse' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/payroll/{id}/reset-password': {
+        put: {
+          tags: ['Payroll'],
+          summary: 'Admin-initiated password reset for an employee',
+          description: 'Admin only.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/AdminPasswordResetInput' } } } },
+          responses: {
+            200: { description: 'Reset', content: { 'application/json': { schema: { $ref: '#/components/schemas/MessageResponse' } } } },
+            400: { description: 'Password too short', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+
+      // ── Profile ──────────────────────────────────────────────────────────
+      '/api/profile': {
+        get: {
+          tags: ['Profile'],
+          summary: 'Get the logged-in employee\'s profile',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Profile', content: { 'application/json': { schema: { $ref: '#/components/schemas/Profile' } } } },
+            404: { description: 'Not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+        put: {
+          tags: ['Profile'],
+          summary: 'Update editable profile fields',
+          description: 'Setting dob also upserts a "birthday" culture event for the employee.',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ProfileUpdateInput' } } } },
+          responses: {
+            200: { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'Nothing to update', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/profile/photo': {
+        post: {
+          tags: ['Profile'],
+          summary: 'Upload/replace profile photo',
+          description: 'Multipart upload. Accepts .jpg/.jpeg/.png/.webp up to 5 MB. Deletes the previous photo file.',
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { 'multipart/form-data': { schema: { type: 'object', required: ['photo'], properties: { photo: { type: 'string', format: 'binary' } } } } },
+          },
+          responses: {
+            200: { description: 'Uploaded', content: { 'application/json': { schema: { $ref: '#/components/schemas/UploadResponse' } } } },
+            400: { description: 'No file uploaded', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/profile/citizenship/{side}': {
+        post: {
+          tags: ['Profile'],
+          summary: 'Upload a citizenship document image (front or back)',
+          description: 'Multipart upload. Accepts .jpg/.jpeg/.png/.webp up to 5 MB. Deletes the previous file for that side.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'side', in: 'path', required: true, schema: { type: 'string', enum: ['front', 'back'] } }],
+          requestBody: {
+            required: true,
+            content: { 'multipart/form-data': { schema: { type: 'object', required: ['doc'], properties: { doc: { type: 'string', format: 'binary' } } } } },
+          },
+          responses: {
+            200: { description: 'Uploaded', content: { 'application/json': { schema: { $ref: '#/components/schemas/UploadResponse' } } } },
+            400: { description: 'Invalid side or no file uploaded', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+
+      // ── Reports ──────────────────────────────────────────────────────────
+      '/api/reports': {
+        get: {
+          tags: ['Reports'],
+          summary: 'List monthly reports',
+          description: 'Admins/leads see all submissions; other roles see only their own.',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'month', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 12 } },
+            { name: 'year', in: 'query', schema: { type: 'integer' } },
+          ],
+          responses: {
+            200: { description: 'Array of reports', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/MonthlyReport' } } } } },
+          },
+        },
+        post: {
+          tags: ['Reports'],
+          summary: 'Submit a monthly report file',
+          description: 'Multipart upload. Accepts .pdf/.pptx/.ppt/.docx/.doc up to 20 MB.',
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object',
+                  required: ['file', 'employee_id', 'title', 'month', 'year'],
+                  properties: {
+                    file: { type: 'string', format: 'binary' },
+                    employee_id: { type: 'integer' },
+                    title: { type: 'string' },
+                    month: { type: 'integer', minimum: 1, maximum: 12 },
+                    year: { type: 'integer' },
+                    notes: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            201: { description: 'Created', content: { 'application/json': { schema: { $ref: '#/components/schemas/Created' } } } },
+            400: { description: 'Missing required fields or no file', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/reports/{id}/download': {
+        get: {
+          tags: ['Reports'],
+          summary: 'Download a report file',
+          description: 'Non-privileged users may only download their own reports.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'File stream', content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } },
+            403: { description: 'Access denied', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/reports/{id}': {
+        delete: {
+          tags: ['Reports'],
+          summary: 'Delete a report',
+          description: 'Non-privileged users may only delete their own reports. Also removes the file from disk.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Deleted', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            403: { description: 'Not the owner', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+
+      // ── Google Calendar ──────────────────────────────────────────────────
+      '/api/google/auth-url': {
+        get: {
+          tags: ['Google Calendar'],
+          summary: 'Get the Google OAuth consent URL',
+          description: 'Admin only.',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Auth URL', content: { 'application/json': { schema: { $ref: '#/components/schemas/GoogleAuthUrl' } } } },
+            500: { description: 'OAuth client not configured', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/google/callback': {
+        get: {
+          tags: ['Google Calendar'],
+          summary: 'OAuth redirect target (called by Google, not the frontend)',
+          description: 'Exchanges the auth code for tokens, stores them, and redirects to the frontend calendar page.',
+          parameters: [{ name: 'code', in: 'query', required: true, schema: { type: 'string' } }],
+          responses: {
+            302: { description: 'Redirect to FRONTEND_URL/calendar with a status query param' },
+          },
+        },
+      },
+      '/api/google/status': {
+        get: {
+          tags: ['Google Calendar'],
+          summary: 'Get Google Calendar connection status',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Status', content: { 'application/json': { schema: { $ref: '#/components/schemas/GoogleStatus' } } } },
+          },
+        },
+      },
+      '/api/google/disconnect': {
+        delete: {
+          tags: ['Google Calendar'],
+          summary: 'Disconnect Google Calendar',
+          description: 'Admin only. Stops the push-notification channel and clears stored tokens.',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Disconnected', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            401: { description: 'Google token revoked', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            503: { description: 'Google not connected', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/google/sync': {
+        post: {
+          tags: ['Google Calendar'],
+          summary: 'Manually sync upcoming Google Calendar events into meetings',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Sync result', content: { 'application/json': { schema: { $ref: '#/components/schemas/GoogleSyncResult' } } } },
+            401: { description: 'Google token revoked', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            503: { description: 'Google not connected', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/google/webhook': {
+        post: {
+          tags: ['Google Calendar'],
+          summary: 'Google Calendar push-notification receiver',
+          description: 'Called by Google, not the frontend. No auth — responds 200 immediately, then syncs in the background.',
+          parameters: [{ name: 'x-goog-resource-state', in: 'header', schema: { type: 'string' } }],
+          responses: {
+            200: { description: 'Acknowledged' },
+          },
+        },
+      },
+
+      // ── Meetings ─────────────────────────────────────────────────────────
+      '/api/google/meetings': {
+        get: {
+          tags: ['Meetings'],
+          summary: 'List scheduled meetings from the last 7 days onward',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Array of meetings', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Meeting' } } } } },
+          },
+        },
+        post: {
+          tags: ['Meetings'],
+          summary: 'Create a meeting',
+          description: 'Also creates a matching Google Calendar event with a Meet link.',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/MeetingInput' } } } },
+          responses: {
+            201: { description: 'Created', content: { 'application/json': { schema: { $ref: '#/components/schemas/MeetingCreated' } } } },
+            400: { description: 'Missing required fields', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            502: { description: 'Google Calendar error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/google/meetings/{id}': {
+        delete: {
+          tags: ['Meetings'],
+          summary: 'Cancel a meeting',
+          description: 'Only the creator or an admin may cancel. Soft-delete (sets status = cancelled).',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Cancelled', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            403: { description: 'Not authorized', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+
+      // ── Discord ──────────────────────────────────────────────────────────
+      '/api/discord/standup': {
+        post: {
+          tags: ['Discord'],
+          summary: 'Discord Webhook Events / Interactions endpoint',
+          description: 'Handles Discord PING handshakes and the /standup slash command. Requires a valid Ed25519 signature (X-Signature-Ed25519 / X-Signature-Timestamp headers) verified against DISCORD_PUBLIC_KEY.',
+          parameters: [
+            { name: 'X-Signature-Ed25519', in: 'header', required: true, schema: { type: 'string' } },
+            { name: 'X-Signature-Timestamp', in: 'header', required: true, schema: { type: 'string' } },
+          ],
+          requestBody: { content: { 'application/json': { schema: { type: 'object', description: 'Raw Discord interaction payload' } } } },
+          responses: {
+            200: { description: 'Interaction response (PING ack or slash-command reply)' },
+            204: { description: 'Acknowledged, no content' },
+            401: { description: 'Missing or invalid signature' },
+            500: { description: 'DISCORD_PUBLIC_KEY not configured' },
+          },
+        },
+      },
+      '/api/discord/standup-submit': {
+        post: {
+          tags: ['Discord'],
+          summary: 'Internal endpoint used by the discord.js bot to record a confirmed standup',
+          description: 'Protected by a shared secret header instead of a Discord signature.',
+          parameters: [{ name: 'X-Internal-Token', in: 'header', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['discordName', 'yesterday', 'today'],
+                  properties: {
+                    discordName: { type: 'string' },
+                    yesterday: { type: 'string' },
+                    today: { type: 'string' },
+                    blockers: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: 'Saved', content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, employee: { type: 'string' } } } } } },
+            400: { description: 'Missing required fields', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            401: { description: 'Wrong internal token', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'No employee matched discordName', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+
+      // ── Email Settings ───────────────────────────────────────────────────
+      '/api/email-settings/{employeeId}': {
+        get: {
+          tags: ['Email Settings'],
+          summary: 'Get SMTP settings for an employee',
+          description: 'Never returns the stored password.',
+          parameters: [{ name: 'employeeId', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Settings (or null if not configured)', content: { 'application/json': { schema: { $ref: '#/components/schemas/EmailSettings' } } } },
+          },
+        },
+        put: {
+          tags: ['Email Settings'],
+          summary: 'Create or update SMTP settings for an employee',
+          description: 'smtp_pass is required on first save; omit it on later updates to keep the existing password. Test-verifies the SMTP connection asynchronously when a password is provided.',
+          parameters: [{ name: 'employeeId', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/EmailSettingsInput' } } } },
+          responses: {
+            200: { description: 'Saved', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'Missing required fields', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+
+      // ── Service Credentials ──────────────────────────────────────────────
+      '/api/service-credentials/{employeeId}': {
+        get: {
+          tags: ['Service Credentials'],
+          summary: 'List an employee\'s stored service credentials',
+          description: 'Never returns stored passwords.',
+          parameters: [{ name: 'employeeId', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Array of credentials', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/ServiceCredential' } } } } },
+          },
+        },
+        post: {
+          tags: ['Service Credentials'],
+          summary: 'Create or update a service credential',
+          description: 'Upserts on (employee_id, service_name). Password is left unchanged if omitted/blank.',
+          parameters: [{ name: 'employeeId', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ServiceCredentialInput' } } } },
+          responses: {
+            200: { description: 'Saved', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'service_name required', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+
+      // ── Webhooks (generic) ───────────────────────────────────────────────
+      '/api/webhooks/{service}': {
+        get: {
+          tags: ['Webhooks'],
+          summary: 'Verification handshake (Meta/WhatsApp-style)',
+          description: 'Echoes hub.challenge after optionally checking hub.verify_token against WEBHOOK_VERIFY_TOKEN_<SERVICE> in env.',
+          parameters: [
+            { name: 'service', in: 'path', required: true, schema: { type: 'string' }, description: 'Labels the sender in logs' },
+            { name: 'hub.mode', in: 'query', schema: { type: 'string' } },
+            { name: 'hub.verify_token', in: 'query', schema: { type: 'string' } },
+            { name: 'hub.challenge', in: 'query', required: true, schema: { type: 'string' } },
+          ],
+          responses: {
+            200: { description: 'Challenge echoed back as plain text' },
+            400: { description: 'Missing hub.challenge' },
+            403: { description: 'Verify token mismatch' },
+          },
+        },
+        post: {
+          tags: ['Webhooks'],
+          summary: 'Receive an event payload from an external service',
+          description: 'Also handles Slack-style POST verification ({ type: "url_verification", challenge }). Always acknowledges with 200 immediately; processing happens after the response.',
+          parameters: [{ name: 'service', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: { content: { 'application/json': { schema: { type: 'object', description: 'Arbitrary event payload, or a Slack url_verification challenge' } } } },
+          responses: {
+            200: { description: 'Acknowledged (or challenge echoed for Slack verification)' },
           },
         },
       },
