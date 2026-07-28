@@ -1,3 +1,12 @@
 .env.*
 node_modules/
 .env
+
+# Never commit these file types
+*.pptx
+*.pdf
+
+# Keep uploads folder structure, ignore actual uploaded files
+uploads/**
+!uploads/**/
+!uploads/**/.gitkeep
