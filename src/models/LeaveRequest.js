@@ -28,6 +28,40 @@ exports.findBalances = async (employeeId, year) => {
   return rows;
 };
 
+exports.findBalanceForType = async (employeeId, leaveType, year) => {
+  const [rows] = await db.query(
+    `SELECT *, (total - taken) AS remaining
+     FROM leave_balances
+     WHERE employee_id = ? AND leave_type = ? AND year = ?`,
+    [employeeId, leaveType, year]
+  );
+  return rows[0] || null;
+};
+
+exports.findBalanceTotalsForYear = async (year) => {
+  const [rows] = await db.query(
+    `SELECT e.id AS employee_id, e.name AS employee_name,
+            COALESCE(SUM(lb.total), 0) AS total_leaves,
+            COALESCE(SUM(lb.taken), 0) AS total_taken
+     FROM employees e
+     LEFT JOIN leave_balances lb ON lb.employee_id = e.id AND lb.year = ?
+     WHERE e.is_active = TRUE
+     GROUP BY e.id, e.name
+     ORDER BY e.name`,
+    [year]
+  );
+  return rows;
+};
+
+exports.findApprovedRangesForAllInRange = async (rangeStart, rangeEnd) => {
+  const [rows] = await db.query(
+    `SELECT employee_id, start_date, end_date FROM leave_requests
+     WHERE status = 'approved' AND start_date <= ? AND end_date >= ?`,
+    [rangeEnd, rangeStart]
+  );
+  return rows;
+};
+
 exports.findOutToday = async (today) => {
   const [rows] = await db.query(
     `SELECT e.name, e.designation, e.profile_picture, lr.leave_type, lr.end_date

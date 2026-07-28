@@ -121,5 +121,108 @@ CREATE TABLE IF NOT EXISTS culture_events (
   FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS employee_tax_profiles (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  employee_id INT NOT NULL UNIQUE,
+  tax_id VARCHAR(50),
+  country VARCHAR(100) DEFAULT 'Nepal',
+  filing_status ENUM('single', 'married', 'head_of_household') DEFAULT 'single',
+  tax_regime ENUM('old', 'new') DEFAULT 'new',
+  exemptions DECIMAL(12,2) DEFAULT 0,
+  additional_withholding DECIMAL(12,2) DEFAULT 0,
+  notes TEXT,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS goals (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  employee_id INT NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  category ENUM('individual', 'team', 'company') DEFAULT 'individual',
+  metric_unit VARCHAR(30) DEFAULT '%',
+  target_value DECIMAL(12,2) DEFAULT 100,
+  current_value DECIMAL(12,2) DEFAULT 0,
+  weight INT DEFAULT 3,
+  status ENUM('not_started', 'in_progress', 'at_risk', 'completed', 'missed') DEFAULT 'not_started',
+  start_date DATE,
+  due_date DATE,
+  created_by INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES employees(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS performance_reviews (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  employee_id INT NOT NULL,
+  reviewer_id INT,
+  review_period VARCHAR(20) NOT NULL,
+  overall_rating DECIMAL(2,1),
+  category_ratings JSON,
+  strengths TEXT,
+  improvements TEXT,
+  manager_comments TEXT,
+  employee_comments TEXT,
+  status ENUM('draft', 'submitted', 'acknowledged') DEFAULT 'draft',
+  submitted_at TIMESTAMP NULL,
+  acknowledged_at TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_review_period (employee_id, review_period),
+  FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+  FOREIGN KEY (reviewer_id) REFERENCES employees(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS feedback_notes (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  from_employee_id INT NOT NULL,
+  to_employee_id INT NOT NULL,
+  feedback_type ENUM('praise', 'constructive', 'peer', 'manager') DEFAULT 'praise',
+  visibility ENUM('public', 'private') DEFAULT 'public',
+  message TEXT NOT NULL,
+  project_id INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (from_employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+  FOREIGN KEY (to_employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS overtime_requests (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  employee_id INT NOT NULL,
+  project_id INT NULL,
+  work_date DATE NOT NULL,
+  hours DECIMAL(4,2) NOT NULL,
+  reason TEXT NOT NULL,
+  approved_by_name VARCHAR(150) NOT NULL,
+  status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  reviewed_by INT NULL,
+  reviewed_at TIMESTAMP NULL,
+  hourly_rate DECIMAL(12,2) NULL,
+  overtime_rate DECIMAL(12,2) NULL,
+  amount DECIMAL(12,2) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+  FOREIGN KEY (reviewed_by) REFERENCES employees(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS payroll_adjustments (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  employee_id INT NOT NULL,
+  type ENUM('overtime_pay', 'leave_deduction', 'leave_bonus') NOT NULL,
+  title VARCHAR(150) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  year YEAR NOT NULL,
+  month TINYINT NULL,
+  reference_type ENUM('overtime_request', 'leave_request') NULL,
+  reference_id INT NULL,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+);
+
 -- Seed: default leave balances trigger after employee insert
 -- Run manually or via app logic

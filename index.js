@@ -7,6 +7,7 @@ const swaggerSpec = require('./src/swagger');
 const routes = require('./src/routes');
 const db = require('./src/db');
 const { renewWebhookChannelIfNeeded } = require('./src/services/googleCalendar');
+const weeklyReminder = require('./src/services/weeklyReminder');
 
 // ── Env validation ────────────────────────────────────────────────────────────
 const REQUIRED_ENV = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
@@ -66,6 +67,8 @@ async function start() {
   setInterval(() => {
     renewWebhookChannelIfNeeded().catch(err => console.warn('[google] Channel renewal failed:', err.message));
   }, 12 * 60 * 60 * 1000); // every 12 hours
+
+  weeklyReminder.start();
 }
 
 start();

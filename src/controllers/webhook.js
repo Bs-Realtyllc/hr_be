@@ -2,7 +2,7 @@ const leaveEvents = require('../services/leaveEvents');
 
 const EVENT_HANDLERS = {
   n8n: {
-    leave_in_progress: leaveEvents.handleLeaveInProgress,
+    leave_approved: leaveEvents.handleLeaveApproved,
   },
 };
 
@@ -48,8 +48,10 @@ exports.receive = async (req, res) => {
   const eventType = body.event || body.type || 'unknown';
   console.log(`[webhook:${service}] ← Event "${eventType}"`);
 
-  if (body.threadId && body.date) {
-    const dedupeKey = `${service}:${eventType}:${body.threadId}:${body.date}`;
+  // Idempotency — same approval thread + same day shouldn't be processed twice.
+  // threadId is used ONLY for this check; it's never passed on to a handler's business logic.
+  if (body.threadId) {
+    const dedupeKey = `${service}:${eventType}:${body.threadId}`;
     if (processedEvents.has(dedupeKey)) {
       return res.status(200).json({ status: 'already processed' });
     }

@@ -29,6 +29,15 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
+exports.acceptLeavePolicy = async (req, res) => {
+  try {
+    await Employee.acceptLeavePolicy(req.user.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.uploadPhoto = async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   try {

@@ -18,7 +18,10 @@ const options = {
       { name: 'Projects', description: 'Projects, assignments, milestones, and services' },
       { name: 'Servers', description: 'Server and environment configs' },
       { name: 'Events', description: 'Culture events — birthdays, anniversaries, milestones' },
-      { name: 'Payroll', description: 'Salary and pay-frequency management (admin/lead)' },
+      { name: 'Payroll', description: 'Salary, pay-frequency, and tax-profile management (admin/lead)' },
+      { name: 'Goals', description: 'Individual, team, and company goals / KPI tracking' },
+      { name: 'Performance', description: 'Performance review cycles and ratings' },
+      { name: 'Feedback', description: 'Peer, manager, and public recognition feedback notes' },
       { name: 'Profile', description: 'The logged-in employee\'s own profile' },
       { name: 'Reports', description: 'Monthly report file submissions' },
       { name: 'Dashboard', description: 'Aggregate stats and trends' },
@@ -106,7 +109,7 @@ const options = {
             employee_id: { type: 'integer' },
             employee_name: { type: 'string' },
             designation: { type: 'string' },
-            leave_type: { type: 'string', enum: ['casual', 'sick', 'annual'] },
+            leave_type: { type: 'string', enum: ['sick', 'bereavement', 'maternity', 'paternity', 'casual', 'annual'] },
             start_date: { type: 'string', format: 'date' },
             end_date: { type: 'string', format: 'date' },
             reason: { type: 'string' },
@@ -119,7 +122,7 @@ const options = {
         LeaveUpdateInput: {
           type: 'object',
           properties: {
-            leave_type: { type: 'string', enum: ['casual', 'sick', 'annual'] },
+            leave_type: { type: 'string', enum: ['sick', 'bereavement', 'maternity', 'paternity'] },
             start_date: { type: 'string', format: 'date' },
             end_date: { type: 'string', format: 'date' },
             reason: { type: 'string' },
@@ -128,7 +131,7 @@ const options = {
         LeaveBalance: {
           type: 'object',
           properties: {
-            leave_type: { type: 'string', enum: ['casual', 'sick', 'annual'] },
+            leave_type: { type: 'string', enum: ['sick', 'bereavement', 'maternity', 'paternity'] },
             total: { type: 'integer' },
             taken: { type: 'integer' },
             remaining: { type: 'integer' },
@@ -324,6 +327,191 @@ const options = {
           type: 'object',
           required: ['password'],
           properties: { password: { type: 'string', format: 'password', minLength: 6 } },
+        },
+        PayrollTaxEmployee: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            name: { type: 'string' },
+            designation: { type: 'string' },
+            department: { type: 'string' },
+            role: { type: 'string', enum: ['admin', 'lead', 'employee'] },
+            salary: { type: 'number', nullable: true },
+            pay_frequency: { type: 'string', enum: ['monthly', 'biweekly', 'weekly'], nullable: true },
+            tax_id: { type: 'string', nullable: true },
+            country: { type: 'string' },
+            filing_status: { type: 'string', enum: ['single', 'married', 'head_of_household'] },
+            tax_regime: { type: 'string', enum: ['old', 'new'] },
+            exemptions: { type: 'number' },
+            additional_withholding: { type: 'number' },
+            notes: { type: 'string', nullable: true },
+            annual_salary: { type: 'number' },
+            taxable_income: { type: 'number' },
+            estimated_annual_tax: { type: 'number' },
+            estimated_monthly_tax: { type: 'number' },
+            effective_rate: { type: 'number', description: 'Estimated effective tax rate as a percentage' },
+          },
+        },
+        TaxProfileInput: {
+          type: 'object',
+          properties: {
+            tax_id: { type: 'string' },
+            country: { type: 'string', default: 'Nepal' },
+            filing_status: { type: 'string', enum: ['single', 'married', 'head_of_household'], default: 'single' },
+            tax_regime: { type: 'string', enum: ['old', 'new'], default: 'new' },
+            exemptions: { type: 'number', default: 0 },
+            additional_withholding: { type: 'number', default: 0 },
+            notes: { type: 'string' },
+          },
+        },
+
+        // ── Goals ───────────────────────────────────────────────────────────
+        Goal: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            employee_id: { type: 'integer' },
+            employee_name: { type: 'string' },
+            designation: { type: 'string' },
+            department: { type: 'string' },
+            title: { type: 'string' },
+            description: { type: 'string', nullable: true },
+            category: { type: 'string', enum: ['individual', 'team', 'company'] },
+            metric_unit: { type: 'string', example: '%' },
+            target_value: { type: 'number' },
+            current_value: { type: 'number' },
+            weight: { type: 'integer', minimum: 1, maximum: 5 },
+            status: { type: 'string', enum: ['not_started', 'in_progress', 'at_risk', 'completed', 'missed'] },
+            start_date: { type: 'string', format: 'date', nullable: true },
+            due_date: { type: 'string', format: 'date', nullable: true },
+            created_by_name: { type: 'string', nullable: true },
+            created_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        GoalInput: {
+          type: 'object',
+          required: ['title'],
+          properties: {
+            employee_id: { type: 'integer', description: 'Admin/lead only — defaults to self' },
+            title: { type: 'string' },
+            description: { type: 'string' },
+            category: { type: 'string', enum: ['individual', 'team', 'company'], default: 'individual' },
+            metric_unit: { type: 'string', default: '%' },
+            target_value: { type: 'number', default: 100 },
+            current_value: { type: 'number', default: 0 },
+            weight: { type: 'integer', default: 3 },
+            status: { type: 'string', enum: ['not_started', 'in_progress', 'at_risk', 'completed', 'missed'] },
+            start_date: { type: 'string', format: 'date' },
+            due_date: { type: 'string', format: 'date' },
+          },
+        },
+        GoalProgressInput: {
+          type: 'object',
+          properties: {
+            current_value: { type: 'number' },
+            status: { type: 'string', enum: ['not_started', 'in_progress', 'at_risk', 'completed', 'missed'] },
+          },
+        },
+        GoalSummary: {
+          type: 'object',
+          properties: {
+            employee_id: { type: 'integer' },
+            employee_name: { type: 'string' },
+            total_goals: { type: 'integer' },
+            completed_goals: { type: 'integer' },
+            at_risk_goals: { type: 'integer' },
+            avg_progress: { type: 'number', nullable: true, description: 'Average completion percentage across goals' },
+          },
+        },
+
+        // ── Performance ─────────────────────────────────────────────────────
+        PerformanceReview: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            employee_id: { type: 'integer' },
+            employee_name: { type: 'string' },
+            designation: { type: 'string' },
+            department: { type: 'string' },
+            reviewer_id: { type: 'integer', nullable: true },
+            reviewer_name: { type: 'string', nullable: true },
+            review_period: { type: 'string', example: '2026-H1' },
+            overall_rating: { type: 'number', nullable: true, minimum: 1, maximum: 5 },
+            category_ratings: { type: 'object', additionalProperties: { type: 'number' }, example: { technical: 4, communication: 5, teamwork: 4, ownership: 4 } },
+            strengths: { type: 'string', nullable: true },
+            improvements: { type: 'string', nullable: true },
+            manager_comments: { type: 'string', nullable: true },
+            employee_comments: { type: 'string', nullable: true },
+            status: { type: 'string', enum: ['draft', 'submitted', 'acknowledged'] },
+            submitted_at: { type: 'string', format: 'date-time', nullable: true },
+            acknowledged_at: { type: 'string', format: 'date-time', nullable: true },
+            created_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        PerformanceReviewInput: {
+          type: 'object',
+          required: ['employee_id', 'review_period'],
+          properties: {
+            employee_id: { type: 'integer' },
+            review_period: { type: 'string', example: '2026-H1' },
+            overall_rating: { type: 'number', minimum: 1, maximum: 5 },
+            category_ratings: { type: 'object', additionalProperties: { type: 'number' } },
+            strengths: { type: 'string' },
+            improvements: { type: 'string' },
+            manager_comments: { type: 'string' },
+          },
+        },
+        PerformanceAcknowledgeInput: {
+          type: 'object',
+          properties: { employee_comments: { type: 'string' } },
+        },
+        RatingTrendPoint: {
+          type: 'object',
+          properties: {
+            review_period: { type: 'string' },
+            overall_rating: { type: 'number' },
+          },
+        },
+
+        // ── Feedback ────────────────────────────────────────────────────────
+        FeedbackNote: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            from_employee_id: { type: 'integer' },
+            from_name: { type: 'string' },
+            from_designation: { type: 'string' },
+            to_employee_id: { type: 'integer' },
+            to_name: { type: 'string' },
+            to_designation: { type: 'string' },
+            feedback_type: { type: 'string', enum: ['praise', 'constructive', 'peer', 'manager'] },
+            visibility: { type: 'string', enum: ['public', 'private'] },
+            message: { type: 'string' },
+            project_id: { type: 'integer', nullable: true },
+            project_name: { type: 'string', nullable: true },
+            created_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        FeedbackInput: {
+          type: 'object',
+          required: ['to_employee_id', 'message'],
+          properties: {
+            to_employee_id: { type: 'integer' },
+            feedback_type: { type: 'string', enum: ['praise', 'constructive', 'peer', 'manager'], default: 'praise' },
+            visibility: { type: 'string', enum: ['public', 'private'], default: 'public' },
+            message: { type: 'string' },
+            project_id: { type: 'integer' },
+          },
+        },
+        FeedbackSummary: {
+          type: 'object',
+          properties: {
+            employee_id: { type: 'integer' },
+            employee_name: { type: 'string' },
+            total_received: { type: 'integer' },
+            praise_count: { type: 'integer' },
+            constructive_count: { type: 'integer' },
+          },
         },
 
         // ── Profile ─────────────────────────────────────────────────────────
@@ -615,7 +803,7 @@ const options = {
         post: {
           tags: ['Employees'],
           summary: 'Create a new employee',
-          description: 'Also seeds default leave balances (casual 12, sick 10, annual 15) for the current year.',
+          description: 'Also seeds default leave balances (sick 12, bereavement 3, maternity 60, paternity 30) for the current year.',
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/EmployeeInput' } } } },
           responses: {
             201: { description: 'Employee created', content: { 'application/json': { schema: { $ref: '#/components/schemas/Created' } } } },
@@ -693,7 +881,7 @@ const options = {
                   required: ['employee_id', 'leave_type', 'start_date', 'end_date'],
                   properties: {
                     employee_id: { type: 'integer' },
-                    leave_type: { type: 'string', enum: ['casual', 'sick', 'annual'] },
+                    leave_type: { type: 'string', enum: ['sick', 'bereavement', 'maternity', 'paternity'] },
                     start_date: { type: 'string', format: 'date' },
                     end_date: { type: 'string', format: 'date' },
                     reason: { type: 'string' },
@@ -1207,6 +1395,265 @@ const options = {
             200: { description: 'Reset', content: { 'application/json': { schema: { $ref: '#/components/schemas/MessageResponse' } } } },
             400: { description: 'Password too short', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
             403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/payroll/taxes': {
+        get: {
+          tags: ['Payroll'],
+          summary: 'List payroll tax profiles with estimated tax computed from salary',
+          description: 'Admins/leads see all active employees; other roles see only their own record. Tax is a simplified estimate based on Nepal\'s individual/couple income tax slabs (NPR), not a substitute for a real tax engine.',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Array of tax records', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/PayrollTaxEmployee' } } } } },
+          },
+        },
+      },
+      '/api/payroll/{id}/tax-profile': {
+        put: {
+          tags: ['Payroll'],
+          summary: 'Create or update an employee\'s tax profile',
+          description: 'Admin only. Upserts on employee_id.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/TaxProfileInput' } } } },
+          responses: {
+            200: { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/MessageResponse' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+
+      // ── Goals ────────────────────────────────────────────────────────────
+      '/api/goals': {
+        get: {
+          tags: ['Goals'],
+          summary: 'List goals',
+          description: 'Employees see only their own goals; admins/leads see all and may filter by employee_id.',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'employee_id', in: 'query', schema: { type: 'integer' } },
+            { name: 'status', in: 'query', schema: { type: 'string', enum: ['not_started', 'in_progress', 'at_risk', 'completed', 'missed'] } },
+            { name: 'category', in: 'query', schema: { type: 'string', enum: ['individual', 'team', 'company'] } },
+          ],
+          responses: {
+            200: { description: 'Array of goals', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Goal' } } } } },
+          },
+        },
+        post: {
+          tags: ['Goals'],
+          summary: 'Create a goal',
+          description: 'Employees may only create goals for themselves; admins/leads may assign to anyone.',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/GoalInput' } } } },
+          responses: {
+            201: { description: 'Created', content: { 'application/json': { schema: { $ref: '#/components/schemas/Created' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/goals/summary': {
+        get: {
+          tags: ['Goals'],
+          summary: 'Aggregate goal completion stats per employee',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Array of per-employee summaries', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/GoalSummary' } } } } },
+          },
+        },
+      },
+      '/api/goals/{id}': {
+        put: {
+          tags: ['Goals'],
+          summary: 'Update a goal\'s details',
+          description: 'Owner, or admin/lead.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/GoalInput' } } } },
+          responses: {
+            200: { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found' },
+          },
+        },
+        delete: {
+          tags: ['Goals'],
+          summary: 'Delete a goal',
+          description: 'Owner, or admin/lead.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Deleted', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found' },
+          },
+        },
+      },
+      '/api/goals/{id}/progress': {
+        put: {
+          tags: ['Goals'],
+          summary: 'Update a goal\'s progress value and status',
+          description: 'Owner, or admin/lead.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/GoalProgressInput' } } } },
+          responses: {
+            200: { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found' },
+          },
+        },
+      },
+
+      // ── Performance ──────────────────────────────────────────────────────
+      '/api/performance': {
+        get: {
+          tags: ['Performance'],
+          summary: 'List performance reviews',
+          description: 'Employees see only their own reviews; admins/leads see all and may filter by employee_id.',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'employee_id', in: 'query', schema: { type: 'integer' } },
+            { name: 'status', in: 'query', schema: { type: 'string', enum: ['draft', 'submitted', 'acknowledged'] } },
+          ],
+          responses: {
+            200: { description: 'Array of reviews', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/PerformanceReview' } } } } },
+          },
+        },
+        post: {
+          tags: ['Performance'],
+          summary: 'Create a draft performance review',
+          description: 'Admin/lead only. review_period must be unique per employee.',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/PerformanceReviewInput' } } } },
+          responses: {
+            201: { description: 'Created', content: { 'application/json': { schema: { $ref: '#/components/schemas/Created' } } } },
+            400: { description: 'A review for this period already exists', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/performance/trend/{employeeId}': {
+        get: {
+          tags: ['Performance'],
+          summary: 'Rating history for an employee across submitted/acknowledged review periods',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'employeeId', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Array of rating points', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/RatingTrendPoint' } } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/performance/{id}': {
+        put: {
+          tags: ['Performance'],
+          summary: 'Edit a draft review',
+          description: 'Admin/lead only, and only while status is "draft".',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/PerformanceReviewInput' } } } },
+          responses: {
+            200: { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'Only draft reviews can be edited', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found' },
+          },
+        },
+        delete: {
+          tags: ['Performance'],
+          summary: 'Delete a draft review',
+          description: 'Admin/lead only, and only while status is "draft".',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Deleted', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'Only draft reviews can be deleted', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found' },
+          },
+        },
+      },
+      '/api/performance/{id}/submit': {
+        put: {
+          tags: ['Performance'],
+          summary: 'Submit a draft review to the employee',
+          description: 'Admin/lead only.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Submitted', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'Review has already been submitted', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found' },
+          },
+        },
+      },
+      '/api/performance/{id}/acknowledge': {
+        put: {
+          tags: ['Performance'],
+          summary: 'Acknowledge a submitted review',
+          description: 'Only the reviewed employee may acknowledge, and only while status is "submitted".',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/PerformanceAcknowledgeInput' } } } },
+          responses: {
+            200: { description: 'Acknowledged', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            400: { description: 'Only submitted reviews can be acknowledged', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            403: { description: 'Not the reviewed employee', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found' },
+          },
+        },
+      },
+
+      // ── Feedback ─────────────────────────────────────────────────────────
+      '/api/feedback': {
+        get: {
+          tags: ['Feedback'],
+          summary: 'List feedback notes',
+          description: '`scope=public` returns the company recognition feed; `scope=received`/`scope=sent` default to the caller\'s own notes (admins/leads may pass employee_id to view another employee\'s).',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'scope', in: 'query', schema: { type: 'string', enum: ['public', 'received', 'sent'], default: 'public' } },
+            { name: 'employee_id', in: 'query', schema: { type: 'integer' } },
+            { name: 'type', in: 'query', schema: { type: 'string', enum: ['praise', 'constructive', 'peer', 'manager'] } },
+          ],
+          responses: {
+            200: { description: 'Array of feedback notes', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/FeedbackNote' } } } } },
+          },
+        },
+        post: {
+          tags: ['Feedback'],
+          summary: 'Send a feedback note to another employee',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/FeedbackInput' } } } },
+          responses: {
+            201: { description: 'Created', content: { 'application/json': { schema: { $ref: '#/components/schemas/Created' } } } },
+            400: { description: 'Missing message or sending feedback to yourself', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
+      '/api/feedback/summary': {
+        get: {
+          tags: ['Feedback'],
+          summary: 'Recognition leaderboard — feedback received counts per employee',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Array of per-employee summaries', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/FeedbackSummary' } } } } },
+          },
+        },
+      },
+      '/api/feedback/{id}': {
+        delete: {
+          tags: ['Feedback'],
+          summary: 'Delete a feedback note',
+          description: 'Only the sender, or an admin/lead.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Deleted', content: { 'application/json': { schema: { $ref: '#/components/schemas/Success' } } } },
+            403: { description: 'Insufficient permissions', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            404: { description: 'Not found' },
           },
         },
       },

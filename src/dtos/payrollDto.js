@@ -15,3 +15,13 @@ exports.validatePasswordReset = (password) => {
   }
   return null;
 };
+
+exports.toTaxProfileInput = (body) => ({
+  tax_id: body.tax_id || null,
+  country: body.country || 'Nepal',
+  filing_status: body.filing_status || 'single',
+  tax_regime: body.tax_regime || 'new',
+  exemptions: body.exemptions ?? 0,
+  additional_withholding: body.additional_withholding ?? 0,
+  notes: body.notes || null,
+});

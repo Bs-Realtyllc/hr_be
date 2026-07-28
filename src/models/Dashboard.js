@@ -32,6 +32,13 @@ exports.countPendingLeaves = async () => {
   return pending_leaves;
 };
 
+exports.countPendingOvertime = async () => {
+  const [[{ pending_overtime }]] = await db.query(
+    `SELECT COUNT(*) as pending_overtime FROM overtime_requests WHERE status = 'pending'`
+  );
+  return pending_overtime;
+};
+
 exports.countStandupsToday = async (today) => {
   const [[{ standups_today }]] = await db.query(
     `SELECT COUNT(*) as standups_today FROM standups WHERE standup_date = ?`,

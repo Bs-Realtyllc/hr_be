@@ -1,4 +1,5 @@
 const Employee = require('../models/Employee');
+const PayrollAdjustment = require('../models/PayrollAdjustment');
 const employeeDto = require('../dtos/employeeDto');
 
 exports.list = async (req, res) => {
@@ -88,6 +89,14 @@ exports.payrollSummary = async (req, res) => {
 
     const presentDays = workingDays - leaveDays;
     const dailyRate   = emp.salary ? emp.salary / workingDays : 0;
+    const expectedPay = dailyRate * presentDays;
+
+    // Overtime pay / leave deductions booked for this month, plus any year-end leave
+    // bonus already paid out for this year — each carries its own display title.
+    const adjustments = await PayrollAdjustment.findForEmployeePeriod(req.params.id, year, month + 1);
+    const overtimePay     = adjustments.filter(a => a.type === 'overtime_pay').reduce((s, a) => s + Number(a.amount), 0);
+    const leaveDeduction  = adjustments.filter(a => a.type === 'leave_deduction').reduce((s, a) => s + Number(a.amount), 0);
+    const leaveBonus      = adjustments.filter(a => a.type === 'leave_bonus').reduce((s, a) => s + Number(a.amount), 0);
 
     res.json({
       ...emp,
@@ -95,7 +104,12 @@ exports.payrollSummary = async (req, res) => {
       leave_days_this_month:   leaveDays,
       present_days:            presentDays,
       daily_rate:              Math.round(dailyRate),
-      expected_pay:            Math.round(dailyRate * presentDays),
+      expected_pay:            Math.round(expectedPay),
+      overtime_pay:            Math.round(overtimePay),
+      leave_deduction:         Math.round(leaveDeduction),
+      leave_bonus:             Math.round(leaveBonus),
+      net_pay:                 Math.round(expectedPay + overtimePay + leaveDeduction + leaveBonus),
+      adjustments: adjustments.map(a => ({ title: a.title, type: a.type, amount: Number(a.amount) })),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

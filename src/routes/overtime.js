@@ -1,12 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const ctrl = require('../controllers/leaves');
-const { authenticate, requireRole } = require('../middleware/auth');
+const ctrl = require('../controllers/overtime');
+const { authenticate } = require('../middleware/auth');
 
-router.get('/out/today', ctrl.outToday);
-router.get('/out/week', ctrl.outThisWeek);
-router.get('/balances/:employeeId', ctrl.balances);
-router.get('/report', authenticate, requireRole('admin'), ctrl.report);
 router.get('/', authenticate, ctrl.list);
 router.post('/', authenticate, ctrl.create);
 router.put('/:id/approve', authenticate, ctrl.approve);

@@ -8,6 +8,7 @@ async function getStats(req, res) {
     const on_leave_today = await Dashboard.countOnLeaveToday(today);
     const new_hires = await Dashboard.countNewHiresLast30Days();
     const pending_leaves = await Dashboard.countPendingLeaves();
+    const pending_overtime = await Dashboard.countPendingOvertime();
     const standups_today = await Dashboard.countStandupsToday(today);
     const active_projects = await Dashboard.countActiveProjects();
 
@@ -17,6 +18,7 @@ async function getStats(req, res) {
       present_today: total_active - on_leave_today,
       new_hires_month: new_hires,
       pending_leaves,
+      pending_overtime,
       standups_today,
       active_projects,
     });

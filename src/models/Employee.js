@@ -21,6 +21,11 @@ exports.findByEmail = async (email) => {
   return rows[0] || null;
 };
 
+exports.findBySecondaryEmail = async (email) => {
+  const [rows] = await db.query('SELECT * FROM employees WHERE secondary_email = ? LIMIT 1', [email]);
+  return rows[0] || null;
+};
+
 exports.findAuthByEmail = async (email) => {
   const [rows] = await db.query(
     `SELECT id, name, email, role, designation, department, password_hash
@@ -83,10 +88,11 @@ exports.create = async (data) => {
 exports.seedLeaveBalances = async (employeeId, year) => {
   await db.query(
     `INSERT INTO leave_balances (employee_id, leave_type, total, taken, year) VALUES
-     (?, 'casual', 12, 0, ?),
-     (?, 'sick', 10, 0, ?),
-     (?, 'annual', 15, 0, ?)`,
-    [employeeId, year, employeeId, year, employeeId, year]
+     (?, 'sick', 12, 0, ?),
+     (?, 'bereavement', 3, 0, ?),
+     (?, 'maternity', 60, 0, ?),
+     (?, 'paternity', 30, 0, ?)`,
+    [employeeId, year, employeeId, year, employeeId, year, employeeId, year]
   );
 };
 
@@ -131,7 +137,8 @@ exports.updateSalary = async (id, salary, payFrequency) => {
 
 const PROFILE_FIELDS = `id, name, email, phone, alt_phone, emergency_contact, designation, department,
               dob, bio, address, qualifications, profile_picture, citizenship_front, citizenship_back,
-              timezone, work_hours, tech_stack, role, start_date`;
+              timezone, work_hours, tech_stack, role, start_date,
+              leave_policy_accepted, leave_policy_accepted_at`;
 
 exports.findProfileById = async (id) => {
   const [rows] = await db.query(
@@ -158,6 +165,13 @@ exports.findCitizenshipDocById = async (id, column) => {
 
 exports.updateCitizenshipDoc = async (id, column, filename) => {
   await db.query(`UPDATE employees SET ${column} = ? WHERE id = ?`, [filename, id]);
+};
+
+exports.acceptLeavePolicy = async (id) => {
+  await db.query(
+    'UPDATE employees SET leave_policy_accepted = TRUE, leave_policy_accepted_at = NOW() WHERE id = ?',
+    [id]
+  );
 };
 
 exports.findApprovedLeaveRangesForEmployee = async (id, rangeStart, rangeEnd) => {
