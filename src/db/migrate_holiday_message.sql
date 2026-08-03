@@ -1,6 +1,6 @@
 -- Adds a festive message to each holiday and seeds the official 2026 Nepali-calendar holiday list.
 
-ALTER TABLE holidays ADD COLUMN IF NOT EXISTS message TEXT NULL AFTER name;
+ALTER TABLE holidays ADD COLUMN message TEXT NULL AFTER name;
 
 INSERT INTO holidays (name, holiday_date, year, message) VALUES
   ('New Year',         '2026-01-01', 2026, 'Happy New Year! Wishing you success, growth, and happiness in the year ahead. 🎆'),

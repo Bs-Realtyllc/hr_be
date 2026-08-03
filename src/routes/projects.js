@@ -6,6 +6,7 @@ router.get('/by-employee/:empId', ctrl.byEmployee);
 router.get('/', ctrl.list);
 router.post('/', ctrl.create);
 router.put('/:id', ctrl.update);
+router.delete('/:id', ctrl.remove);
 router.get('/:id/assignments', ctrl.getAssignments);
 router.post('/:id/assignments', ctrl.addAssignment);
 router.delete('/:id/assignments/:empId', ctrl.removeAssignment);

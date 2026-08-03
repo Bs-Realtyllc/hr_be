@@ -27,6 +27,10 @@ exports.update = async (id, updates) => {
   await db.query(`UPDATE projects SET ${setClause} WHERE id = ?`, values);
 };
 
+exports.remove = async (id) => {
+  await db.query('DELETE FROM projects WHERE id = ?', [id]);
+};
+
 exports.findAssignments = async (projectId) => {
   const [rows] = await db.query(
     `SELECT pa.*, e.name, e.designation, e.profile_picture, e.timezone

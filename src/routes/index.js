@@ -23,5 +23,6 @@ router.use('/profile', require('./profile'));
 router.use('/goals', require('./goals'));
 router.use('/performance', require('./performance'));
 router.use('/feedback', require('./feedback'));
+router.use('/policies', require('./policies'));
 
 module.exports = router;

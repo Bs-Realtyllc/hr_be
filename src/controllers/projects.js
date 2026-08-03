@@ -32,6 +32,15 @@ exports.update = async (req, res) => {
   }
 };
 
+exports.remove = async (req, res) => {
+  try {
+    await Project.remove(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.getAssignments = async (req, res) => {
   try {
     const rows = await Project.findAssignments(req.params.id);
