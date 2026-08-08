@@ -5,13 +5,15 @@ const monthlyReportDto = require('../dtos/monthlyReportDto');
 
 exports.list = async (req, res) => {
   try {
-    const { month, year } = req.query;
+    const { month, year, fromYear, fromMonth, toYear, toMonth } = req.query;
     const privileged = ['admin', 'lead'].includes(req.user?.role);
 
     // Employees see only their own submissions
     const employeeId = privileged ? null : req.user.id;
 
-    const rows = await MonthlyReport.findWithEmployeeNames({ employeeId, month, year });
+    const rows = await MonthlyReport.findWithEmployeeNames({
+      employeeId, month, year, fromYear, fromMonth, toYear, toMonth,
+    });
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

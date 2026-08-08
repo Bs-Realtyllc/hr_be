@@ -1,7 +1,9 @@
 const db = require('../db');
 
 // employeeId === null/undefined => no employee filter (privileged/"all" view).
-exports.findWithEmployeeNames = async ({ employeeId, month, year }) => {
+// fromYear/fromMonth and toYear/toMonth define an inclusive month range,
+// compared as (year, month) tuples so ranges spanning multiple years work correctly.
+exports.findWithEmployeeNames = async ({ employeeId, month, year, fromYear, fromMonth, toYear, toMonth }) => {
   let q = `SELECT r.*, e.name AS employee_name, e.designation, e.department
            FROM monthly_reports r
            JOIN employees e ON r.employee_id = e.id
@@ -13,8 +15,18 @@ exports.findWithEmployeeNames = async ({ employeeId, month, year }) => {
     p.push(employeeId);
   }
 
+  // Legacy single month/year filter (kept for backward compatibility)
   if (month) { q += ' AND r.month = ?'; p.push(month); }
   if (year)  { q += ' AND r.year = ?';  p.push(year);  }
+
+  if (fromYear && fromMonth) {
+    q += ' AND (r.year > ? OR (r.year = ? AND r.month >= ?))';
+    p.push(fromYear, fromYear, fromMonth);
+  }
+  if (toYear && toMonth) {
+    q += ' AND (r.year < ? OR (r.year = ? AND r.month <= ?))';
+    p.push(toYear, toYear, toMonth);
+  }
 
   q += ' ORDER BY r.year DESC, r.month DESC, r.submitted_at DESC';
 
