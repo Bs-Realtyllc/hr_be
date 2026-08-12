@@ -39,7 +39,7 @@ app.use(express.json({
 app.use('/api', routes);
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 app.use('/api/swagger', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.get('/api/swagger/index.json', (req, res) => res.json(swaggerSpec));
+// app.get('/api/swagger/index.json', (req, res) => res.json(swaggerSpec));
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 async function start() {
@@ -58,7 +58,7 @@ async function start() {
 
   app.listen(ENV.PORT, () => {
     console.log(`✔ Backend running     →  http://localhost:${ENV.PORT}`);
-    console.log(`✔ Swagger UI          →  http://localhost:${ENV.PORT}/api/swagger/index.html`);
+    console.log(`✔ Swagger UI          →  http://localhost:${ENV.PORT}/api/swagger`);
   });
 
   // Renew Google push-notification channel if it's expiring within 24 h.
