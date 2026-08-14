@@ -1,6 +1,20 @@
-const Employee = require('../models/Employee');
-const PayrollAdjustment = require('../models/PayrollAdjustment');
-const employeeDto = require('../dtos/employeeDto');
+const Employee = require("../models/Employee");
+const PayrollAdjustment = require("../models/PayrollAdjustment");
+const employeeDto = require("../dtos/employeeDto");
+const { sendMail } = require("../services/sendMail");
+const crypto = require("crypto");
+
+//generate pass
+function generatePassword(length = 6) {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  const bytes = crypto.randomBytes(length);
+  for (let i = 0; i < length; i++) {
+    result += chars[bytes[i] % chars.length];
+  }
+  return result;
+}
 
 exports.list = async (req, res) => {
   try {
@@ -11,10 +25,20 @@ exports.list = async (req, res) => {
   }
 };
 
+//list all users with is_active = null
+exports.listInActive = async (req, res) => {
+  try {
+    const employees = await Employee.findAllInActive();
+    res.json(employeeDto.toResponseList(employees));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.get = async (req, res) => {
   try {
     const employee = await Employee.findById(req.params.id);
-    if (!employee) return res.status(404).json({ error: 'Not found' });
+    if (!employee) return res.status(404).json({ error: "Not found" });
     res.json(employeeDto.toResponse(employee));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -24,6 +48,7 @@ exports.get = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const data = employeeDto.toCreateInput(req.body);
+    console.log("called", data);
     const id = await Employee.create(data);
 
     // Seed default leave balances for current year
@@ -39,7 +64,9 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const updates = employeeDto.toUpdateInput(req.body);
-    if (!Object.keys(updates).length) return res.status(400).json({ error: 'Nothing to update' });
+    // console.log(updates)
+    if (!Object.keys(updates).length)
+      return res.status(400).json({ error: "Nothing to update" });
     await Employee.update(req.params.id, updates);
     res.json({ success: true });
   } catch (err) {
@@ -48,10 +75,93 @@ exports.update = async (req, res) => {
 };
 
 exports.remove = async (req, res) => {
+  // try {
+  //   await Employee.deactivate(req.params.id);
+  //   res.json({ success: true });
+  // } catch (err) {
+  //   res.status(500).json({ error: err.message });
+  // }
+  const employeeId = Number(req.params.id);
+  const send_mail = req.query.send_mail === "true";
+  if (!Number.isInteger(employeeId)) {
+    return res.status(400).json({ error: "Invalid employee id" });
+  }
+
   try {
-    await Employee.deactivate(req.params.id);
-    res.json({ success: true });
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+    // if (employee.is_active === 0)
+    //   return res.status(200).json({ message: "Already Inactive" });
+
+    await Employee.delete(employeeId);
+
+    if (send_mail) {
+      const info = await sendMail({
+        mail_to: employee.email,
+        name: employee.name,
+        decision: "disapprove",
+      });
+
+      if (info?.error) {
+        // employee is already activated at this point — decide if that's acceptable
+        console.warn(
+          `Employee ${employeeId} deleted but email failed:`,
+          info.error,
+        );
+        res.status(200).json({
+          message: `id ${employeeId} deleted but failed to send mail.`,
+        });
+        return;
+      }
+    }
+
+    res.status(200).json({ success: true });
   } catch (err) {
+    console.error(`Error activating employee ${employeeId}:`, err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.add = async (req, res) => {
+  const employeeId = Number(req.params.id);
+  if (!Number.isInteger(employeeId)) {
+    return res.status(400).json({ error: "Invalid employee id" });
+  }
+
+  try {
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+    if (employee.is_active === 1)
+      return res.status(200).json({ message: "Already active" });
+
+    await Employee.activate(employeeId);
+
+    const info = await sendMail({
+      mail_to: `${employee.name}@gitgi.com`,
+      name: employee.name,
+      decision: "approve",
+      pass: generatePassword(6),
+    });
+
+    if (info?.error) {
+      // employee is already activated at this point — decide if that's acceptable
+      console.warn(
+        `Employee ${employeeId} activated but email failed:`,
+        info.error,
+      );
+      res.status(200).json({
+        message: `id ${employeeId} activated but failed to send mail.`,
+      });
+      return;
+    }
+
+    res.status(200).json({ success: true });
+  } catch (err) {
+    console.error(`Error activating employee ${employeeId}:`, err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -59,7 +169,7 @@ exports.remove = async (req, res) => {
 exports.payrollSummary = async (req, res) => {
   try {
     const emp = await Employee.findPayrollBaseById(req.params.id);
-    if (!emp) return res.status(404).json({ error: 'Not found' });
+    if (!emp) return res.status(404).json({ error: "Not found" });
 
     const now = new Date();
     const year = now.getFullYear();
@@ -73,43 +183,65 @@ exports.payrollSummary = async (req, res) => {
       if (day !== 0 && day !== 6) workingDays++;
     }
 
-    const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-    const monthEnd   = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+    const monthStart = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    const monthEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
 
-    const leaveRanges = await Employee.findApprovedLeaveRangesForEmployee(req.params.id, monthStart, monthEnd);
+    const leaveRanges = await Employee.findApprovedLeaveRangesForEmployee(
+      req.params.id,
+      monthStart,
+      monthEnd,
+    );
 
     let leaveDays = 0;
     for (const lr of leaveRanges) {
-      const s = new Date(Math.max(new Date(lr.start_date), new Date(monthStart)));
-      const e = new Date(Math.min(new Date(lr.end_date),   new Date(monthEnd)));
+      const s = new Date(
+        Math.max(new Date(lr.start_date), new Date(monthStart)),
+      );
+      const e = new Date(Math.min(new Date(lr.end_date), new Date(monthEnd)));
       for (const d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
         if (d.getDay() !== 0 && d.getDay() !== 6) leaveDays++;
       }
     }
 
     const presentDays = workingDays - leaveDays;
-    const dailyRate   = emp.salary ? emp.salary / workingDays : 0;
+    const dailyRate = emp.salary ? emp.salary / workingDays : 0;
     const expectedPay = dailyRate * presentDays;
 
     // Overtime pay / leave deductions booked for this month, plus any year-end leave
     // bonus already paid out for this year — each carries its own display title.
-    const adjustments = await PayrollAdjustment.findForEmployeePeriod(req.params.id, year, month + 1);
-    const overtimePay     = adjustments.filter(a => a.type === 'overtime_pay').reduce((s, a) => s + Number(a.amount), 0);
-    const leaveDeduction  = adjustments.filter(a => a.type === 'leave_deduction').reduce((s, a) => s + Number(a.amount), 0);
-    const leaveBonus      = adjustments.filter(a => a.type === 'leave_bonus').reduce((s, a) => s + Number(a.amount), 0);
+    const adjustments = await PayrollAdjustment.findForEmployeePeriod(
+      req.params.id,
+      year,
+      month + 1,
+    );
+    const overtimePay = adjustments
+      .filter((a) => a.type === "overtime_pay")
+      .reduce((s, a) => s + Number(a.amount), 0);
+    const leaveDeduction = adjustments
+      .filter((a) => a.type === "leave_deduction")
+      .reduce((s, a) => s + Number(a.amount), 0);
+    const leaveBonus = adjustments
+      .filter((a) => a.type === "leave_bonus")
+      .reduce((s, a) => s + Number(a.amount), 0);
 
     res.json({
       ...emp,
       working_days_this_month: workingDays,
-      leave_days_this_month:   leaveDays,
-      present_days:            presentDays,
-      daily_rate:              Math.round(dailyRate),
-      expected_pay:            Math.round(expectedPay),
-      overtime_pay:            Math.round(overtimePay),
-      leave_deduction:         Math.round(leaveDeduction),
-      leave_bonus:             Math.round(leaveBonus),
-      net_pay:                 Math.round(expectedPay + overtimePay + leaveDeduction + leaveBonus),
-      adjustments: adjustments.map(a => ({ title: a.title, type: a.type, amount: Number(a.amount) })),
+      leave_days_this_month: leaveDays,
+      present_days: presentDays,
+      daily_rate: Math.round(dailyRate),
+      expected_pay: Math.round(expectedPay),
+      overtime_pay: Math.round(overtimePay),
+      leave_deduction: Math.round(leaveDeduction),
+      leave_bonus: Math.round(leaveBonus),
+      net_pay: Math.round(
+        expectedPay + overtimePay + leaveDeduction + leaveBonus,
+      ),
+      adjustments: adjustments.map((a) => ({
+        title: a.title,
+        type: a.type,
+        amount: Number(a.amount),
+      })),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -4,6 +4,20 @@ USE hr_platform;
 CREATE TABLE IF NOT EXISTS employees (
   id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(100) NOT NULL,
+  dob DATE, --added
+  gender ENUM('male', 'female', 'other', 'prefer_not_to_say'), --added
+  current_address VARCHAR(255),--added
+  permanent_address VARCHAR(255),--added
+  education_level VARCHAR(100),--added
+  institution_name VARCHAR(150),--added
+  field_of_study VARCHAR(150),--added
+  graduation_date DATE,--added
+  previous_experience TEXT,--added
+  areas_of_interest TEXT,--added
+  linkedin_url VARCHAR(255) NULL,--added
+  github_url VARCHAR(255) NULL,--added
+  portfolio_url VARCHAR(255) NULL,--added
+  emergency_contact_name VARCHAR(150),--added
   email VARCHAR(150) UNIQUE NOT NULL,
   phone VARCHAR(20),
   discord_username VARCHAR(100) NULL UNIQUE,
@@ -16,14 +30,38 @@ CREATE TABLE IF NOT EXISTS employees (
   timezone VARCHAR(50) DEFAULT 'UTC',
   work_hours VARCHAR(50) DEFAULT '9 AM - 5 PM',
   tech_stack JSON,
-  role ENUM('admin', 'lead', 'employee') DEFAULT 'employee',
+  role ENUM('admin', 'lead', 'employee', 'intern') DEFAULT 'employee',
   password_hash VARCHAR(255) NULL,
   salary DECIMAL(10,2) NULL,
   pay_frequency ENUM('monthly','biweekly','weekly') DEFAULT 'monthly',
-  is_active BOOLEAN DEFAULT TRUE,
+  is_active BOOLEAN DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (manager_id) REFERENCES employees(id) ON DELETE SET NULL
 );
+
+-- CREATE TABLE IF NOT EXISTS interns (
+--   id INT PRIMARY KEY AUTO_INCREMENT,
+--   full_name VARCHAR(150) NOT NULL,
+--   date_of_birth DATE,
+--   gender ENUM('male', 'female', 'other', 'prefer_not_to_say'),
+--   contact_number VARCHAR(20),
+--   email VARCHAR(150) UNIQUE NOT NULL,
+--   current_address VARCHAR(255),
+--   permanent_address VARCHAR(255),
+--   education_level VARCHAR(100),
+--   institution_name VARCHAR(150),
+--   field_of_study VARCHAR(150),
+--   graduation_date DATE,
+--   work_experience TEXT,
+--   relevant_skills TEXT,
+--   areas_of_interest TEXT,
+--   linkedin_url VARCHAR(255) NULL,
+--   github_url VARCHAR(255) NULL,
+--   portfolio_url VARCHAR(255) NULL,
+--   emergency_contact_name VARCHAR(150),
+--   emergency_contact_number VARCHAR(20),
+--   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- );
 
 CREATE TABLE IF NOT EXISTS leave_balances (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -223,6 +261,8 @@ CREATE TABLE IF NOT EXISTS payroll_adjustments (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 );
+
+
 
 -- Seed: default leave balances trigger after employee insert
 -- Run manually or via app logic

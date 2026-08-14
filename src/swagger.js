@@ -1326,7 +1326,37 @@ const options = {
         },
         delete: {
           tags: ["Employees"],
-          summary: "Soft-delete employee (sets is_active = false)",
+          summary: "hard-delete employee (removes the employee from database)",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+            {
+              name: "send_mail",
+              in: "query",
+              required: false,
+              description:
+                "If true, sends a disapproval email to the employee before deleting their record.",
+              schema: { type: "boolean", default: false },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Deleted",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Success" },
+                },
+              },
+            },
+          },
+        },
+        patch: {
+          tags: ["Employees"],
+          summary: "set is_active = true and send congratulation mail",
           parameters: [
             {
               name: "id",
@@ -1337,7 +1367,7 @@ const options = {
           ],
           responses: {
             200: {
-              description: "Deactivated",
+              description: "Activated",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Success" },
@@ -4250,8 +4280,7 @@ const options = {
         get: {
           tags: ["Webhooks"],
           summary: "Endpoint for n8n workflow to call on month end.",
-          description:
-            "Endpoint for n8n workflow to call on month end.",
+          description: "Endpoint for n8n workflow to call on month end.",
           responses: {
             200: { description: "sucessfully send data to n8n webhook" },
             502: { description: "n8n webhook returned an error" },
