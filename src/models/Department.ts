@@ -1,7 +1,5 @@
 import { mysqlTable, int, varchar, boolean, timestamp } from 'drizzle-orm/mysql-core';
 
-// Lookup table, replacing the free-text `department` column. Not on
-// BaseModel — plain reference data, no created_by/updated_by tracking.
 export const departments = mysqlTable('departments', {
   id: int('id').autoincrement().primaryKey(),
   name: varchar('name', { length: 100 }).notNull().unique(),

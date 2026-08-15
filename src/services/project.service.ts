@@ -8,9 +8,6 @@ import type {
   MilestoneUpdateInput,
 } from '../dtos/project.dto';
 
-// Business logic only — no req/res, no raw request bodies. Every input here
-// is already bound+validated by project.controller.ts via project.dto.ts.
-
 export async function list(status?: string) {
   return projectRepo.findAll(status);
 }
@@ -65,9 +62,6 @@ export async function removeService(id: string, serviceKey: string) {
   await projectRepo.removeService(id, serviceKey);
 }
 
-// Returns all projects an employee is assigned to, with their role + milestones
-// attached — response-DTO mapping (repo_url/docs_url shaping) still happens in
-// the controller, same as every other list endpoint; this only attaches data.
 export async function byEmployee(empId: string) {
   const rows = await projectRepo.findByEmployee(empId);
 

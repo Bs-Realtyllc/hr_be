@@ -17,7 +17,6 @@ export async function save(employeeId: string, data: EmailSettingsSaveInput, act
     await emailSettingsRepo.upsertWithPassword(employeeId, data, actorId);
     testSmtpAsync(data.smtp_host, data.smtp_port, data.smtp_user, data.smtp_pass);
   } else {
-    // Update without touching the stored password
     await emailSettingsRepo.updateWithoutPassword(employeeId, data, actorId);
   }
 }

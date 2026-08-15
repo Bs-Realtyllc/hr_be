@@ -1,7 +1,5 @@
 import { mysqlTable, int, varchar, decimal, year, tinyint, text, timestamp, mysqlEnum } from 'drizzle-orm/mysql-core';
 
-// Append-only ledger — never updated after insert, so no BaseModel (same
-// rationale as employee_job_history/employee_compensation_history).
 export const payrollAdjustments = mysqlTable('payroll_adjustments', {
   id: int('id').autoincrement().primaryKey(),
   employee_id: int('employee_id').notNull(),

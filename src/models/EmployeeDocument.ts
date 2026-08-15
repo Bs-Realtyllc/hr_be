@@ -1,8 +1,5 @@
 import { mysqlTable, int, varchar, timestamp, boolean, mysqlEnum } from 'drizzle-orm/mysql-core';
 
-// Versioned file metadata (profile picture, citizenship docs). Superseded
-// versions are kept with is_current=FALSE as free history — not on BaseModel,
-// same append-only rationale as the history tables.
 export const employeeDocuments = mysqlTable('employee_documents', {
   id: int('id').autoincrement().primaryKey(),
   employee_id: int('employee_id').notNull(),

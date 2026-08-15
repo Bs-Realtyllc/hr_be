@@ -2,8 +2,6 @@ import { eq, and, asc, desc, sql, getTableColumns } from 'drizzle-orm';
 import { db } from '../config/database';
 import { cultureEvents, employeesFlat } from '../models';
 
-// Same exported function names/signatures as the old src/models/CultureEvent.js.
-
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }

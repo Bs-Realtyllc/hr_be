@@ -57,8 +57,7 @@ export const sync = async (req: Request, res: Response) => {
   }
 };
 
-// Called by Google push notifications (no auth middleware)
 export const webhook = async (req: Request, res: Response) => {
-  res.status(200).send('OK'); // Respond immediately
+  res.status(200).send('OK');
   await googleService.handleWebhook(req.headers['x-goog-resource-state'] as string | undefined);
 };

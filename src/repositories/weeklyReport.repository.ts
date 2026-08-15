@@ -2,13 +2,10 @@ import { eq, and, sql, desc, getTableColumns } from 'drizzle-orm';
 import { db } from '../config/database';
 import { weeklyReports, employeesFlat } from '../models';
 
-// Same exported function names/signatures as the old src/models/WeeklyReport.js.
-
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
 
-// employeeId === null/undefined => no employee filter (privileged/"all" view).
 export async function findWithEmployeeNames({
   employeeId,
   weekStartDate,

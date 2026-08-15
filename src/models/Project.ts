@@ -5,8 +5,6 @@ export const projects = mysqlTable('projects', {
   ...baseColumns,
   name: varchar('name', { length: 150 }).notNull(),
   description: text('description'),
-  // Stored as a JSON-encoded string (not a native JSON column) — see
-  // project.dto.ts's toJSON/toArr for the array <-> string shaping.
   repo_url: text('repo_url'),
   docs_url: text('docs_url'),
   status: mysqlEnum('status', ['active', 'archived', 'on_hold']).default('active'),

@@ -3,9 +3,6 @@ import AppError from '../pkg/AppError';
 
 const SELF_SERVICE_FIELDS = ['phone', 'alt_phone', 'emergency_contact', 'dob', 'bio', 'address', 'timezone', 'work_hours'] as const;
 
-// Free-text self-service fields — the employee edits their own profile, so these
-// stay permissive (any string), except dob which must be a real calendar date
-// since it drives the birthday-event logic in profile.service.ts.
 const fieldSchemas = {
   phone: z.string(),
   alt_phone: z.string(),

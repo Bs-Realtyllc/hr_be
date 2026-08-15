@@ -1,7 +1,3 @@
-// Simplified progressive tax-slab estimate based on Nepal's individual income tax
-// slabs (Income Tax Act, current schedule for resident natural persons; NPR amounts).
-// For illustration/estimation purposes only — not a substitute for a real payroll/tax engine,
-// and does not account for Social Security Fund contributions, remote allowance, or other credits.
 
 export interface TaxBracket {
   upTo: number;

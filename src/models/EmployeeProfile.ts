@@ -1,8 +1,6 @@
 import { mysqlTable, int, varchar, text, date, timestamp, boolean } from 'drizzle-orm/mysql-core';
 import { auditColumns } from './BaseModel';
 
-// 1:1 with employees — self-service PII. Primary key IS employee_id — see
-// EmployeeAuth.ts for why this doesn't use the full baseColumns.
 export const employeeProfile = mysqlTable('employee_profile', {
   employee_id: int('employee_id').primaryKey(),
   phone: varchar('phone', { length: 20 }),

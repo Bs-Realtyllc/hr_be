@@ -1,7 +1,4 @@
 import { Request, Response } from 'express';
-// Not yet converted — untouched .js service (already repointed at
-// standup.repository.ts/employee.repository.ts during their own conversions).
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { verifyDiscordSignature, findEmployeeByDiscordName, saveStandup } = require('../services/discordStandupService');
 
 export const handleStandupWebhook = async (req: Request, res: Response) => {
@@ -11,7 +8,6 @@ export const handleStandupWebhook = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Webhook not configured' });
   }
 
-  // ── Log every incoming hit so you can confirm Discord is reaching the server
   console.log('[discord] ← Incoming request');
   console.log(`[discord]   headers: x-signature-ed25519=${(req.headers['x-signature-ed25519'] as string)?.slice(0, 16)}...`);
   console.log(`[discord]   body:    ${JSON.stringify(req.body).slice(0, 200)}`);
@@ -33,22 +29,16 @@ export const handleStandupWebhook = async (req: Request, res: Response) => {
 
   const { type, data, member } = req.body;
 
-  // ── Webhook Events PING (type 0) ─────────────────────────────────────────────
-  // Discord fires this when you first save the URL in the Developer Portal → Webhooks
   if (type === 0) {
     console.log('[discord] PING from Webhook Events — responding 204');
     return res.status(204).send();
   }
 
-  // ── Interactions PING (type 1) ────────────────────────────────────────────────
-  // Discord fires this when you save the URL in Developer Portal → General → Interactions Endpoint URL
   if (type === 1 && !req.body.event) {
     console.log('[discord] PING from Interactions — responding {type:1}');
     return res.status(200).json({ type: 1 });
   }
 
-  // ── /standup Slash Command (type 2) ──────────────────────────────────────────
-  // Employee types: /standup yesterday:... today:... blockers:...
   if (type === 2 && data?.name === 'standup') {
     const opts = Object.fromEntries((data.options || []).map((o: any) => [o.name, o.value]));
     const discordUser = member?.user || req.body.user || {};
@@ -82,8 +72,6 @@ export const handleStandupWebhook = async (req: Request, res: Response) => {
     }
   }
 
-  // ── Webhook Events (type 1 with event object) ─────────────────────────────────
-  // None of the currently available events are relevant to standups, so just acknowledge.
   if (type === 1 && req.body.event) {
     console.log(`[discord] Webhook event received: ${req.body.event?.type} — no action needed`);
     return res.status(204).send();
@@ -93,8 +81,6 @@ export const handleStandupWebhook = async (req: Request, res: Response) => {
   return res.status(204).send();
 };
 
-// Called internally by the discord.js bot after a standup is confirmed.
-// Protected by a shared secret — no Discord signature required.
 export const handleInternalStandup = async (req: Request, res: Response) => {
   console.log('[discord-internal] ← Incoming standup submission from bot');
 

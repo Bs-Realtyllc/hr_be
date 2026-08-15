@@ -1,17 +1,6 @@
 import { mysqlTable, int, varchar, date, json, boolean, mysqlEnum } from 'drizzle-orm/mysql-core';
 import { baseColumns } from './BaseModel';
 
-// Core identity + current-state pointer columns only — see
-// src/db/migrate_normalize_employees_p3.sql for what moved off this table onto
-// employee_auth/employee_profile/employee_compensation_history/employee_documents,
-// and src/models/EmployeeFlat.ts for the read-side view that joins it all back
-// together in the pre-redesign shape.
-//
-// Column-level `.references()` is deliberately not used here — this app keeps
-// the hand-rolled schema.sql/migrate_*.sql pipeline as the source of truth for
-// DDL/FKs (see those files), not drizzle-kit, so Drizzle never generates schema
-// from these definitions. Cross-table relationships for the query API are
-// declared once, explicitly, in src/models/index.ts instead.
 export const employees = mysqlTable('employees', {
   ...baseColumns,
   name: varchar('name', { length: 100 }).notNull(),

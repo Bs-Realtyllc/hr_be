@@ -1,7 +1,5 @@
 import { mysqlTable, int, date, varchar, decimal, timestamp, mysqlEnum } from 'drizzle-orm/mysql-core';
 
-// Effective-dated, append-only audit trail of salary/pay-frequency changes.
-// Not on BaseModel — see EmployeeJobHistory.ts for the same rationale.
 export const employeeCompensationHistory = mysqlTable('employee_compensation_history', {
   id: int('id').autoincrement().primaryKey(),
   employee_id: int('employee_id').notNull(),

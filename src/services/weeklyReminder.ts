@@ -58,7 +58,6 @@ export async function sendWeeklyReminders() {
 }
 
 export function start() {
-  // Every Sunday at 10:00 AM server time.
   cron.schedule('0 10 * * 0', () => {
     sendWeeklyReminders().catch((err: any) => console.error('[weekly-reminder] Job failed:', err.message));
   });

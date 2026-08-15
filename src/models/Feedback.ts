@@ -1,7 +1,5 @@
 import { mysqlTable, int, text, mysqlEnum, timestamp } from 'drizzle-orm/mysql-core';
 
-// Immutable (create + delete only, no update endpoint) — skips BaseModel,
-// same rationale as monthly_reports/weekly_reports.
 export const feedbackNotes = mysqlTable('feedback_notes', {
   id: int('id').autoincrement().primaryKey(),
   from_employee_id: int('from_employee_id').notNull(),

@@ -4,7 +4,6 @@ import * as serviceCredentialDto from '../dtos/serviceCredential.dto';
 import asyncHandler from '../middleware/asyncHandler';
 
 export const get = asyncHandler(async (req: Request, res: Response) => {
-  // Never return passwords to the client
   const rows = await serviceCredentialService.get(req.params.employeeId);
   res.json(rows);
 });

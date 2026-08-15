@@ -3,8 +3,6 @@ import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
 import { overtimeRequests, employeesFlat, projects } from '../models';
 
-// Same exported function names/signatures as the old src/models/OvertimeRequest.js.
-
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }

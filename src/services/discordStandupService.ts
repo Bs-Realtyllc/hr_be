@@ -2,7 +2,6 @@ import crypto from 'crypto';
 import * as employeeRepo from '../repositories/employee.repository';
 import * as standupRepo from '../repositories/standup.repository';
 
-// Ed25519 SubjectPublicKeyInfo DER prefix for wrapping raw 32-byte public keys
 const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 
 export function verifyDiscordSignature(publicKeyHex: string, rawBody: Buffer | string, signatureHex: string, timestamp: string): boolean {
@@ -22,14 +21,12 @@ export function verifyDiscordSignature(publicKeyHex: string, rawBody: Buffer | s
 export async function findEmployeeByDiscordName(discordName: string) {
   if (!discordName) return null;
 
-  // 1. Exact match on the discord_username column (most reliable)
   const byUsername: any = await employeeRepo.findByDiscordUsername(discordName);
   if (byUsername) {
     console.log(`[discord] Matched "${discordName}" via discord_username → ${byUsername.name}`);
     return byUsername;
   }
 
-  // 2. Case-insensitive partial match on the name column (fallback)
   const byName: any = await employeeRepo.findByNameLike(`%${discordName}%`);
   if (byName) {
     console.log(`[discord] Matched "${discordName}" via name fallback → ${byName.name}`);

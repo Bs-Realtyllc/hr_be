@@ -1,6 +1,5 @@
 import { mysqlTable, int, varchar, text, date, timestamp } from 'drizzle-orm/mysql-core';
 
-// Same rationale as MonthlyReport.ts for skipping BaseModel.
 export const weeklyReports = mysqlTable('weekly_reports', {
   id: int('id').autoincrement().primaryKey(),
   employee_id: int('employee_id').notNull(),

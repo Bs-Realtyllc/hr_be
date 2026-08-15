@@ -7,9 +7,6 @@ interface AuthUser {
   role: string;
 }
 
-// Business logic only — no req/res, no raw request bodies. Every input here
-// is already bound+validated by standup.controller.ts via standup.dto.ts.
-
 export async function list(user: AuthUser, employeeIdFilter?: string, date?: string, startDate?: string, endDate?: string) {
   const privileged = ['admin', 'lead'].includes(user.role);
   const filterEmployeeId = privileged ? employeeIdFilter : user.id;
@@ -26,7 +23,6 @@ export async function today(user: AuthUser) {
 export async function create(data: StandupCreateInput, actorId: number | null) {
   const id = await standupRepo.upsert(data, actorId);
 
-  // Fire-and-forget: mirror the standup to the Discord channel via the bot.
   const botUrl = process.env.DISCORD_BOT_URL;
   const botToken = process.env.DISCORD_INTERNAL_TOKEN;
   if (botUrl && botToken) {

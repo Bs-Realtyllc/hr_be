@@ -1,12 +1,8 @@
 import { z } from 'zod';
 import { bindAndValidate, optionalNullable } from '../pkg/validation';
 
-// YYYY-MM-DD, as sent by the date inputs on the frontend and expected by MySQL DATE columns.
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Work date is required');
 
-// Fields shared by create and update — matches the DB's NOT NULL columns
-// (work_date, hours, reason, approved_by_name). employee_id/project_id are
-// handled separately since update never touches employee_id.
 const commonFields = {
   work_date: dateString,
   hours: z.coerce.number().gt(0, 'Hours must be between 0 and 16').lte(16, 'Hours must be between 0 and 16'),
@@ -42,9 +38,6 @@ export interface OvertimeUpdateInput {
   approved_by_name: string;
 }
 
-// What findWithNames returns — overtime_requests columns (minus the new
-// updated_at/created_by/updated_by audit columns, kept internal, same as
-// every other converted domain) plus the joined names.
 export interface OvertimeResponse {
   id: number;
   employee_id: number;

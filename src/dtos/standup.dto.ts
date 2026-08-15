@@ -3,16 +3,12 @@ import { bindAndValidate, optionalNullable } from '../pkg/validation';
 
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be a date in YYYY-MM-DD format');
 
-// The old dtos/standupDto.js did no validation at all — just passed body
-// fields through as-is. Added here for consistency with every other
-// converted domain; this is a behavior addition (previously-missing input
-// validation), not a mechanical port, called out for visibility.
 const createBodySchema = z.object({
   employee_id: z.coerce.number().int().positive(),
   yesterday: z.string().trim().min(1, 'yesterday is required'),
   today: z.string().trim().min(1, 'today is required'),
   blockers: optionalNullable(z.string().trim()),
-  standup_date: optionalNullable(dateString), // defaults to today's date in the repository if omitted
+  standup_date: optionalNullable(dateString),
 });
 
 export interface StandupCreateInput {
@@ -23,7 +19,6 @@ export interface StandupCreateInput {
   standup_date?: string | null;
 }
 
-// What findWithNames/findToday return.
 export interface StandupResponse {
   id: number;
   employee_id: number;

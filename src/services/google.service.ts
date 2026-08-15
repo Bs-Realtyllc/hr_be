@@ -1,11 +1,6 @@
 import * as googleSettingsRepo from '../repositories/googleSettings.repository';
 import * as meetingRepo from '../repositories/meeting.repository';
-// Not yet converted — untouched .js services (external Google Calendar OAuth
-// integration; googleCalendar.js already repointed at
-// googleSettings.repository.ts during this conversion).
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const gc = require('../services/googleCalendar');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { shapeGoogleEvent } = require('../services/googleEventShaper');
 
 export function getAuthUrl() {
@@ -21,14 +16,12 @@ export async function handleCallback(code: string) {
   const tokens = await gc.exchangeCodeForTokens(code);
   const expiry = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
 
-  // Upsert into the single-row google_settings table
   const existing = await googleSettingsRepo.findSingleton();
   await googleSettingsRepo.upsertTokens(
     { refresh_token: tokens.refresh_token, access_token: tokens.access_token, token_expiry: expiry },
     existing?.id
   );
 
-  // Set up push notifications if a public webhook URL is configured
   if (process.env.GOOGLE_WEBHOOK_URL) {
     try {
       await gc.registerWebhookChannel(`${process.env.GOOGLE_WEBHOOK_URL}/api/google/webhook`);
@@ -65,8 +58,6 @@ export async function sync() {
   return { synced: upserted };
 }
 
-// Called by Google push notifications — best-effort, errors are swallowed
-// (matches the original: the HTTP response has already been sent by then).
 export async function handleWebhook(resourceState: string | undefined) {
   if (resourceState === 'sync') return;
 

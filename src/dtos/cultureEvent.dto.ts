@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { bindAndValidate, optionalNullable } from '../pkg/validation';
 
-// Matches the `culture_events.event_type` ENUM in schema.sql.
 const EVENT_TYPES = ['birthday', 'anniversary', 'team_event', 'milestone'] as const;
 
 const createBodySchema = z.object({
@@ -20,9 +19,6 @@ export interface CultureEventCreateInput {
   description: string | null;
 }
 
-// What findUpcoming/findRecent return — culture_events columns (minus the new
-// updated_at/created_by/updated_by audit columns, kept internal, same as
-// leave.dto.ts/standup.dto.ts/project.dto.ts) plus the joined employee fields.
 export interface CultureEventResponse {
   id: number;
   title: string;

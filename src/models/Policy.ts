@@ -1,8 +1,5 @@
 import { mysqlTable, int, varchar, boolean, timestamp } from 'drizzle-orm/mysql-core';
 
-// uploaded_by already identifies the creator of each version — skips
-// BaseModel's created_by/updated_by (is_pinned/is_active are narrow toggles,
-// not general edits worth an audit trail for this pass).
 export const policies = mysqlTable('policies', {
   id: int('id').autoincrement().primaryKey(),
   type: varchar('type', { length: 50 }).notNull(),

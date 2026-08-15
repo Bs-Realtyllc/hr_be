@@ -370,7 +370,6 @@ const options = {
           },
         },
 
-        // ── Auth ────────────────────────────────────────────────────────────
         LoginRequest: {
           type: "object",
           required: ["email", "password"],
@@ -434,7 +433,6 @@ const options = {
           properties: { message: { type: "string" } },
         },
 
-        // ── Dashboard ───────────────────────────────────────────────────────
         DashboardStats: {
           type: "object",
           properties: {
@@ -455,7 +453,6 @@ const options = {
           },
         },
 
-        // ── Payroll ─────────────────────────────────────────────────────────
         PayrollEmployee: {
           type: "object",
           properties: {
@@ -545,7 +542,6 @@ const options = {
           },
         },
 
-        // ── Goals ───────────────────────────────────────────────────────────
         Goal: {
           type: "object",
           properties: {
@@ -645,7 +641,6 @@ const options = {
           },
         },
 
-        // ── Performance ─────────────────────────────────────────────────────
         PerformanceReview: {
           type: "object",
           properties: {
@@ -722,7 +717,6 @@ const options = {
           },
         },
 
-        // ── Feedback ────────────────────────────────────────────────────────
         FeedbackNote: {
           type: "object",
           properties: {
@@ -774,7 +768,6 @@ const options = {
           },
         },
 
-        // ── Profile ─────────────────────────────────────────────────────────
         Profile: {
           type: "object",
           properties: {
@@ -823,7 +816,6 @@ const options = {
           properties: { filename: { type: "string" } },
         },
 
-        // ── Reports ─────────────────────────────────────────────────────────
         MonthlyReport: {
           type: "object",
           properties: {
@@ -842,7 +834,6 @@ const options = {
           },
         },
 
-        // ── Google Calendar / Meetings ──────────────────────────────────────
         GoogleAuthUrl: {
           type: "object",
           properties: { url: { type: "string", format: "uri" } },
@@ -903,7 +894,6 @@ const options = {
           },
         },
 
-        // ── Email settings ──────────────────────────────────────────────────
         EmailSettings: {
           type: "object",
           properties: {
@@ -936,7 +926,6 @@ const options = {
           },
         },
 
-        // ── Service credentials ─────────────────────────────────────────────
         ServiceCredential: {
           type: "object",
           properties: {
@@ -976,7 +965,6 @@ const options = {
       },
     },
     paths: {
-      // ── Health ──────────────────────────────────────────────────────────
       "/api/health": {
         get: {
           tags: ["Health"],
@@ -1000,7 +988,6 @@ const options = {
         },
       },
 
-      // ── Auth ─────────────────────────────────────────────────────────────
       "/api/auth/login": {
         post: {
           tags: ["Auth"],
@@ -1151,7 +1138,6 @@ const options = {
         },
       },
 
-      // ── Dashboard ────────────────────────────────────────────────────────
       "/api/dashboard/stats": {
         get: {
           tags: ["Dashboard"],
@@ -1210,7 +1196,6 @@ const options = {
         },
       },
 
-      // ── Employees ────────────────────────────────────────────────────────
       "/api/employees": {
         get: {
           tags: ["Employees"],
@@ -1384,7 +1369,6 @@ const options = {
         },
       },
 
-      // ── Leaves ───────────────────────────────────────────────────────────
       "/api/leaves": {
         get: {
           tags: ["Leaves"],
@@ -1753,7 +1737,6 @@ const options = {
         },
       },
 
-      // ── Standups ─────────────────────────────────────────────────────────
       "/api/standups": {
         get: {
           tags: ["Standups"],
@@ -1857,7 +1840,6 @@ const options = {
         },
       },
 
-      // ── Projects ─────────────────────────────────────────────────────────
       "/api/projects/by-employee/{empId}": {
         get: {
           tags: ["Projects"],
@@ -2320,7 +2302,6 @@ const options = {
         },
       },
 
-      // ── Servers ──────────────────────────────────────────────────────────
       "/api/servers": {
         get: {
           tags: ["Servers"],
@@ -2442,7 +2423,6 @@ const options = {
         },
       },
 
-      // ── Events ───────────────────────────────────────────────────────────
       "/api/events": {
         get: {
           tags: ["Events"],
@@ -2522,7 +2502,6 @@ const options = {
         },
       },
 
-      // ── Payroll ──────────────────────────────────────────────────────────
       "/api/payroll": {
         get: {
           tags: ["Payroll"],
@@ -2705,7 +2684,6 @@ const options = {
         },
       },
 
-      // ── Goals ────────────────────────────────────────────────────────────
       "/api/goals": {
         get: {
           tags: ["Goals"],
@@ -2926,7 +2904,6 @@ const options = {
         },
       },
 
-      // ── Performance ──────────────────────────────────────────────────────
       "/api/performance": {
         get: {
           tags: ["Performance"],
@@ -3227,7 +3204,6 @@ const options = {
         },
       },
 
-      // ── Feedback ─────────────────────────────────────────────────────────
       "/api/feedback": {
         get: {
           tags: ["Feedback"],
@@ -3358,7 +3334,6 @@ const options = {
         },
       },
 
-      // ── Profile ──────────────────────────────────────────────────────────
       "/api/profile": {
         get: {
           tags: ["Profile"],
@@ -3504,7 +3479,6 @@ const options = {
         },
       },
 
-      // ── Reports ──────────────────────────────────────────────────────────
       "/api/reports": {
         get: {
           tags: ["Reports"],
@@ -3666,7 +3640,6 @@ const options = {
         },
       },
 
-      // ── Google Calendar ──────────────────────────────────────────────────
       "/api/google/auth-url": {
         get: {
           tags: ["Google Calendar"],
@@ -3820,7 +3793,6 @@ const options = {
         },
       },
 
-      // ── Meetings ─────────────────────────────────────────────────────────
       "/api/google/meetings": {
         get: {
           tags: ["Meetings"],
@@ -3926,7 +3898,6 @@ const options = {
         },
       },
 
-      // ── Discord ──────────────────────────────────────────────────────────
       "/api/discord/standup": {
         post: {
           tags: ["Discord"],
@@ -4043,7 +4014,6 @@ const options = {
         },
       },
 
-      // ── Email Settings ───────────────────────────────────────────────────
       "/api/email-settings/{employeeId}": {
         get: {
           tags: ["Email Settings"],
@@ -4110,7 +4080,6 @@ const options = {
         },
       },
 
-      // ── Service Credentials ──────────────────────────────────────────────
       "/api/service-credentials/{employeeId}": {
         get: {
           tags: ["Service Credentials"],
@@ -4180,7 +4149,6 @@ const options = {
         },
       },
 
-      // ── Webhooks (generic) ───────────────────────────────────────────────
       "/api/webhooks/{service}": {
         get: {
           tags: ["Webhooks"],

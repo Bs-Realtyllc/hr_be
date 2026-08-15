@@ -1,8 +1,5 @@
 import { mysqlTable, int, varchar, text, tinyint, smallint, timestamp } from 'drizzle-orm/mysql-core';
 
-// Submission log — no update endpoint exists (only submit/delete), and
-// employee_id already unambiguously identifies the submitter, so this
-// deliberately skips BaseModel (see instruction.md).
 export const monthlyReports = mysqlTable('monthly_reports', {
   id: int('id').autoincrement().primaryKey(),
   employee_id: int('employee_id').notNull(),

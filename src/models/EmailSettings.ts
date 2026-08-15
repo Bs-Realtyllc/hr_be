@@ -1,8 +1,6 @@
 import { mysqlTable, int, varchar, text } from 'drizzle-orm/mysql-core';
 import { auditColumns } from './BaseModel';
 
-// 1:1 with employees, keyed on employee_id — same rationale as
-// EmployeeAuth.ts for using auditColumns instead of the full baseColumns.
 export const emailSettings = mysqlTable('email_settings', {
   id: int('id').autoincrement().primaryKey(),
   employee_id: int('employee_id').notNull().unique(),

@@ -2,8 +2,6 @@ import { eq, and, sql, desc, getTableColumns } from 'drizzle-orm';
 import { db } from '../config/database';
 import { payrollAdjustments, employeesFlat } from '../models';
 
-// Same exported function names/signatures as the old src/models/PayrollAdjustment.js.
-
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
@@ -34,8 +32,6 @@ export async function create({
   return insertedId(result);
 }
 
-// Adjustments relevant to one employee's payslip for a given month: that month's
-// overtime/deduction entries, plus any year-end bonus (month IS NULL) for that year.
 export async function findForEmployeePeriod(employeeId: number | string, year: number, month: number) {
   return db
     .select()
@@ -50,7 +46,6 @@ export async function findForEmployeePeriod(employeeId: number | string, year: n
     .orderBy(desc(payrollAdjustments.created_at));
 }
 
-// Ledger listing for the Payroll page — privileged users see everyone, employees see their own.
 export async function findAll({
   employeeId,
   year,
@@ -77,7 +72,6 @@ export async function findAll({
     .orderBy(desc(payrollAdjustments.created_at));
 }
 
-// Per-employee totals for the given month (overtime/deduction) and year (bonus is month-less).
 export async function summaryForPeriod(year: number, month: number) {
   const result: any = await db.execute(sql`
     SELECT employee_id,

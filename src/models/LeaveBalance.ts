@@ -1,7 +1,5 @@
 import { mysqlTable, int, year, mysqlEnum } from 'drizzle-orm/mysql-core';
 
-// System-maintained running counter, not a user-created resource — no
-// BaseModel/audit columns (see migrate_zz_add_audit_columns_leaves.sql).
 export const leaveBalances = mysqlTable('leave_balances', {
   id: int('id').autoincrement().primaryKey(),
   employee_id: int('employee_id').notNull(),

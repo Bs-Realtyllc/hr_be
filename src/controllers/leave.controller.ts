@@ -3,9 +3,6 @@ import * as leaveService from '../services/leave.service';
 import * as leaveDto from '../dtos/leave.dto';
 import asyncHandler from '../middleware/asyncHandler';
 
-// Bind request -> DTO happens here, at the boundary — never inside the
-// service (see employee.controller.ts for the same rule).
-
 export const list = asyncHandler(async (req: any, res: Response) => {
   const { employee_id, status } = req.query;
   const rows = await leaveService.list(req.user, employee_id, status);
@@ -33,7 +30,7 @@ export const outThisWeek = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const create = asyncHandler(async (req: any, res: Response) => {
-  const { to, cc, bcc } = req.body; // not part of the leave record itself — notification-only
+  const { to, cc, bcc } = req.body;
   const input = leaveDto.toCreateInput(req.body);
   const id = await leaveService.create(input, req.user?.id ?? null, { to, cc, bcc });
   res.status(201).json({ id });

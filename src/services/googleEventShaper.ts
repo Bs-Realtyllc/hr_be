@@ -3,8 +3,6 @@ export function toMySQLDatetime(iso?: string | null): string | null {
   return new Date(iso).toISOString().slice(0, 19).replace('T', ' ');
 }
 
-// Shape a Google Calendar event object into a meetings row ready for Meeting.upsertFromGoogleEvent.
-// Returns null for events without a start time (skipped, same as the original loops).
 export function shapeGoogleEvent(event: any) {
   if (!event.start) return null;
   const startDt = toMySQLDatetime(event.start.dateTime || `${event.start.date}T00:00:00`);

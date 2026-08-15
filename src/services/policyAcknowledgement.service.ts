@@ -34,8 +34,6 @@ export async function reviewSubmission(
   await policyAckRepo.review(ack.id, { status, rejectionReason, reviewedBy });
 
   if (status === 'rejected') {
-    // rejectionReason is guaranteed non-null here — toReviewInput requires it
-    // whenever status is 'rejected'.
     notifyRejection(ack, rejectionReason as string).catch((err: any) =>
       console.error('[policy-ack] Failed to send rejection email:', err.message)
     );

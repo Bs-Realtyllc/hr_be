@@ -2,15 +2,10 @@ import { eq, and, gt, gte, lte, or, sql, desc, getTableColumns } from 'drizzle-o
 import { db } from '../config/database';
 import { monthlyReports, employeesFlat } from '../models';
 
-// Same exported function names/signatures as the old src/models/MonthlyReport.js.
-
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
 
-// employeeId === null/undefined => no employee filter (privileged/"all" view).
-// fromYear/fromMonth and toYear/toMonth define an inclusive month range,
-// compared as (year, month) tuples so ranges spanning multiple years work correctly.
 export async function findWithEmployeeNames({
   employeeId,
   month,
@@ -30,7 +25,6 @@ export async function findWithEmployeeNames({
 }) {
   const conditions = [];
   if (employeeId) conditions.push(eq(monthlyReports.employee_id, Number(employeeId)));
-  // Legacy single month/year filter (kept for backward compatibility)
   if (month) conditions.push(eq(monthlyReports.month, Number(month)));
   if (year) conditions.push(eq(monthlyReports.year, Number(year)));
   if (fromYear && fromMonth) {

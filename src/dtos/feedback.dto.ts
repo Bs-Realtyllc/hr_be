@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { bindAndValidate, optionalNullable } from '../pkg/validation';
 
-// Matches the `feedback_notes` table ENUMs in schema.sql.
 const FEEDBACK_TYPES = ['praise', 'constructive', 'peer', 'manager'] as const;
 const VISIBILITIES = ['public', 'private'] as const;
 

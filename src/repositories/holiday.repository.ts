@@ -2,8 +2,6 @@ import { eq, asc } from 'drizzle-orm';
 import { db } from '../config/database';
 import { holidays } from '../models';
 
-// Same exported function names/signatures as the old src/models/Holiday.js.
-
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }

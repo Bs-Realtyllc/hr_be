@@ -16,9 +16,6 @@ export const summary = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const create = asyncHandler(async (req: any, res: Response) => {
-  // Which employee_id this goal is for depends on the caller's role — this
-  // authorization decision has to run before the DTO can validate
-  // employee_id, so it stays here rather than inside goal.dto.ts.
   const privileged = ['admin', 'lead'].includes(req.user?.role);
   const employeeId = privileged ? req.body.employee_id || req.user.id : req.user.id;
 

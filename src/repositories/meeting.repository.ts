@@ -2,8 +2,6 @@ import { eq, and, gte, sql, asc, getTableColumns } from 'drizzle-orm';
 import { db } from '../config/database';
 import { meetings, employeesFlat } from '../models';
 
-// Same exported function names/signatures as the old src/models/Meeting.js.
-
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
@@ -44,9 +42,6 @@ export async function cancel(id: number | string, actorId: number | null = null)
   await db.update(meetings).set({ status: 'cancelled', updated_by: actorId }).where(eq(meetings.id, Number(id)));
 }
 
-// Shared upsert used by both the manual /sync endpoint and the Google push-notification webhook.
-// `attendees` must already be a JSON string (see googleEventShaper.js) — parsed
-// back into an array here since the column is JSON-typed.
 export async function upsertFromGoogleEvent({
   title,
   description,

@@ -1,7 +1,7 @@
 import * as employeeRepo from '../repositories/employee.repository';
 import * as leaveRepo from '../repositories/leave.repository';
 
-const DEFAULT_LEAVE_TYPE = 'sick'; // fallback if a future payload omits leave_type
+const DEFAULT_LEAVE_TYPE = 'sick';
 
 export async function handleLeaveApproved({
   personName,

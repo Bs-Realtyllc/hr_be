@@ -7,9 +7,6 @@ import * as ctrl from '../../controllers/profile.controller';
 
 const IMAGE_TYPES = ['.jpg', '.jpeg', '.png', '.webp'];
 
-// process.cwd() (not __dirname) — this file compiles into dist/, where
-// __dirname would resolve under dist/ instead of the real uploads/ at the
-// project root.
 function imageStorage(folder: string) {
   return multer.diskStorage({
     destination: path.join(process.cwd(), 'uploads', folder),
@@ -24,7 +21,7 @@ function imageStorage(folder: string) {
 function imageUpload(folder: string) {
   return multer({
     storage: imageStorage(folder),
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
       const ext = path.extname(file.originalname).toLowerCase();
       IMAGE_TYPES.includes(ext) ? cb(null, true) : cb(new Error('Only image files are allowed'));

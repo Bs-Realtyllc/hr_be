@@ -2,7 +2,6 @@ import { z } from 'zod';
 import AppError from '../pkg/AppError';
 import { bindAndValidate, optionalNullable } from '../pkg/validation';
 
-// Matches the `servers.environment` ENUM in schema.sql.
 const ENVIRONMENTS = ['development', 'staging', 'production'] as const;
 
 const serverFields = {
@@ -100,7 +99,6 @@ export function toUpdateInput(body: unknown): ServerUpdateInput {
   return updates;
 }
 
-// Mask sensitive fields unless the caller explicitly asked to see them (role-based in real app).
 export function toResponseList(rows: Record<string, any>[], showSensitive: boolean): ServerResponse[] {
   return rows.map((r) => ({
     id: r.id,

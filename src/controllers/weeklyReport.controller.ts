@@ -23,7 +23,6 @@ export const submit = asyncHandler(async (req: any, res: Response) => {
     throw new AppError(err.message, err.status || 400);
   }
 
-  // Rename the file to `<EmployeeName>_<timestamp>.<ext>` within its week folder.
   const safeName = (req.user?.name || 'employee').trim().replace(/[^a-zA-Z0-9]+/g, '_');
   const ext = path.extname(req.file.originalname).toLowerCase();
   const finalFileName = `${safeName}_${Date.now()}${ext}`;

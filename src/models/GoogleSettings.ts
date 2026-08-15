@@ -1,7 +1,5 @@
 import { mysqlTable, int, text, varchar, datetime, timestamp } from 'drizzle-orm/mysql-core';
 
-// Singleton config row (no employee ownership, no "creator" concept) — skips
-// BaseModel, same rationale as other global config tables.
 export const googleSettings = mysqlTable('google_settings', {
   id: int('id').autoincrement().primaryKey(),
   refresh_token: text('refresh_token'),

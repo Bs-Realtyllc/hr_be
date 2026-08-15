@@ -12,15 +12,6 @@ import {
 } from '../models';
 import type { EmployeeCreateInput, EmployeeUpdateInput } from '../dtos/employee.dto';
 
-// Same exported function names/signatures as the old src/models/Employee.js —
-// every other domain's controller/service that does
-// `require('../models/Employee')` now points at this file instead (see the
-// grep-bounded list of call sites in the migration plan) and keeps working
-// unmodified. New callers (employee.service.ts) additionally pass an
-// `actorId` (from req.user.id) so writes populate created_by/updated_by —
-// existing callers that omit it simply leave those columns null, same as
-// they do today by never setting them at all.
-
 type Db = typeof db;
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
@@ -30,24 +21,14 @@ function throwStatus(message: string, status: number): never {
   throw err;
 }
 
-// The mysql2 driver's `db.insert(table).values(...)` resolves to the raw
-// `[ResultSetHeader, FieldPacket[]]` tuple mysql2 itself returns — NOT a
-// plain ResultSetHeader — so the inserted id is `result[0].insertId`, not
-// `result.insertId`.
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
 
 const manager = alias(employeesFlat, 'manager');
 
-// employees_flat rows come back with every column plus a joined `manager_name`
-// (via a self-join alias) — same flat shape the old hand-written
-// `LEFT JOIN employees_flat m` query returned.
 const flatWithManager = { ...getViewSelectedFields(employeesFlat), manager_name: manager.name };
 
-// Minimal, read-only view of `leave_requests` — a table owned by the (not yet
-// converted) Leave domain. Only the columns findApprovedLeaveRangesForEmployee
-// actually reads are declared; safe because this is never used to write.
 const leaveRequests = mysqlTable('leave_requests', {
   employee_id: int('employee_id'),
   status: varchar('status', { length: 20 }),
@@ -141,8 +122,6 @@ export async function findByDiscordUsername(discordUsername: string) {
   return rows[0] || null;
 }
 
-// `pattern` arrives pre-wrapped with SQL LIKE wildcards (e.g. `%bob%`) from
-// callers — same contract as the original.
 export async function findByNameLike(pattern: string) {
   const rows = await db
     .select({ id: employees.id, name: employees.name })
@@ -152,8 +131,6 @@ export async function findByNameLike(pattern: string) {
   return rows[0] || null;
 }
 
-// Resolves free-text department/designation to their lookup-table id, creating
-// the lookup row on first use if it doesn't exist yet.
 async function findOrCreateDepartmentId(name: string | null | undefined, tx: Tx) {
   if (!name) return null;
   const existing = await tx.select({ id: departments.id }).from(departments).where(eq(departments.name, name)).limit(1);
@@ -174,8 +151,6 @@ export async function create(data: EmployeeCreateInput, actorId: number | null =
   if (data.manager_id != null && Number(data.manager_id) < 1) {
     throwStatus('Invalid manager_id', 400);
   }
-  // A brand-new employee has no id yet, so it can't already be an ancestor of
-  // the proposed manager — no cycle check needed here, unlike update().
 
   return db.transaction(async (tx) => {
     const departmentId = await findOrCreateDepartmentId(data.department, tx);
@@ -189,8 +164,6 @@ export async function create(data: EmployeeCreateInput, actorId: number | null =
       manager_id: data.manager_id ?? null,
       start_date: data.start_date ?? null,
       tech_stack: data.tech_stack,
-      // Not settable at creation — EmployeeCreateInput has no qualifications
-      // field; it's only ever written later via the profile-update endpoint.
       qualifications: [],
       designation_id: designationId,
       department_id: departmentId,
@@ -237,9 +210,6 @@ export async function seedLeaveBalances(employeeId: number | string, year: numbe
   `);
 }
 
-// Fields that live on employee_auth / employee_profile post-Phase-5.
-// Anything not listed here (name, email, secondary_email, tech_stack,
-// qualifications) is one of the few columns still physically on `employees`.
 const PROFILE_UPDATE_FIELDS = [
   'phone', 'alt_phone', 'discord_username', 'emergency_contact', 'dob', 'bio', 'address',
   'timezone', 'work_hours', 'leave_policy_accepted', 'leave_policy_accepted_at',
@@ -259,9 +229,6 @@ export async function update(id: number | string, updates: EmployeeUpdateInput, 
       await tx.update(employees).set(setValues).where(eq(employees.id, employeeId));
     }
 
-    // password_hash is deliberately not part of EmployeeUpdateInput — password
-    // changes go through auth.service.ts (changePassword/resetPassword ->
-    // updatePasswordHash), not this general-purpose employee update.
     if (fields.includes('role')) {
       await upsertAuth(employeeId, { role: updates.role }, tx, actorId);
     }
@@ -274,8 +241,6 @@ export async function update(id: number | string, updates: EmployeeUpdateInput, 
       await upsertProfile(employeeId, profileUpdates, tx, actorId);
     }
 
-    // designation/department/manager_id changing means a job-history event —
-    // only record one if at least one of the three was actually part of this update.
     if (['designation', 'department', 'manager_id'].some((f) => fields.includes(f))) {
       if (fields.includes('manager_id')) {
         await assertNoManagerCycle(employeeId, updates.manager_id);
@@ -304,8 +269,6 @@ export async function update(id: number | string, updates: EmployeeUpdateInput, 
 }
 
 export async function deactivate(id: number | string, actorId: number | null = null) {
-  // status kept in sync with is_active, same as the Phase 1 backfill did —
-  // every existing `WHERE is_active = TRUE` query keeps working unmodified.
   await db
     .update(employees)
     .set({ is_active: false, status: 'terminated', updated_by: actorId })
@@ -329,7 +292,6 @@ export async function findPayrollBaseById(id: number | string) {
   return rows[0] || null;
 }
 
-// id === null/undefined => all active employees; otherwise just that employee's row.
 export async function findPayrollColumns(id: number | string | null) {
   const cols = {
     id: employeesFlat.id,
@@ -347,8 +309,6 @@ export async function findPayrollColumns(id: number | string | null) {
 }
 
 export async function updateSalary(id: number | string, salary: number | null, payFrequency: string | null, actorId: number | null = null) {
-  // A null salary (payroll UI allows clearing it) has nothing to record as a
-  // compensation-history event — just close out the current row, if any.
   if (salary == null) {
     await db.execute(sql`
       UPDATE employee_compensation_history SET effective_to = CURDATE()
@@ -406,7 +366,6 @@ export async function updateProfilePicture(id: number | string, filename: string
   await recordDocumentUpload(id, 'profile_picture', filename, id);
 }
 
-// column must be a trusted literal ('citizenship_front' | 'citizenship_back'), never raw user input
 const CITIZENSHIP_COLUMNS = { citizenship_front: employeesFlat.citizenship_front, citizenship_back: employeesFlat.citizenship_back } as const;
 export async function findCitizenshipDocById(id: number | string, column: string) {
   const col = CITIZENSHIP_COLUMNS[column as keyof typeof CITIZENSHIP_COLUMNS];
@@ -437,16 +396,6 @@ export async function findApprovedLeaveRangesForEmployee(id: number | string, ra
     );
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// Normalization write helpers for employee_auth / employee_profile /
-// employee_job_history / employee_compensation_history / employee_documents.
-// ─────────────────────────────────────────────────────────────────────────
-
-// Manager-cycle guard: walks up the proposed manager's chain and rejects if
-// `employeeId` would become its own ancestor. Bounded depth avoids an
-// infinite loop if bad data already has a cycle. Deliberately reads outside
-// the caller's in-flight transaction — it's validating against the graph as
-// it exists right now, not against this update's own not-yet-committed change.
 const MAX_MANAGER_CHAIN_DEPTH = 20;
 export async function assertNoManagerCycle(employeeId: number | string, proposedManagerId: number | string | null | undefined) {
   if (proposedManagerId == null) return;
@@ -457,25 +406,15 @@ export async function assertNoManagerCycle(employeeId: number | string, proposed
   for (let depth = 0; depth < MAX_MANAGER_CHAIN_DEPTH; depth++) {
     const rows = await db.select({ manager_id: employees.manager_id }).from(employees).where(eq(employees.id, currentId)).limit(1);
     const nextManagerId = rows[0]?.manager_id;
-    if (nextManagerId == null) return; // reached the top of the chain, no cycle
+    if (nextManagerId == null) return;
     if (Number(nextManagerId) === Number(employeeId)) {
       throwStatus('This manager change would create a reporting cycle', 400);
     }
     currentId = nextManagerId;
   }
-  // Chain exceeded the bound — likely pre-existing bad data; don't block the
-  // write on it, but this is worth surfacing in logs.
   console.warn(`assertNoManagerCycle: manager chain from ${proposedManagerId} exceeded depth ${MAX_MANAGER_CHAIN_DEPTH}`);
 }
 
-// IMPORTANT: pass `role: undefined`/omit it when the caller isn't changing
-// role (e.g. a password-only update) — it must reach this function as
-// undefined/null, NOT pre-defaulted to 'employee' in JS, or the COALESCE
-// below never fires and an unrelated write silently resets an existing
-// admin/lead back to 'employee'. Only a genuinely new employee_auth row
-// (INSERT branch) falls back to 'employee', via SQL's own IFNULL. Kept as a
-// raw upsert (not Drizzle's .onDuplicateKeyUpdate()) to preserve that exact
-// COALESCE-on-conflict semantics, which Drizzle's upsert can't express.
 export async function upsertAuth(
   employeeId: number | string,
   { password_hash, role }: { password_hash?: string | null; role?: string | null },
@@ -519,8 +458,6 @@ export async function upsertProfile(
   `);
 }
 
-// Closes out the current job_history row (if any) and inserts a new one.
-// Only call this when designation/department/manager actually changed.
 export async function recordJobChange(
   employeeId: number | string,
   { designationId, departmentId, managerId, changeReason, changedBy }: any,
@@ -543,7 +480,6 @@ export async function recordJobChange(
   });
 }
 
-// Closes out the current compensation_history row (if any) and inserts a new one.
 export async function recordCompensationChange(
   employeeId: number | string,
   { salary, payFrequency, changeReason, changedBy }: any,
@@ -565,8 +501,6 @@ export async function recordCompensationChange(
   });
 }
 
-// Marks any existing current document of this type as superseded, then inserts
-// the new one — keeps prior versions with is_current=FALSE as free history.
 export async function recordDocumentUpload(
   employeeId: number | string,
   docType: string,

@@ -17,8 +17,6 @@ export const summary = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const create = asyncHandler(async (req: any, res: Response) => {
-  // Manual checks before DTO binding — matches the original's error
-  // precedence (these two checks run before the DTO's own validation).
   if (!req.body.message?.trim()) {
     throw new AppError('Message is required', 400);
   }

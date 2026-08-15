@@ -2,9 +2,6 @@ import { z } from 'zod';
 import AppError from '../pkg/AppError';
 import { bindAndValidate, optionalNullable } from '../pkg/validation';
 
-// Accepts any string JS's Date can parse (ISO 8601 datetime-local input, etc.) —
-// the DB column is DATETIME, and meeting.repository.ts/googleCalendar.js
-// already pass these straight through as date strings.
 const datetimeString = z.string().refine((v) => !isNaN(Date.parse(v)), 'must be a valid date/time');
 
 const createBodySchema = z

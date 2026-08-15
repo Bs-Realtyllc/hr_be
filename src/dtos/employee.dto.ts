@@ -2,14 +2,10 @@ import { z } from 'zod';
 import AppError from '../pkg/AppError';
 import { bindAndValidate, optionalNullable } from '../pkg/validation';
 
-// Matches the `employee_auth.role` ENUM in schema.sql.
 const ROLES = ['admin', 'lead', 'employee'] as const;
 
 const emailField = z.string().trim().email('must be a valid email address');
 
-// Single source of truth for what a valid value looks like for each employee
-// field — both createBodySchema and updateBodySchema below are built from
-// this, so a validation rule only ever needs to change in one place.
 const employeeFields = {
   name: z.string().trim().min(1),
   email: emailField,
@@ -27,8 +23,6 @@ const employeeFields = {
   role: z.enum(ROLES),
 };
 
-// POST /api/employees — name/email required; discord_username is update-only
-// (matched against Discord standup submissions, never set at creation).
 const createBodySchema = z.object({
   name: employeeFields.name,
   email: employeeFields.email,
@@ -45,10 +39,6 @@ const createBodySchema = z.object({
   role: optionalNullable(employeeFields.role),
 });
 
-// PUT /api/employees/:id — every field optional; only what's present in the
-// body is changed (see toUpdateInput's field-presence filter below). Same
-// per-field rules as createBodySchema, reused from `employeeFields` rather
-// than redeclared.
 const updateBodySchema = z.object({
   name: optionalNullable(employeeFields.name),
   phone: optionalNullable(employeeFields.phone),
@@ -65,7 +55,6 @@ const updateBodySchema = z.object({
 });
 const UPDATE_FIELD_NAMES = Object.keys(updateBodySchema.shape) as (keyof EmployeeUpdateInput)[];
 
-// "Interface" types for the service/controller layer — the request/response shapes.
 export interface EmployeeCreateInput {
   name: string;
   email: string;
@@ -82,8 +71,6 @@ export interface EmployeeCreateInput {
   role: (typeof ROLES)[number];
 }
 
-// PUT /api/employees/:id body — every field optional (only what's present is
-// changed), same set as UPDATE_FIELD_NAMES above.
 export interface EmployeeUpdateInput {
   name?: string;
   phone?: string | null;
@@ -99,9 +86,6 @@ export interface EmployeeUpdateInput {
   role?: (typeof ROLES)[number];
 }
 
-// The exact shape returned by GET /api/employees and GET /api/employees/:id —
-// every employees_flat column (see src/models/EmployeeFlat.ts) plus
-// manager_name, minus password_hash (stripped in toResponse below).
 export interface EmployeeResponse {
   id: number;
   name: string;
@@ -174,11 +158,8 @@ export function toUpdateInput(body: unknown): EmployeeUpdateInput {
   return updates;
 }
 
-// What the repository actually hands back: every EmployeeResponse field plus
-// password_hash, which toResponse strips before this reaches a controller.
 export type EmployeeRow = EmployeeResponse & { password_hash: string | null };
 
-// Strip fields that should never reach the client (password_hash).
 export function toResponse(employee: EmployeeRow | null): EmployeeResponse | null {
   if (!employee) return null;
   const { password_hash, ...safe } = employee;

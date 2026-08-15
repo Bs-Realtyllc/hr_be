@@ -38,9 +38,6 @@ export async function sendResetEmail(name: string, to: string, resetLink: string
   });
 }
 
-// Business logic only — no req/res, no raw request bodies. Every input here
-// is already bound+validated by auth.controller.ts via auth.dto.ts.
-
 export async function login({ email, password }: LoginInput) {
   console.log(`[auth] Login attempt for ${email}`);
 
@@ -52,10 +49,6 @@ export async function login({ email, password }: LoginInput) {
 
   console.log(`[auth] ${emp!.name} (${email}) logged in successfully`);
 
-  // Response-DTO mapping happens here rather than in the controller — the
-  // stripped (no password_hash) shape is itself an input to the JWT signing
-  // below, not just an HTTP output concern, so it can't be deferred until
-  // after this function returns.
   const user = authDto.toLoginResponse(emp!);
   const token = jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: '7d' });
   return { token, user };
@@ -75,12 +68,10 @@ export async function changePassword(userId: number, { current_password, new_pas
 export async function forgotPassword({ email }: ForgotPasswordInput) {
   const emp = await employeeRepo.findActiveBasicByEmail(email);
 
-  // Always respond the same way to prevent email enumeration — caller (controller)
-  // sends the generic message regardless of what this function does internally.
   if (!emp) return;
 
   const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
   await passwordResetTokenRepo.invalidateActiveForEmployee(emp.id);
   await passwordResetTokenRepo.create(emp.id, token, expiresAt);

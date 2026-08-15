@@ -3,8 +3,6 @@ import { sql } from 'drizzle-orm';
 import { db } from '../config/database';
 import { policyAcknowledgements, policies, employeesFlat } from '../models';
 
-// Same exported function names/signatures as the old src/models/PolicyAcknowledgement.js.
-
 export async function upsertSubmission({ policyId, employeeId, signedFilePath }: any) {
   await db.execute(sql`
     INSERT INTO policy_acknowledgements (policy_id, employee_id, signed_file_path, status, rejection_reason, submitted_at)

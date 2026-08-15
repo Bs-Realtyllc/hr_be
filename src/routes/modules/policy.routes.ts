@@ -6,9 +6,6 @@ import { authenticate, requireRole } from '../../middleware/auth';
 import * as ctrl from '../../controllers/policy.controller';
 import * as ackCtrl from '../../controllers/policyAcknowledgement.controller';
 
-// process.cwd() (not __dirname) — this file compiles into dist/, where
-// __dirname would resolve under dist/ instead of the real uploads/ at the
-// project root.
 function pdfUpload(folder: string) {
   const storage = multer.diskStorage({
     destination: path.join(process.cwd(), 'uploads', folder),
@@ -21,7 +18,7 @@ function pdfUpload(folder: string) {
 
   return multer({
     storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+    limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
       const ext = path.extname(file.originalname).toLowerCase();
       ext === '.pdf' ? cb(null, true) : cb(new Error('Only PDF files are allowed'));

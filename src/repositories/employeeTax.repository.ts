@@ -2,8 +2,6 @@ import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../config/database';
 import { employeeTaxProfiles, employeesFlat } from '../models';
 
-// Same exported function names/signatures as the old src/models/EmployeeTax.js.
-
 export async function findAllWithProfile(id?: number | string | null) {
   return db
     .select({

@@ -2,10 +2,6 @@ import { sql } from 'drizzle-orm';
 import { db } from '../config/database';
 import { employees, leaveRequests, overtimeRequests, standups, projects } from '../models';
 
-// Same exported function names/signatures as the old src/models/Dashboard.js.
-// Pure aggregate reads over tables already modeled by other domains — no new
-// table of its own, so no dedicated model file.
-
 async function scalarCount(query: any): Promise<number> {
   const result: any = await db.execute(query);
   return Number(Object.values(result[0][0])[0]);

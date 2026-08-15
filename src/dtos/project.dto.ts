@@ -1,12 +1,9 @@
 import { z } from 'zod';
 import { bindAndValidate, optionalNullable } from '../pkg/validation';
 
-// Matches the `projects.status` ENUM in schema.sql.
 const STATUSES = ['active', 'archived', 'on_hold'] as const;
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be a date in YYYY-MM-DD format');
 
-// repo_url/docs_url arrive as an array (or a single string) and are stored as
-// a JSON-encoded string column — see toJSON/toArr below.
 const urlListField = z.union([z.string(), z.array(z.string())]);
 
 const projectFields = {
@@ -43,7 +40,7 @@ const UPDATE_FIELD_NAMES = Object.keys(updateBodySchema.shape) as (keyof Project
 export interface ProjectCreateInput {
   name: string;
   description: string | null;
-  repo_url: string | null; // JSON-encoded array, or null
+  repo_url: string | null;
   docs_url: string | null;
   status: (typeof STATUSES)[number];
   start_date: string | null;
@@ -74,7 +71,6 @@ export interface ProjectResponse {
   milestones?: unknown[];
 }
 
-// repo_url/docs_url (stored as JSON strings) <-> arrays for the client.
 function toArr(v: unknown): string[] {
   if (!v) return [];
   if (Array.isArray(v)) return v;
@@ -121,10 +117,6 @@ export function toUpdateInput(body: unknown): ProjectUpdateInput {
   return updates;
 }
 
-// Explicit field list, not a spread — keeps the new updated_at/created_by/
-// updated_by audit columns (see migrate_zz_add_audit_columns_projects.sql)
-// internal instead of silently growing the response shape, same as
-// leave.dto.ts/standup.dto.ts.
 export function toResponse(project: Record<string, any> | null): ProjectResponse | null {
   if (!project) return null;
   return {
@@ -145,11 +137,6 @@ export function toResponse(project: Record<string, any> | null): ProjectResponse
 export function toResponseList(projectRows: Record<string, any>[]): ProjectResponse[] {
   return projectRows.map((p) => toResponse(p) as ProjectResponse);
 }
-
-// ── Assignments / milestones / services sub-resources ──────────────────────
-// The old controller validated none of these (addAssignment/addMilestone had
-// no checks at all; addService only checked service_key was present) — added
-// here for consistency with every other converted domain, same as standups.
 
 const ASSIGNMENT_ROLES = ['lead', 'backend', 'frontend', 'ui_ux', 'qa', 'devops'] as const;
 const assignmentBodySchema = z.object({

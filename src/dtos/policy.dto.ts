@@ -1,10 +1,5 @@
 import AppError from '../pkg/AppError';
 
-// The old controllers/policies.js validated these fields inline rather than
-// through a dedicated dto file — kept as plain checks here for the same
-// reason (type/title/file come from a multipart form alongside the upload,
-// not a clean JSON body worth a full Zod schema).
-
 export interface PolicyUploadInput {
   type: string;
   title: string;

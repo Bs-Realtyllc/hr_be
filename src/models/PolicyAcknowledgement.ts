@@ -1,7 +1,5 @@
 import { mysqlTable, int, varchar, text, timestamp, mysqlEnum } from 'drizzle-orm/mysql-core';
 
-// employee_id (submitter) + reviewed_by already identify the relevant
-// actors — skips BaseModel's created_by/updated_by.
 export const policyAcknowledgements = mysqlTable('policy_acknowledgements', {
   id: int('id').autoincrement().primaryKey(),
   policy_id: int('policy_id').notNull(),

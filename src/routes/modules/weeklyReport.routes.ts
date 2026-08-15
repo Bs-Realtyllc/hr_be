@@ -8,21 +8,15 @@ import { authenticate } from '../../middleware/auth';
 import { getWeekStartDate } from '../../pkg/weekUtil';
 
 const ALLOWED = ['.pdf', '.ppt', '.pptx'];
-// process.cwd() (not __dirname) — this file compiles into dist/, where
-// __dirname would resolve under dist/ instead of the real uploads/ at the
-// project root (same fix as index.ts's static /uploads serving).
 const UPLOAD_ROOT = path.join(process.cwd(), 'uploads', 'weekly-reports');
 
 const storage = multer.diskStorage({
-  // One folder per week, named after that week's Monday (e.g. uploads/weekly-reports/2026-07-20/).
   destination: (_req, _file, cb) => {
     const weekDir = path.join(UPLOAD_ROOT, getWeekStartDate());
     fs.mkdirSync(weekDir, { recursive: true });
     cb(null, weekDir);
   },
   filename: (_req, file, cb) => {
-    // Temporary name — the controller renames this to `<EmployeeName>_<timestamp>` once
-    // req.user is available (multer runs before the employee-name rename can happen here).
     const ts = Date.now();
     const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
     cb(null, `${ts}_${safe}`);
@@ -31,7 +25,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (ALLOWED.includes(ext)) return cb(null, true);

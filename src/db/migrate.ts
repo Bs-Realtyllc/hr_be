@@ -1,17 +1,12 @@
-// One-shot migration runner.
-// Applies schema.sql (idempotent — CREATE TABLE IF NOT EXISTS) plus every
-// migrate_*.sql file in this folder, in filename order. Safe to re-run:
-// statements that fail because the change was already applied (duplicate
-// column/key/entry) are skipped with a note instead of aborting the run.
 import fs from 'fs';
 import path from 'path';
 import mysql, { Connection } from 'mysql2/promise';
 import 'dotenv/config';
 
 const SKIPPABLE_CODES = new Set([
-  'ER_DUP_FIELDNAME', // column already exists
-  'ER_DUP_KEYNAME', // index/key already exists
-  'ER_DUP_ENTRY', // row already seeded
+  'ER_DUP_FIELDNAME',
+  'ER_DUP_KEYNAME',
+  'ER_DUP_ENTRY',
   'ER_TABLE_EXISTS_ERROR',
 ]);
 
@@ -58,7 +53,6 @@ async function runFile(conn: Connection, filePath: string): Promise<boolean> {
 }
 
 (async () => {
-  // Connect without a database first — it may not exist yet on a fresh server.
   const bootstrap = await mysql.createConnection({
     host: process.env.DB_HOST,
     port: process.env.DB_PORT ? Number(process.env.DB_PORT) : undefined,
@@ -78,13 +72,8 @@ async function runFile(conn: Connection, filePath: string): Promise<boolean> {
   });
 
   console.log('Applying schema.sql…');
-  // Always run schema.sql (it's self-idempotent via CREATE TABLE IF NOT EXISTS)
-  // — not gated behind schema_migrations, to preserve current behavior exactly.
   await runFile(conn, path.join(__dirname, 'schema.sql'));
 
-  // schema_migrations may not exist yet on a pre-tracking database — the file
-  // that creates it (migrate_normalize_employees_p1.sql) runs through the same
-  // untracked path below on its first pass, same as every migration before it.
   let appliedSet = new Set<string>();
   try {
     const [rows]: any = await conn.query('SELECT filename FROM schema_migrations');
@@ -106,8 +95,6 @@ async function runFile(conn: Connection, filePath: string): Promise<boolean> {
     }
     const ok = await runFile(conn, path.join(__dirname, file));
     if (ok) {
-      // Table may not exist yet on the very first file that creates it — that
-      // file's own INSERT IGNORE seeds its own name, so this becomes a no-op then.
       try {
         await conn.query('INSERT IGNORE INTO schema_migrations (filename) VALUES (?)', [file]);
       } catch (err: any) {

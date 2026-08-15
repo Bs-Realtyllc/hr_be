@@ -1,9 +1,6 @@
 import * as meetingRepo from '../repositories/meeting.repository';
 import AppError from '../pkg/AppError';
 import type { MeetingCreateInput } from '../dtos/meeting.dto';
-// Not yet converted — untouched .js service (external Google Calendar OAuth
-// integration; already repointed at googleSettings.repository.ts).
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const gc = require('../services/googleCalendar');
 
 interface AuthUser {

@@ -30,7 +30,7 @@ export async function removePolicy(id: string) {
   const policy: any = await policyRepo.findById(id);
   if (!policy) throw new AppError('Policy not found', 404);
   await policyRepo.remove(id);
-  return policy; // caller deletes the uploaded file at this path
+  return policy;
 }
 
 export async function setPinned(id: string, pinned: boolean) {

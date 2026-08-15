@@ -1,6 +1,5 @@
 import { mysqlTable, int, varchar, date, timestamp, mysqlEnum } from 'drizzle-orm/mysql-core';
 
-// Project sub-resource — no BaseModel (see instruction.md).
 export const milestones = mysqlTable('milestones', {
   id: int('id').autoincrement().primaryKey(),
   project_id: int('project_id').notNull(),

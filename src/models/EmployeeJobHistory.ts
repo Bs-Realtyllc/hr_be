@@ -1,9 +1,5 @@
 import { mysqlTable, int, date, varchar, timestamp } from 'drizzle-orm/mysql-core';
 
-// Effective-dated, append-only audit trail of designation/department/manager
-// changes. Not on BaseModel — a history row is never updated after insert
-// (effective_to is set once, to close it out), and it already carries its own
-// audit field (changed_by) rather than created_by/updated_by.
 export const employeeJobHistory = mysqlTable('employee_job_history', {
   id: int('id').autoincrement().primaryKey(),
   employee_id: int('employee_id').notNull(),

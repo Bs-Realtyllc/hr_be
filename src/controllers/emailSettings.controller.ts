@@ -5,7 +5,6 @@ import asyncHandler from '../middleware/asyncHandler';
 
 export const get = asyncHandler(async (req: Request, res: Response) => {
   const row = await emailSettingsService.get(req.params.employeeId);
-  // Never return the password to the client
   res.json(row || null);
 });
 

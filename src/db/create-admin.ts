@@ -1,5 +1,3 @@
-// Creates the very first admin account, since there is no self-signup page.
-// Usage: npm run create-admin -- "Full Name" "email@company.com" "Password123"
 import bcrypt from 'bcryptjs';
 import mysql from 'mysql2/promise';
 import 'dotenv/config';

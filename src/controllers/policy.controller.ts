@@ -36,9 +36,6 @@ export const setPinned = asyncHandler(async (req: Request, res: Response) => {
 });
 
 function deleteUpload(filename: string) {
-  // process.cwd() (not __dirname) — this file compiles into dist/, where
-  // __dirname would resolve under dist/ instead of the real uploads/ at the
-  // project root.
   const full = path.join(process.cwd(), 'uploads/policies', filename);
   fs.unlink(full, () => {});
 }

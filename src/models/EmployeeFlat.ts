@@ -1,17 +1,5 @@
 import { mysqlView, int, varchar, text, date, json, boolean, timestamp, decimal, mysqlEnum } from 'drizzle-orm/mysql-core';
 
-// Read-only view over `employees_flat` (see
-// src/db/migrate_normalize_employees_p2.sql) — reproduces the exact
-// pre-redesign `employees` column shape by joining employee_auth/
-// employee_profile/employee_documents/employee_compensation_history/
-// departments/designations back onto the slimmed `employees` row. Every read
-// in employee.repository.ts goes through this instead of the underlying
-// tables; every write still targets the underlying tables directly (a view
-// isn't writable here — it spans a JOIN).
-//
-// `.existing()` — this view is created/owned by
-// migrate_normalize_employees_p2.sql, not by Drizzle; this definition only
-// describes its shape for typed queries.
 export const employeesFlat = mysqlView('employees_flat', {
   id: int('id'),
   name: varchar('name', { length: 100 }),

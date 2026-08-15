@@ -3,8 +3,6 @@ import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
 import { standups, employeesFlat } from '../models';
 
-// Same exported function names/signatures as the old src/models/Standup.js.
-
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
@@ -92,10 +90,6 @@ export async function upsert(
       created_at: new Date(),
     } as any)
     .onDuplicateKeyUpdate({
-      // `id = LAST_INSERT_ID(id)` is the standard MySQL idiom for making
-      // insertId resolve to the existing row's id on the UPDATE branch too —
-      // without it, insertId comes back 0 when today's standup already
-      // existed and this just updated it.
       set: { id: sql`LAST_INSERT_ID(id)`, yesterday, today, blockers, updated_by: actorId },
     });
   return insertedId(result);

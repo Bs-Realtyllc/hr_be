@@ -2,8 +2,6 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from '../config/database';
 import { emailSettings } from '../models';
 
-// Same exported function names/signatures as the old src/models/EmailSettings.js.
-
 export async function findPublicByEmployeeId(employeeId: number | string) {
   const rows = await db
     .select({
@@ -21,7 +19,6 @@ export async function findPublicByEmployeeId(employeeId: number | string) {
   return rows[0] || null;
 }
 
-// Includes smtp_pass — for server-side sending use only, never return this to a client.
 export async function findFullByEmployeeId(employeeId: number | string) {
   const rows = await db.select().from(emailSettings).where(eq(emailSettings.employee_id, Number(employeeId))).limit(1);
   return rows[0] || null;

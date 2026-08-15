@@ -32,7 +32,7 @@ export const uploadPhoto = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const uploadCitizenship = asyncHandler(async (req: any, res: Response) => {
-  const { side } = req.params; // 'front' | 'back'
+  const { side } = req.params;
   if (!['front', 'back'].includes(side)) throw new AppError('Invalid side', 400);
   if (!req.file) throw new AppError('No file uploaded', 400);
 

@@ -2,8 +2,6 @@ import { eq, and, gt, isNull, sql } from 'drizzle-orm';
 import { db } from '../config/database';
 import { passwordResetTokens } from '../models';
 
-// Same exported function names as the old src/models/PasswordResetToken.js.
-
 export async function invalidateActiveForEmployee(employeeId: number | string) {
   await db
     .update(passwordResetTokens)

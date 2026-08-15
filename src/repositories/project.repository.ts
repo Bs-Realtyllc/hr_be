@@ -2,8 +2,6 @@ import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { db } from '../config/database';
 import { projects, projectAssignments, milestones, projectServices, employeesFlat } from '../models';
 
-// Same exported function names/signatures as the old src/models/Project.js.
-
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
@@ -80,7 +78,6 @@ export async function findMilestones(projectId: number | string) {
   return db.select().from(milestones).where(eq(milestones.project_id, Number(projectId))).orderBy(asc(milestones.due_date));
 }
 
-// Same query as findMilestones, reused for byEmployee's per-project milestone attachment.
 export const findMilestonesForProject = findMilestones;
 
 export async function addMilestone(projectId: number | string, title: string, due_date: string, status: string) {
@@ -130,7 +127,6 @@ export async function removeService(projectId: number | string, serviceKey: stri
     .where(and(eq(projectServices.project_id, Number(projectId)), eq(projectServices.service_key, serviceKey)));
 }
 
-// Returns all projects an employee is assigned to, with their role.
 export async function findByEmployee(employeeId: number | string) {
   return db
     .select({

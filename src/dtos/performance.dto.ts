@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { bindAndValidate, optionalNullable } from '../pkg/validation';
 
-// Frontend uses a 5-star scale (see performance/page.tsx) — DB column is
-// DECIMAL(2,1) which technically allows up to 9.9, but 0-5 is the real business rule.
 const ratingSchema = optionalNullable(z.coerce.number().min(0).max(5));
 const categoryRatingsSchema = z.record(z.string(), z.coerce.number()).default({});
 

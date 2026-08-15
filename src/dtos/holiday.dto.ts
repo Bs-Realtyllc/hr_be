@@ -15,9 +15,6 @@ export interface HolidayCreateInput {
   message: string | null;
 }
 
-// What findAll/findByYear return — holidays columns minus the new
-// updated_at/created_by/updated_by audit columns, kept internal, same as
-// every other converted domain.
 export interface HolidayResponse {
   id: number;
   name: string;
@@ -31,7 +28,6 @@ export function toCreateInput(body: unknown): HolidayCreateInput {
   const b = body as Record<string, any>;
   const parsed = bindAndValidate(createBodySchema, {
     ...b,
-    // year defaults from holiday_date if omitted — same as the original.
     year: b?.year || (b?.holiday_date ? new Date(b.holiday_date).getFullYear() : undefined),
   });
   return {

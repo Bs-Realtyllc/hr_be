@@ -3,11 +3,6 @@ import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
 import { leaveRequests, leaveBalances, employeesFlat } from '../models';
 
-// Same exported function names/signatures as the old src/models/LeaveRequest.js
-// — cross-cutting consumers (payrollService.js, leaveEvents.js, webhook.js)
-// keep working after their one-line `require('../models/LeaveRequest')` ->
-// `require('../repositories/leave.repository')` swap.
-
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
@@ -62,12 +57,7 @@ export async function findBalanceForType(employeeId: number | string, leaveType:
   return row ? { ...row, remaining: (row.total ?? 0) - (row.taken ?? 0) } : null;
 }
 
-// GROUP BY + COALESCE(SUM(...)) kept as a raw query — clearer here than the
-// equivalent Drizzle aggregate builder chain, same escape hatch this app's
-// repositories have used since the pilot (see employee.repository.ts).
 export async function findBalanceTotalsForYear(year: number) {
-  // db.execute() resolves to the raw mysql2 [rows, fields] tuple — same
-  // gotcha as insertedId() above, just on the read side.
   const result: any = await db.execute(sql`
     SELECT e.id AS employee_id, e.name AS employee_name,
            COALESCE(SUM(lb.total), 0) AS total_leaves,
@@ -172,7 +162,6 @@ export async function approve(id: number | string, reviewerId: number) {
     .where(eq(leaveRequests.id, Number(id)));
 }
 
-// For leaves approved by an external system (no internal reviewer) — e.g. the n8n leave-approval webhook.
 export async function approveExternally(id: number | string) {
   await db.update(leaveRequests).set({ status: 'approved', reviewed_at: new Date() }).where(eq(leaveRequests.id, Number(id)));
 }

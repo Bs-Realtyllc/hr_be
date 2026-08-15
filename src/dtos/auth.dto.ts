@@ -60,9 +60,6 @@ export function toResetPasswordInput(body: unknown): ResetPasswordInput {
   return bindAndValidate(resetPasswordSchema, body, 'Token and new password (min 6 characters) are required');
 }
 
-// The exact shape findAuthByEmail returns (see employee.repository.ts),
-// minus password_hash — narrower than the full EmployeeResponse since the
-// login query only ever selects these columns.
 export interface UserSummary {
   id: number;
   name: string;
@@ -72,7 +69,6 @@ export interface UserSummary {
   department: string | null;
 }
 
-// Strip password_hash before this reaches the JWT payload or the response body.
 export function toLoginResponse(employee: UserSummary & { password_hash: string | null }): UserSummary {
   const { password_hash, ...user } = employee;
   return user;

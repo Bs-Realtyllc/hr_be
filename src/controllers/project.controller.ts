@@ -74,7 +74,6 @@ export const removeService = asyncHandler(async (req: Request, res: Response) =>
   res.json({ success: true });
 });
 
-// Returns all projects an employee is assigned to, with their role + milestones
 export const byEmployee = asyncHandler(async (req: Request, res: Response) => {
   const rows = await projectService.byEmployee(req.params.empId);
   res.json(projectDto.toResponseList(rows));

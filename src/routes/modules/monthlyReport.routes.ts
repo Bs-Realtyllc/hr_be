@@ -7,9 +7,6 @@ import { authenticate } from '../../middleware/auth';
 
 const ALLOWED = ['.pdf', '.pptx', '.ppt', '.docx', '.doc'];
 
-// process.cwd() (not __dirname) — this file compiles into dist/, where
-// __dirname would resolve under dist/ instead of the real uploads/ at the
-// project root (same fix as index.ts's static /uploads serving).
 const storage = multer.diskStorage({
   destination: path.join(process.cwd(), 'uploads', 'reports'),
   filename: (_req, file, cb) => {
@@ -21,7 +18,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (ALLOWED.includes(ext)) return cb(null, true);

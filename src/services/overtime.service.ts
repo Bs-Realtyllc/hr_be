@@ -10,9 +10,6 @@ interface AuthUser {
   role: string;
 }
 
-// Business logic only — no req/res, no raw request bodies. Every input here
-// is already bound+validated by overtime.controller.ts via overtime.dto.ts.
-
 export async function list(user: AuthUser, employeeIdFilter?: string, status?: string) {
   const privileged = ['admin', 'lead'].includes(user.role);
   const filterEmployeeId = privileged ? employeeIdFilter : user.id;
@@ -39,9 +36,6 @@ export async function cancel(id: string, userId: number) {
   await overtimeRepo.remove(id);
 }
 
-// Approves an overtime request: validates role/ownership/status, computes the
-// overtime pay at 150% of the hourly rate, records it, and books a payroll
-// adjustment.
 export async function approve(id: string, user: AuthUser) {
   if (user.role === 'employee') throw new AppError('Insufficient permissions', 403);
 
@@ -82,7 +76,6 @@ export async function approve(id: string, user: AuthUser) {
   return { amount };
 }
 
-// Rejects an overtime request: validates role/ownership/status, marks it rejected.
 export async function reject(id: string, user: AuthUser) {
   if (user.role === 'employee') throw new AppError('Insufficient permissions', 403);
 

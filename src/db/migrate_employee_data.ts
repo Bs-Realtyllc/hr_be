@@ -1,19 +1,3 @@
-// OBSOLETE as of Phase 5 (migrate_normalize_employees_p3.sql): the legacy
-// employees.department/designation/role/password_hash/etc. columns this
-// script reads from no longer exist — it was a one-time Phase 2 backfill tool
-// and has served its purpose. Kept for historical reference only; do not run.
-//
-// Phase 2 backfill: populates the new normalized tables (employee_auth,
-// employee_profile, employee_job_history, employee_compensation_history,
-// employee_documents) and the departments/designations lookup tables from
-// today's `employees` row data. Standalone script, run manually — mirrors
-// create-admin.ts's precedent of not being part of migrate.ts's auto-run path.
-//
-// Safe to re-run: every step is idempotent (INSERT IGNORE / ON DUPLICATE KEY
-// UPDATE / existence checks), so running this twice just no-ops the second time.
-//
-// Usage: npm run migrate-employee-data
-//        npm run migrate-employee-data -- --verify   (report-only, no writes)
 
 import mysql from 'mysql2/promise';
 import 'dotenv/config';
@@ -31,7 +15,6 @@ const VERIFY_ONLY = process.argv.includes('--verify');
 
   console.log(VERIFY_ONLY ? 'Running in --verify mode (no writes).\n' : 'Starting backfill…\n');
 
-  // ── 1. Seed departments / designations from distinct existing free text ──
   if (!VERIFY_ONLY) {
     await conn.query(
       `INSERT IGNORE INTO departments (name)
@@ -54,7 +37,6 @@ const VERIFY_ONLY = process.argv.includes('--verify');
   const [[desigCount]]: any = await conn.query('SELECT COUNT(*) AS n FROM designations');
   console.log(`departments: ${deptCount.n} rows, designations: ${desigCount.n} rows`);
 
-  // ── 2. Pull every employee row (all statuses, not just active) ───────────
   const [employees]: any = await conn.query('SELECT * FROM employees');
   console.log(`Backfilling ${employees.length} employee row(s)…\n`);
 
@@ -65,7 +47,6 @@ const VERIFY_ONLY = process.argv.includes('--verify');
     docsWritten = 0;
 
   for (const emp of employees) {
-    // employee_auth
     if (!VERIFY_ONLY) {
       await conn.query(
         `INSERT INTO employee_auth (employee_id, password_hash, role)
@@ -76,7 +57,6 @@ const VERIFY_ONLY = process.argv.includes('--verify');
     }
     authWritten++;
 
-    // employee_profile
     if (!VERIFY_ONLY) {
       await conn.query(
         `INSERT INTO employee_profile
@@ -106,8 +86,6 @@ const VERIFY_ONLY = process.argv.includes('--verify');
     }
     profileWritten++;
 
-    // employee_job_history — one "current" row (effective_to NULL) per employee.
-    // Re-runs must not duplicate the current row, so check first.
     const effectiveFrom = emp.start_date || emp.created_at;
     if (!VERIFY_ONLY) {
       const [[existingJob]]: any = await conn.query(
@@ -131,7 +109,6 @@ const VERIFY_ONLY = process.argv.includes('--verify');
     }
     jobHistWritten++;
 
-    // employee_compensation_history — only if a salary is set; same "one current row" rule.
     if (emp.salary != null) {
       if (!VERIFY_ONLY) {
         const [[existingComp]]: any = await conn.query(
@@ -150,7 +127,6 @@ const VERIFY_ONLY = process.argv.includes('--verify');
       compHistWritten++;
     }
 
-    // employee_documents — one row per non-null doc column, best-effort uploaded_at.
     const docs: [string, string | null][] = [
       ['profile_picture', emp.profile_picture],
       ['citizenship_front', emp.citizenship_front],
@@ -181,7 +157,6 @@ const VERIFY_ONLY = process.argv.includes('--verify');
   console.log(`employee_compensation_history:  ${compHistWritten} row(s) (salary IS NOT NULL only)`);
   console.log(`employee_documents:             ${docsWritten} row(s) (non-null filename only)`);
 
-  // ── 3. Verification: diff row counts / spot-check values ────────────────
   console.log('\n── Verification ──');
   const [[empCount]]: any = await conn.query('SELECT COUNT(*) AS n FROM employees');
   const [[authCount]]: any = await conn.query('SELECT COUNT(*) AS n FROM employee_auth');

@@ -3,9 +3,6 @@ import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.reposi
 import type { EmployeeCreateInput, EmployeeUpdateInput } from '../dtos/employee.dto';
 import AppError from '../pkg/AppError';
 
-// Business logic only — no req/res, no raw request bodies. Every input here
-// is already bound+validated by the controller via employee.dto.ts.
-
 export async function list() {
   return employeeRepo.findAllActive();
 }
@@ -17,7 +14,6 @@ export async function get(id: string) {
 export async function create(data: EmployeeCreateInput, actorId: number | null) {
   const id = await employeeRepo.create(data, actorId);
 
-  // Seed default leave balances for current year
   const year = new Date().getFullYear();
   await employeeRepo.seedLeaveBalances(id, year);
 
@@ -35,10 +31,6 @@ export async function remove(id: string, actorId: number | null) {
   await employeeRepo.deactivate(id, actorId);
 }
 
-// Payroll summary for an employee for the current month: working days,
-// approved-leave days, present days, expected pay, plus any overtime/leave
-// adjustments booked for the period. Moved here unchanged from
-// controllers/employees.js — pure calculation, no HTTP concerns.
 export async function payrollSummary(id: string) {
   const emp = await employeeRepo.findPayrollBaseById(id);
   if (!emp) {
@@ -52,7 +44,6 @@ export async function payrollSummary(id: string) {
   const month = now.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // Count Mon–Fri working days in current month
   let workingDays = 0;
   for (let d = 1; d <= daysInMonth; d++) {
     const day = new Date(year, month, d).getDay();
@@ -74,15 +65,9 @@ export async function payrollSummary(id: string) {
   }
 
   const presentDays = workingDays - leaveDays;
-  // Drizzle (like mysql2's own default decimalNumbers:false) returns DECIMAL
-  // columns as strings — same as the original raw-SQL code, which relied on
-  // JS's implicit string->number coercion here; explicit Number() now that
-  // the compiler is checking it.
   const dailyRate = emp.salary ? Number(emp.salary) / workingDays : 0;
   const expectedPay = dailyRate * presentDays;
 
-  // Overtime pay / leave deductions booked for this month, plus any year-end leave
-  // bonus already paid out for this year — each carries its own display title.
   const adjustments = await payrollAdjustmentRepo.findForEmployeePeriod(id, year, month + 1);
   const overtimePay = adjustments.filter((a: any) => a.type === 'overtime_pay').reduce((s: number, a: any) => s + Number(a.amount), 0);
   const leaveDeduction = adjustments.filter((a: any) => a.type === 'leave_deduction').reduce((s: number, a: any) => s + Number(a.amount), 0);

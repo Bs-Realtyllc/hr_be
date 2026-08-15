@@ -6,9 +6,6 @@ import * as employeeTaxRepo from '../repositories/employeeTax.repository';
 import { estimateAnnualTax, toAnnualSalary } from '../pkg/taxCalculator';
 import { toMonthlySalary, calculateYearEndLeaveBonus } from '../pkg/payrollCalculator';
 
-// Business logic only — no req/res, no raw request bodies.
-
-// Shared by getTaxes and getFinancialReport so both report the same tax number for an employee.
 export function withTaxEstimate(r: any) {
   const annualSalary = toAnnualSalary(r.salary, r.pay_frequency);
   const exemptions = Number(r.exemptions) || 0;
@@ -68,7 +65,6 @@ export async function getAdjustments(
   });
 }
 
-// Base salary + this month's overtime pay / leave deductions + this year's leave bonus, per employee.
 export async function buildSummary(privileged: boolean, userId: number) {
   const now = new Date();
   const year = now.getFullYear();
@@ -102,8 +98,6 @@ export async function buildSummary(privileged: boolean, userId: number) {
   });
 }
 
-// Admin-triggered, idempotent per (employee, year): pays out unused leave balance at the
-// employee's daily rate for every active employee who hasn't already been paid for that year.
 export async function runYearEndBonus(year: number) {
   const employees = await employeeRepo.findPayrollColumns(null);
 
@@ -143,8 +137,6 @@ export async function runYearEndBonus(year: number) {
   return { year, processed, total_bonus: Math.round(totalBonus), details };
 }
 
-// One row per employee: base salary, this month's overtime/deduction/bonus, estimated tax,
-// and the final total payable amount — base + overtime - deduction + bonus - tax.
 export async function buildFinancialReport(filterEmployeeId: string | null, year: number, month: number) {
   const [taxRows, totals] = await Promise.all([
     employeeTaxRepo.findAllWithProfile(filterEmployeeId),
@@ -152,9 +144,6 @@ export async function buildFinancialReport(filterEmployeeId: string | null, year
   ]);
   const totalsByEmployee = Object.fromEntries(totals.map((t: any) => [t.employee_id, t]));
 
-  // Year-end leave bonus is a one-time annual payout (not tied to a specific month) and is
-  // intentionally excluded from this month's total payable — see the Overtime & Adjustments
-  // tab on the Payroll page for bonus payouts.
   return taxRows.map((raw: any) => {
     const r = withTaxEstimate(raw);
     const t = totalsByEmployee[r.id] || { overtime_pay: 0, leave_deduction: 0 };

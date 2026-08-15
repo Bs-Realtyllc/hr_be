@@ -3,8 +3,6 @@ import { sql } from 'drizzle-orm';
 import { db } from '../config/database';
 import { serviceCredentials } from '../models';
 
-// Same exported function names/signatures as the old src/models/ServiceCredential.js.
-
 export async function findByEmployeeId(employeeId: number | string) {
   return db
     .select({
@@ -22,8 +20,6 @@ export async function upsert(
   { service_name, username, password, notes }: any,
   actorId: number | null = null
 ) {
-  // password kept as-is if the caller sent an empty string (no change) — same
-  // IF(...) semantics as the original raw SQL.
   await db.execute(sql`
     INSERT INTO service_credentials (employee_id, service_name, username, password, notes, created_by, updated_by, created_at)
     VALUES (${Number(employeeId)}, ${service_name}, ${username}, ${password}, ${notes}, ${actorId}, ${actorId}, NOW())

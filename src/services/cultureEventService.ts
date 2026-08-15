@@ -1,8 +1,6 @@
 import * as employeeRepo from '../repositories/employee.repository';
 import * as cultureEventRepo from '../repositories/cultureEvent.repository';
 
-// Called when an employee sets/changes their date of birth (see profile.service.ts) —
-// keeps their yearly birthday entry on the culture-events calendar in sync.
 export async function upsertBirthdayEvent(employeeId: number, dob: string) {
   const d = new Date(dob);
   const year = new Date().getFullYear();

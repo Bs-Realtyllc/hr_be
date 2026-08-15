@@ -1,9 +1,6 @@
 import { mysqlTable, int, varchar, timestamp, mysqlEnum } from 'drizzle-orm/mysql-core';
 import { auditColumns } from './BaseModel';
 
-// 1:1 with employees — security boundary (password_hash, role). Primary key
-// IS employee_id, not a surrogate id, so this uses auditColumns (not the
-// full baseColumns) — see BaseModel.ts.
 export const employeeAuth = mysqlTable('employee_auth', {
   employee_id: int('employee_id').primaryKey(),
   password_hash: varchar('password_hash', { length: 255 }),

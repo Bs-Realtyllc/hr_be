@@ -1,8 +1,6 @@
 import { google } from 'googleapis';
 import * as googleSettingsRepo from '../repositories/googleSettings.repository';
 
-// Single in-flight refresh promise — all concurrent callers await the same one
-// instead of each racing to call refreshAccessToken() simultaneously.
 let _refreshInFlight: Promise<void> | null = null;
 
 function makeOAuth2Client() {
@@ -34,7 +32,6 @@ export async function exchangeCodeForTokens(code: string) {
 async function _doRefresh(client: any, row: any) {
   const { credentials } = await client.refreshAccessToken();
 
-  // Google occasionally rotates the refresh token — persist it if returned.
   await googleSettingsRepo.updateTokensAfterRefresh(row.id, {
     access_token: credentials.access_token,
     token_expiry: new Date(credentials.expiry_date),
@@ -43,7 +40,6 @@ async function _doRefresh(client: any, row: any) {
   client.setCredentials(credentials);
 }
 
-// Returns an authenticated OAuth2 client, refreshing the access token if needed.
 export async function getAuthenticatedClient() {
   const row: any = await googleSettingsRepo.findFull();
 
@@ -64,7 +60,6 @@ export async function getAuthenticatedClient() {
   const needsRefresh = !row.access_token || Date.now() > expiry - 5 * 60 * 1000;
 
   if (needsRefresh) {
-    // Coalesce concurrent refresh attempts into one network call.
     if (!_refreshInFlight) {
       _refreshInFlight = _doRefresh(client, row).finally(() => {
         _refreshInFlight = null;
@@ -73,8 +68,6 @@ export async function getAuthenticatedClient() {
     try {
       await _refreshInFlight;
     } catch (err: any) {
-      // HTTP 400/401 from Google means the refresh token was revoked;
-      // the admin must go through the OAuth flow again.
       const status = err.response?.status;
       if (status === 400 || status === 401) {
         const revoked: any = new Error('Google Calendar token revoked. Admin must reconnect via /api/google/auth-url.');
@@ -170,13 +163,10 @@ export async function stopWebhookChannel() {
       requestBody: { id: row.channel_id, resourceId: row.resource_id },
     });
   } catch {
-    // Best-effort; channel may already be expired
   }
   await googleSettingsRepo.clearChannelInfo();
 }
 
-// Call this on server startup (and periodically) to keep the push channel alive.
-// Renews if the channel expires within 24 hours or is missing.
 export async function renewWebhookChannelIfNeeded() {
   if (!process.env.GOOGLE_WEBHOOK_URL) return;
 
@@ -184,7 +174,7 @@ export async function renewWebhookChannelIfNeeded() {
   if (!row) return;
 
   const expiry = row.channel_expiry ? new Date(row.channel_expiry).getTime() : 0;
-  const renewThreshold = Date.now() + 24 * 60 * 60 * 1000; // renew if < 24h left
+  const renewThreshold = Date.now() + 24 * 60 * 60 * 1000;
 
   if (expiry < renewThreshold) {
     await stopWebhookChannel().catch(() => {});

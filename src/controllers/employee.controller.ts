@@ -4,11 +4,6 @@ import * as employeeDto from '../dtos/employee.dto';
 import asyncHandler from '../middleware/asyncHandler';
 import AppError from '../pkg/AppError';
 
-// Bind request -> DTO happens here, at the boundary — never inside the
-// service. Services take already-validated, typed DTO input; controllers
-// never touch a model/repository directly. Response mapping (service result
-// -> output DTO) also happens here, right before res.json.
-
 export const list = asyncHandler(async (req: Request, res: Response) => {
   const employees = await employeeService.list();
   res.json(employeeDto.toResponseList(employees));

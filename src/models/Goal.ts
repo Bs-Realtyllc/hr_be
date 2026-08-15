@@ -1,8 +1,5 @@
 import { mysqlTable, int, varchar, text, date, decimal, timestamp, mysqlEnum } from 'drizzle-orm/mysql-core';
 
-// Already has id/created_at/updated_at/created_by (its own "who created this
-// goal" column, serving BaseModel's role) — just adding updated_by directly
-// here rather than via baseColumns, to avoid a duplicate `created_by`.
 export const goals = mysqlTable('goals', {
   id: int('id').autoincrement().primaryKey(),
   employee_id: int('employee_id').notNull(),

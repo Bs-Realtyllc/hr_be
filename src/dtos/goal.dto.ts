@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { bindAndValidate, optionalNullable } from '../pkg/validation';
 
-// Matches the `goals` table ENUMs in schema.sql.
 const CATEGORIES = ['individual', 'team', 'company'] as const;
 const STATUSES = ['not_started', 'in_progress', 'at_risk', 'completed', 'missed'] as const;
 

@@ -1,7 +1,5 @@
 import { mysqlTable, int, varchar, text, decimal, json, timestamp, mysqlEnum } from 'drizzle-orm/mysql-core';
 
-// No separate created_by — reviewer_id already identifies who created/owns
-// the review (same rationale as Goal.ts/Meeting.ts).
 export const performanceReviews = mysqlTable('performance_reviews', {
   id: int('id').autoincrement().primaryKey(),
   employee_id: int('employee_id').notNull(),

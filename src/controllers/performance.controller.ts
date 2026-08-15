@@ -16,8 +16,6 @@ export const trend = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const create = asyncHandler(async (req: any, res: Response) => {
-  // Role check before DTO binding — matches the original's error precedence
-  // (permission error wins over a validation error on an invalid body).
   if (!['admin', 'lead'].includes(req.user?.role)) {
     throw new AppError('Insufficient permissions', 403);
   }

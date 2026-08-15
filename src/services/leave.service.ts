@@ -12,9 +12,6 @@ interface AuthUser {
   role: string;
 }
 
-// Business logic only — no req/res, no raw request bodies. Every input here
-// is already bound+validated by leave.controller.ts via leave.dto.ts.
-
 export async function list(user: AuthUser, employeeIdFilter?: string, status?: string) {
   const privileged = ['admin', 'lead'].includes(user.role);
   const filterEmployeeId = privileged ? employeeIdFilter : user.id;
@@ -48,7 +45,6 @@ export async function create(
 ) {
   const leaveId = await leaveRepo.create(data, actorId);
   if (emailParams.to) {
-    // Fire-and-forget, same as the original — the HTTP response doesn't wait on this.
     sendEmailAsync(leaveId, data.employee_id, emailParams.to, emailParams.cc, emailParams.bcc);
   }
   return leaveId;
@@ -70,8 +66,6 @@ export async function cancel(id: string, userId: number) {
   await leaveRepo.remove(id);
 }
 
-// Approves a leave request: validates role/ownership/date rules, applies any leave
-// deduction, marks it approved, and increments the balance taken.
 export async function approve(id: string, user: AuthUser) {
   if (user.role === 'employee') throw new AppError('Insufficient permissions', 403);
 
@@ -98,7 +92,6 @@ export async function approve(id: string, user: AuthUser) {
   await leaveRepo.incrementBalanceTaken(leave.employee_id, leave.leave_type, year, days);
 }
 
-// Rejects a leave request: validates role/ownership/date rules, marks it rejected.
 export async function reject(id: string, user: AuthUser) {
   if (user.role === 'employee') throw new AppError('Insufficient permissions', 403);
 
@@ -118,7 +111,6 @@ export async function reject(id: string, user: AuthUser) {
   await leaveRepo.reject(id, user.id);
 }
 
-// Builds the admin leave report: per-employee balance + days taken this/previous month.
 export async function report() {
   const now = new Date();
   const year = now.getFullYear();
@@ -150,10 +142,6 @@ export async function report() {
   }));
 }
 
-// ── internal helpers ────────────────────────────────────────────────────────
-
-// If the approved leave eats into more days than the employee has left in their balance,
-// the excess is deducted from salary at the employee's daily rate (salary / 26 working days).
 async function applyLeaveDeductionIfNeeded(leave: any, days: number, year: number) {
   const balance = await leaveRepo.findBalanceForType(leave.employee_id, leave.leave_type, year);
   const remaining = balance ? (balance as any).remaining : 0;

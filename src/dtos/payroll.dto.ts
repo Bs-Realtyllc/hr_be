@@ -2,9 +2,7 @@ import { z } from 'zod';
 import AppError from '../pkg/AppError';
 import { bindAndValidate } from '../pkg/validation';
 
-// Matches employees.pay_frequency ENUM in schema.sql.
 const PAY_FREQUENCIES = ['monthly', 'biweekly', 'weekly'] as const;
-// Matches employee_tax_profiles.filing_status / tax_regime ENUMs in schema.sql.
 const FILING_STATUSES = ['single', 'married', 'head_of_household'] as const;
 const TAX_REGIMES = ['old', 'new'] as const;
 
@@ -18,8 +16,6 @@ export interface UpdateSalaryInput {
   pay_frequency: (typeof PAY_FREQUENCIES)[number];
 }
 
-// Shapes the salary-update body into the (salary, pay_frequency) values expected
-// by employee.repository.ts's updateSalary — mirrors the original controller's ?? defaulting.
 export function toUpdateSalaryInput(body: unknown): UpdateSalaryInput {
   const b = body as Record<string, any>;
   const parsed = bindAndValidate(salarySchema, {
@@ -29,8 +25,6 @@ export function toUpdateSalaryInput(body: unknown): UpdateSalaryInput {
   return { salary: parsed.salary ?? null, pay_frequency: parsed.pay_frequency };
 }
 
-// Throws AppError(400) if the password fails validation — same rule as before
-// (min 6 chars), now via the shared validator instead of a manual check.
 export function validatePasswordReset(password: unknown): string {
   if (typeof password !== 'string' || password.length < 6) {
     throw new AppError('Password must be at least 6 characters', 400);

@@ -3,9 +3,6 @@ import * as authService from '../services/auth.service';
 import * as authDto from '../dtos/auth.dto';
 import asyncHandler from '../middleware/asyncHandler';
 
-// Bind request -> DTO happens here, at the boundary — never inside the
-// service (see employee.controller.ts for the same rule).
-
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const input = authDto.toLoginInput(req.body);
   const result = await authService.login(input);
@@ -21,7 +18,6 @@ export const changePassword = asyncHandler(async (req: any, res: Response) => {
 export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const input = authDto.toForgotPasswordInput(req.body);
   await authService.forgotPassword(input);
-  // Always respond the same way to prevent email enumeration.
   res.json({ message: 'If that email is registered, a reset link has been sent.' });
 });
 

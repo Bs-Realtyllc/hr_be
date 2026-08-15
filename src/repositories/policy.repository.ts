@@ -2,8 +2,6 @@ import { eq, and, desc, asc, getTableColumns } from 'drizzle-orm';
 import { db } from '../config/database';
 import { policies, employeesFlat } from '../models';
 
-// Same exported function names/signatures as the old src/models/Policy.js.
-
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }

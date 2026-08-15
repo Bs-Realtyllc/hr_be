@@ -23,10 +23,6 @@ import performanceRoutes from './performance.routes';
 import feedbackRoutes from './feedback.routes';
 import policyRoutes from './policy.routes';
 
-// Every domain converted to the standard layering — route -> controller ->
-// service -> repository -> model (see src/routes/modules/employee.routes.ts
-// for a worked example) — registers itself here exactly once. This is now
-// every domain in the app — routes/index.js just mounts this one aggregate.
 const modules: Array<{ path: string; router: Router }> = [
   { path: '/auth', router: authRoutes },
   { path: '/employees', router: employeeRoutes },

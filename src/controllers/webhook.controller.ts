@@ -1,8 +1,5 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-// Not yet converted — untouched .js service (already repointed at
-// leave.repository.ts during its own conversion).
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const leaveEvents = require('../services/leaveEvents');
 import * as leaveRepo from '../repositories/leave.repository';
 import asyncHandler from '../middleware/asyncHandler';
@@ -15,9 +12,6 @@ const EVENT_HANDLERS: Record<string, Record<string, (payload: any) => Promise<vo
 
 const processedEvents = new Set<string>();
 
-// NOTE: verify/receive are not currently mounted (see routes/modules/webhook.routes.ts,
-// same as the original — those two routes were commented out there too). Kept here,
-// unchanged, in case that's re-enabled later; not something this conversion should remove.
 export const verify = (req: Request, res: Response) => {
   const { service } = req.params;
   const mode = req.query['hub.mode'];
@@ -58,8 +52,6 @@ export const receive = async (req: Request, res: Response) => {
   const eventType = body.event || body.type || 'unknown';
   console.log(`[webhook:${service}] ← Event "${eventType}"`);
 
-  // Idempotency — same approval thread + same day shouldn't be processed twice.
-  // threadId is used ONLY for this check; it's never passed on to a handler's business logic.
   if (body.threadId) {
     const dedupeKey = `${service}:${eventType}:${body.threadId}`;
     if (processedEvents.has(dedupeKey)) {
@@ -86,17 +78,6 @@ async function dispatchEvent(service: string, eventType: string, payload: any) {
   await handler(payload);
 }
 
-// month-end-report
-//
-// Bug fix found while converting this domain: this handler was `async` but
-// never wrapped in asyncHandler, and crypto.createHmac() below was called
-// with an unchecked env var and sat outside the try/catch — with HMAC_SECRET
-// unset, createHmac() throws synchronously, and since nothing catches it,
-// that crashes the entire Node process (confirmed: verified this takes the
-// whole server down, not just this one request). Wrapping in asyncHandler
-// plus an explicit "not configured" check (same pattern
-// discordWebhook.controller.ts already uses for DISCORD_PUBLIC_KEY) turns a
-// full outage into a normal 500 response.
 export const month_end_report = asyncHandler(async (req: Request, res: Response) => {
   if (!process.env.HMAC_SECRET) {
     console.error('[webhook] HMAC_SECRET is not set in .env');
@@ -106,7 +87,7 @@ export const month_end_report = asyncHandler(async (req: Request, res: Response)
   const data = await leaveRepo.findAllLeaveRequests();
   const signature = crypto
     .createHmac('sha256', process.env.HMAC_SECRET)
-    .update(JSON.stringify(data)) // Data must be stringified
+    .update(JSON.stringify(data))
     .digest('hex');
   try {
     const response = await fetch(`${process.env.WEBHOOK_URL_N8N}/month-end-trigger`, {
@@ -124,7 +105,6 @@ export const month_end_report = asyncHandler(async (req: Request, res: Response)
   } catch (err: any) {
     console.log('Error in sending request to n8n workflow', err.message);
 
-    // only if the webhook throws error
     if (err.status) {
       return res.status(502).json({
         description: 'n8n webhook returned an error',
@@ -132,7 +112,6 @@ export const month_end_report = asyncHandler(async (req: Request, res: Response)
         statusText: err.statusText,
       });
     }
-    // if the fetch fails to find webhook in n8n cloud
     return res.status(503).json({
       description: 'Error in sending request to n8n workflow',
     });

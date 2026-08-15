@@ -1,7 +1,5 @@
 import { mysqlTable, int, varchar, timestamp } from 'drizzle-orm/mysql-core';
 
-// Join table (project <-> employee) — no BaseModel, same as other join/lookup
-// tables in this app.
 export const projectAssignments = mysqlTable('project_assignments', {
   id: int('id').autoincrement().primaryKey(),
   project_id: int('project_id').notNull(),

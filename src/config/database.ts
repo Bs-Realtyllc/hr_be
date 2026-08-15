@@ -12,10 +12,6 @@ export const pool = mysql.createPool({
   timezone: '+00:00',
 });
 
-// Plain core query-builder mode (no relational `db.query.*` API) — schema
-// definitions in src/models/ stay pure table/view metadata with no need to
-// wire up a combined `schema` object here. Self-joins (e.g. manager lookups)
-// use `alias()` + `.leftJoin()` directly in the repository instead.
 export const db = drizzle(pool, { mode: 'default' });
 
 export default db;

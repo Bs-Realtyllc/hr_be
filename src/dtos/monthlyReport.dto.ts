@@ -41,7 +41,6 @@ export function toCreateInput(body: unknown, file: Express.Multer.File): Monthly
   };
 }
 
-// What findWithEmployeeNames returns.
 export interface MonthlyReportResponse {
   id: number;
   employee_id: number;

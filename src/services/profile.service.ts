@@ -1,9 +1,6 @@
 import * as employeeRepo from '../repositories/employee.repository';
 import AppError from '../pkg/AppError';
 import type { ProfileUpdateInput } from '../dtos/profile.dto';
-// Not yet converted — untouched .js service (already repointed at
-// cultureEvent.repository.ts during its own conversion).
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const cultureEventService = require('../services/cultureEventService');
 
 export async function getProfile(userId: number) {
@@ -42,9 +39,6 @@ export async function uploadCitizenship(userId: number, side: string, filename: 
 export function deleteUpload(folder: string, filename: string) {
   const fs = require('fs');
   const path = require('path');
-  // process.cwd() (not __dirname) — this file compiles into dist/, where
-  // __dirname would resolve under dist/ instead of the real uploads/ at the
-  // project root.
   const full = path.join(process.cwd(), 'uploads', folder, filename);
   fs.unlink(full, () => {});
 }
