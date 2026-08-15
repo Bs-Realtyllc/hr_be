@@ -1,16 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-// Domains converted to the standard route -> controller -> service ->
-// repository -> model layering (see src/routes/modules/index.ts) register
-// themselves there once; this just mounts the whole group at once.
+// Every domain lives in src/routes/modules/index.ts now — see that file for
+// the full list. This just mounts the whole aggregate router.
 router.use(require('./modules').default);
-
-router.use('/dashboard', require('./dashboard'));
-router.use('/profile', require('./profile'));
-router.use('/goals', require('./goals'));
-router.use('/performance', require('./performance'));
-router.use('/feedback', require('./feedback'));
-router.use('/policies', require('./policies'));
 
 module.exports = router;

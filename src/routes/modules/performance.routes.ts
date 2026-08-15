@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const ctrl = require('../controllers/performance');
-const { authenticate } = require('../middleware/auth');
+import * as ctrl from '../../controllers/performance.controller';
+import { authenticate } from '../../middleware/auth';
 
 router.get('/trend/:employeeId', authenticate, ctrl.trend);
 router.get('/', authenticate, ctrl.list);
@@ -11,4 +11,4 @@ router.put('/:id/submit', authenticate, ctrl.submit);
 router.put('/:id/acknowledge', authenticate, ctrl.acknowledge);
 router.delete('/:id', authenticate, ctrl.remove);
 
-module.exports = router;
+export default router;

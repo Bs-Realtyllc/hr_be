@@ -16,14 +16,17 @@ import monthlyReportRoutes from './monthlyReport.routes';
 import weeklyReportRoutes from './weeklyReport.routes';
 import serviceCredentialRoutes from './serviceCredential.routes';
 import googleRoutes from './google.routes';
+import dashboardRoutes from './dashboard.routes';
+import profileRoutes from './profile.routes';
+import goalRoutes from './goal.routes';
+import performanceRoutes from './performance.routes';
+import feedbackRoutes from './feedback.routes';
+import policyRoutes from './policy.routes';
 
 // Every domain converted to the standard layering — route -> controller ->
 // service -> repository -> model (see src/routes/modules/employee.routes.ts
-// for a worked example) — registers itself here exactly once, instead of
-// routes/index.js growing an ad-hoc `router.use(path, require(...))` line
-// per domain. routes/index.js mounts this single aggregate router; batch-
-// converting the rest of the app later means adding one entry to this list,
-// not touching routes/index.js again.
+// for a worked example) — registers itself here exactly once. This is now
+// every domain in the app — routes/index.js just mounts this one aggregate.
 const modules: Array<{ path: string; router: Router }> = [
   { path: '/auth', router: authRoutes },
   { path: '/employees', router: employeeRoutes },
@@ -42,6 +45,12 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/weekly-reports', router: weeklyReportRoutes },
   { path: '/service-credentials/:employeeId', router: serviceCredentialRoutes },
   { path: '/google', router: googleRoutes },
+  { path: '/dashboard', router: dashboardRoutes },
+  { path: '/profile', router: profileRoutes },
+  { path: '/goals', router: goalRoutes },
+  { path: '/performance', router: performanceRoutes },
+  { path: '/feedback', router: feedbackRoutes },
+  { path: '/policies', router: policyRoutes },
 ];
 
 const router = Router();

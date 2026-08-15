@@ -9,9 +9,7 @@ const router = express.Router();
 // DTOs (src/dtos/employee.dto.ts) sit alongside the controller: they validate
 // the request and shape the response, they don't call anything downstream.
 import * as ctrl from '../../controllers/employee.controller';
-// Not yet converted — untouched .js controller for a domain outside this pilot.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const ackCtrl = require('../../controllers/policyAcknowledgements');
+import * as ackCtrl from '../../controllers/policyAcknowledgement.controller';
 import { authenticate, requireRole } from '../../middleware/auth';
 
 // Read access: any authenticated employee (many non-admin pages — culture, feedback,

@@ -27,3 +27,8 @@ export { monthlyReports } from './MonthlyReport';
 export { weeklyReports } from './WeeklyReport';
 export { googleSettings } from './GoogleSettings';
 export { meetings } from './Meeting';
+export { goals } from './Goal';
+export { performanceReviews } from './PerformanceReview';
+export { feedbackNotes } from './Feedback';
+export { policies } from './Policy';
+export { policyAcknowledgements } from './PolicyAcknowledgement';

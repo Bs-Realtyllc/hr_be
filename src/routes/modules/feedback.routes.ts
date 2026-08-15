@@ -1,11 +1,11 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const ctrl = require('../controllers/feedback');
-const { authenticate } = require('../middleware/auth');
+import * as ctrl from '../../controllers/feedback.controller';
+import { authenticate } from '../../middleware/auth';
 
 router.get('/summary', authenticate, ctrl.summary);
 router.get('/', authenticate, ctrl.list);
 router.post('/', authenticate, ctrl.create);
 router.delete('/:id', authenticate, ctrl.remove);
 
-module.exports = router;
+export default router;

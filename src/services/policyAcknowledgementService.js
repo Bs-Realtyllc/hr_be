@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const Policy = require('../models/Policy');
+const Policy = require('../repositories/policy.repository');
 const Employee = require('../repositories/employee.repository');
 
 exports.notifyRejection = async (ack, reason) => {
