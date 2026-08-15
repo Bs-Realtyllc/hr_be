@@ -1,5 +1,5 @@
 const { google } = require('googleapis');
-const db = require('../db');
+const googleSettingsRepo = require('../repositories/googleSettings.repository');
 
 // Single in-flight refresh promise — all concurrent callers await the same one
 // instead of each racing to call refreshAccessToken() simultaneously.
@@ -35,20 +35,17 @@ async function _doRefresh(client, row) {
   const { credentials } = await client.refreshAccessToken();
 
   // Google occasionally rotates the refresh token — persist it if returned.
-  const fields = credentials.refresh_token
-    ? 'access_token = ?, token_expiry = ?, refresh_token = ?'
-    : 'access_token = ?, token_expiry = ?';
-  const values = credentials.refresh_token
-    ? [credentials.access_token, new Date(credentials.expiry_date), credentials.refresh_token, row.id]
-    : [credentials.access_token, new Date(credentials.expiry_date), row.id];
-
-  await db.query(`UPDATE google_settings SET ${fields} WHERE id = ?`, values);
+  await googleSettingsRepo.updateTokensAfterRefresh(row.id, {
+    access_token: credentials.access_token,
+    token_expiry: new Date(credentials.expiry_date),
+    refresh_token: credentials.refresh_token || undefined,
+  });
   client.setCredentials(credentials);
 }
 
 // Returns an authenticated OAuth2 client, refreshing the access token if needed.
 async function getAuthenticatedClient() {
-  const [[row]] = await db.query('SELECT * FROM google_settings LIMIT 1');
+  const row = await googleSettingsRepo.findFull();
 
   if (!row?.refresh_token) {
     const err = new Error('Google Calendar not connected. Admin must connect first.');
@@ -145,14 +142,11 @@ async function registerWebhookChannel(webhookUrl) {
     },
   });
 
-  await db.query(
-    `UPDATE google_settings SET channel_id = ?, resource_id = ?, channel_expiry = ?`,
-    [data.id, data.resourceId, new Date(expiration)]
-  );
+  await googleSettingsRepo.updateChannelInfo(data.id, data.resourceId, new Date(expiration));
 }
 
 async function stopWebhookChannel() {
-  const [[row]] = await db.query('SELECT * FROM google_settings LIMIT 1');
+  const row = await googleSettingsRepo.findFull();
   if (!row?.channel_id || !row?.resource_id) return;
 
   try {
@@ -164,7 +158,7 @@ async function stopWebhookChannel() {
   } catch {
     // Best-effort; channel may already be expired
   }
-  await db.query(`UPDATE google_settings SET channel_id = NULL, resource_id = NULL, channel_expiry = NULL`);
+  await googleSettingsRepo.clearChannelInfo();
 }
 
 // Call this on server startup (and periodically) to keep the push channel alive.
@@ -172,7 +166,7 @@ async function stopWebhookChannel() {
 async function renewWebhookChannelIfNeeded() {
   if (!process.env.GOOGLE_WEBHOOK_URL) return;
 
-  const [[row]] = await db.query('SELECT channel_expiry FROM google_settings LIMIT 1');
+  const row = await googleSettingsRepo.findChannelExpiry();
   if (!row) return;
 
   const expiry = row.channel_expiry ? new Date(row.channel_expiry).getTime() : 0;

@@ -7,11 +7,6 @@ const router = express.Router();
 router.use(require('./modules').default);
 
 router.use('/dashboard', require('./dashboard'));
-router.use('/email-settings', require('./emailSettings'));
-router.use('/reports', require('./reports'));
-router.use('/weekly-reports', require('./weeklyReports'));
-router.use('/service-credentials/:employeeId', require('./serviceCredentials'));
-router.use('/google',  require('./google'));
 router.use('/profile', require('./profile'));
 router.use('/goals', require('./goals'));
 router.use('/performance', require('./performance'));

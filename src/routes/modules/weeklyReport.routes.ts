@@ -1,14 +1,18 @@
-const express = require('express');
-const multer  = require('multer');
-const path    = require('path');
-const fs      = require('fs');
-const router  = express.Router();
-const ctrl    = require('../controllers/weeklyReports');
-const { authenticate } = require('../middleware/auth');
-const { getWeekStartDate } = require('../pkg/weekUtil');
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+const router = express.Router();
+import * as ctrl from '../../controllers/weeklyReport.controller';
+import { authenticate } from '../../middleware/auth';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { getWeekStartDate } = require('../../pkg/weekUtil');
 
 const ALLOWED = ['.pdf', '.ppt', '.pptx'];
-const UPLOAD_ROOT = path.join(__dirname, '../../uploads/weekly-reports');
+// process.cwd() (not __dirname) — this file compiles into dist/, where
+// __dirname would resolve under dist/ instead of the real uploads/ at the
+// project root (same fix as index.ts's static /uploads serving).
+const UPLOAD_ROOT = path.join(process.cwd(), 'uploads', 'weekly-reports');
 
 const storage = multer.diskStorage({
   // One folder per week, named after that week's Monday (e.g. uploads/weekly-reports/2026-07-20/).
@@ -20,7 +24,7 @@ const storage = multer.diskStorage({
   filename: (_req, file, cb) => {
     // Temporary name — the controller renames this to `<EmployeeName>_<timestamp>` once
     // req.user is available (multer runs before the employee-name rename can happen here).
-    const ts   = Date.now();
+    const ts = Date.now();
     const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
     cb(null, `${ts}_${safe}`);
   },
@@ -36,9 +40,9 @@ const upload = multer({
   },
 });
 
-router.get('/',                               authenticate, ctrl.list);
-router.post('/',    upload.single('file'),    authenticate, ctrl.submit);
-router.get('/:id/download',                  authenticate, ctrl.download);
-router.delete('/:id',                        authenticate, ctrl.remove);
+router.get('/', authenticate, ctrl.list);
+router.post('/', upload.single('file'), authenticate, ctrl.submit);
+router.get('/:id/download', authenticate, ctrl.download);
+router.delete('/:id', authenticate, ctrl.remove);
 
-module.exports = router;
+export default router;

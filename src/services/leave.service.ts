@@ -1,6 +1,7 @@
 import * as leaveRepo from '../repositories/leave.repository';
 import * as employeeRepo from '../repositories/employee.repository';
 import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
+import * as emailSettingsRepo from '../repositories/emailSettings.repository';
 import AppError from '../pkg/AppError';
 import type { LeaveCreateInput, LeaveUpdateInput } from '../dtos/leave.dto';
 // Not yet converted — untouched .js files for domains/helpers outside this one.
@@ -8,8 +9,6 @@ import type { LeaveCreateInput, LeaveUpdateInput } from '../dtos/leave.dto';
 const { buildLeaveEmailSubject, buildLeaveEmailHtml } = require('../controllers/leaveEmailTemplate');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { toMonthlySalary, calculateLeaveDeduction } = require('../pkg/payrollCalculator');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { getForSending } = require('../controllers/emailSettings');
 
 interface AuthUser {
   id: number;
@@ -187,7 +186,7 @@ async function applyLeaveDeductionIfNeeded(leave: any, days: number, year: numbe
 async function sendEmailAsync(leaveId: number, employeeId: number, to: string, cc?: string, bcc?: string) {
   const nodemailer = require('nodemailer');
   try {
-    const cfg = await getForSending(employeeId);
+    const cfg = await emailSettingsRepo.findFullByEmployeeId(employeeId);
     if (!cfg) {
       console.error('[email] No config for employee', employeeId);
       return;

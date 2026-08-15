@@ -11,6 +11,11 @@ import payrollRoutes from './payroll.routes';
 import overtimeRoutes from './overtime.routes';
 import discordRoutes from './discord.routes';
 import webhookRoutes from './webhook.routes';
+import emailSettingsRoutes from './emailSettings.routes';
+import monthlyReportRoutes from './monthlyReport.routes';
+import weeklyReportRoutes from './weeklyReport.routes';
+import serviceCredentialRoutes from './serviceCredential.routes';
+import googleRoutes from './google.routes';
 
 // Every domain converted to the standard layering — route -> controller ->
 // service -> repository -> model (see src/routes/modules/employee.routes.ts
@@ -32,6 +37,11 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/overtime', router: overtimeRoutes },
   { path: '/discord', router: discordRoutes },
   { path: '/webhooks', router: webhookRoutes },
+  { path: '/email-settings', router: emailSettingsRoutes },
+  { path: '/reports', router: monthlyReportRoutes },
+  { path: '/weekly-reports', router: weeklyReportRoutes },
+  { path: '/service-credentials/:employeeId', router: serviceCredentialRoutes },
+  { path: '/google', router: googleRoutes },
 ];
 
 const router = Router();
