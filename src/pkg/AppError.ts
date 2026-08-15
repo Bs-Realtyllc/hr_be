@@ -7,11 +7,13 @@
 // same way, so existing `err.status = 400; throw err` code keeps working
 // unchanged.
 class AppError extends Error {
-  constructor(message, status = 400) {
+  status: number;
+
+  constructor(message: string, status = 400) {
     super(message);
     this.name = 'AppError';
     this.status = status;
   }
 }
 
-module.exports = AppError;
+export default AppError;

@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import AppError from '../pkg/AppError';
 import { bindAndValidate, optionalNullable } from '../pkg/validation';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { getWeekStartDate } = require('../pkg/weekUtil');
+import { getWeekStartDate } from '../pkg/weekUtil';
 
 const createBodySchema = z.object({
   employee_id: z.coerce.number().int().positive(),

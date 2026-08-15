@@ -3,8 +3,7 @@ import * as employeeRepo from '../repositories/employee.repository';
 import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
 import AppError from '../pkg/AppError';
 import type { OvertimeCreateInput, OvertimeUpdateInput } from '../dtos/overtime.dto';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { toMonthlySalary, calculateOvertimePay } = require('../pkg/payrollCalculator');
+import { toMonthlySalary, calculateOvertimePay } from '../pkg/payrollCalculator';
 
 interface AuthUser {
   id: number;

@@ -3,10 +3,8 @@ import * as employeeRepo from '../repositories/employee.repository';
 import * as leaveRepo from '../repositories/leave.repository';
 import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
 import * as employeeTaxRepo from '../repositories/employeeTax.repository';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { estimateAnnualTax, toAnnualSalary } = require('../pkg/taxCalculator');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { toMonthlySalary, calculateYearEndLeaveBonus } = require('../pkg/payrollCalculator');
+import { estimateAnnualTax, toAnnualSalary } from '../pkg/taxCalculator';
+import { toMonthlySalary, calculateYearEndLeaveBonus } from '../pkg/payrollCalculator';
 
 // Business logic only — no req/res, no raw request bodies.
 

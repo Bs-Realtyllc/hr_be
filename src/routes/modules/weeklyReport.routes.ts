@@ -5,8 +5,7 @@ import fs from 'fs';
 const router = express.Router();
 import * as ctrl from '../../controllers/weeklyReport.controller';
 import { authenticate } from '../../middleware/auth';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { getWeekStartDate } = require('../../pkg/weekUtil');
+import { getWeekStartDate } from '../../pkg/weekUtil';
 
 const ALLOWED = ['.pdf', '.ppt', '.pptx'];
 // process.cwd() (not __dirname) — this file compiles into dist/, where

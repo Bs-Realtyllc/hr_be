@@ -4,11 +4,10 @@ import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.reposi
 import * as emailSettingsRepo from '../repositories/emailSettings.repository';
 import AppError from '../pkg/AppError';
 import type { LeaveCreateInput, LeaveUpdateInput } from '../dtos/leave.dto';
-// Not yet converted — untouched .js files for domains/helpers outside this one.
+import { toMonthlySalary, calculateLeaveDeduction } from '../pkg/payrollCalculator';
+// Not yet converted — untouched .js helper (pure HTML template builder, no DB/architecture concerns).
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { buildLeaveEmailSubject, buildLeaveEmailHtml } = require('../controllers/leaveEmailTemplate');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { toMonthlySalary, calculateLeaveDeduction } = require('../pkg/payrollCalculator');
 
 interface AuthUser {
   id: number;

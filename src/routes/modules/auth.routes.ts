@@ -2,9 +2,7 @@ import express from 'express';
 const router = express.Router();
 import { login, changePassword, forgotPassword, resetPassword } from '../../controllers/auth.controller';
 import { authenticate } from '../../middleware/auth';
-// Not yet converted — untouched .js middleware.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { authLimiter } = require('../../middleware/rateLimiters');
+import { authLimiter } from '../../middleware/rateLimiters';
 
 router.post('/login', authLimiter, login);
 router.put('/password', authenticate, changePassword);

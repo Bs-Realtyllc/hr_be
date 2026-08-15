@@ -8,7 +8,6 @@ import swaggerUi from 'swagger-ui-express';
 import { sql } from 'drizzle-orm';
 import swaggerSpec from './src/swagger';
 import routes from './src/routes';
-import legacyDb from './src/db';
 import { db } from './src/config/database';
 import { renewWebhookChannelIfNeeded } from './src/services/googleCalendar';
 import weeklyReminder from './src/services/weeklyReminder';
@@ -70,15 +69,8 @@ app.use(errorHandler);
 // ── Startup ───────────────────────────────────────────────────────────────────
 async function start() {
   try {
-    // Legacy mysql2 pool — still the only DB access path for every domain not
-    // yet converted to Sequelize. Kept alongside `sequelize` (below) until the
-    // whole app has migrated; both point at the same database.
-    const conn = await legacyDb.getConnection();
-    console.log(`✔ Database connected  →  ${ENV.DB_HOST}:${ENV.DB_PORT} / ${ENV.DB_NAME}`);
-    conn.release();
-
     await db.execute(sql`SELECT 1`);
-    console.log('✔ Drizzle connected   →  ' + ENV.DB_NAME);
+    console.log(`✔ Database connected  →  ${ENV.DB_HOST}:${ENV.DB_PORT} / ${ENV.DB_NAME}`);
   } catch (err: any) {
     console.error('✘ Database connection failed');
     console.error(`  Host     : ${ENV.DB_HOST}:${ENV.DB_PORT}`);
