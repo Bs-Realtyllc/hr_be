@@ -1,7 +1,7 @@
 const Employee = require('../repositories/employee.repository');
 const EmployeeTax = require('../models/EmployeeTax');
 const PayrollAdjustment = require('../models/PayrollAdjustment');
-const LeaveRequest = require('../models/LeaveRequest');
+const LeaveRequest = require('../repositories/leave.repository');
 const { estimateAnnualTax, toAnnualSalary } = require('../pkg/taxCalculator');
 const { toMonthlySalary, calculateYearEndLeaveBonus } = require('../pkg/payrollCalculator');
 

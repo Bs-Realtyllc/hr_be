@@ -1,42 +1,18 @@
-import { DataTypes, Model } from 'sequelize';
-import { sequelize } from '../config/database';
+import { mysqlTable, int, date, varchar, decimal, timestamp, mysqlEnum } from 'drizzle-orm/mysql-core';
 
 // Effective-dated, append-only audit trail of salary/pay-frequency changes.
 // Not on BaseModel — see EmployeeJobHistory.ts for the same rationale.
-export class EmployeeCompensationHistory extends Model {
-  declare id: number;
-  declare employee_id: number;
-  declare salary: string;
-  declare pay_frequency: 'monthly' | 'biweekly' | 'weekly';
-  declare effective_from: string;
-  declare effective_to: string | null;
-  declare change_reason: string | null;
-  declare changed_by: number | null;
-  declare created_at: Date;
-}
+export const employeeCompensationHistory = mysqlTable('employee_compensation_history', {
+  id: int('id').autoincrement().primaryKey(),
+  employee_id: int('employee_id').notNull(),
+  salary: decimal('salary', { precision: 10, scale: 2 }).notNull(),
+  pay_frequency: mysqlEnum('pay_frequency', ['monthly', 'biweekly', 'weekly']).notNull().default('monthly'),
+  effective_from: date('effective_from', { mode: 'string' }).notNull(),
+  effective_to: date('effective_to', { mode: 'string' }),
+  change_reason: varchar('change_reason', { length: 255 }),
+  changed_by: int('changed_by'),
+  created_at: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
 
-EmployeeCompensationHistory.init(
-  {
-    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    employee_id: { type: DataTypes.INTEGER, allowNull: false },
-    salary: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
-    pay_frequency: {
-      type: DataTypes.ENUM('monthly', 'biweekly', 'weekly'),
-      allowNull: false,
-      defaultValue: 'monthly',
-    },
-    effective_from: { type: DataTypes.DATEONLY, allowNull: false },
-    effective_to: { type: DataTypes.DATEONLY, allowNull: true },
-    change_reason: { type: DataTypes.STRING(255), allowNull: true },
-    changed_by: { type: DataTypes.INTEGER, allowNull: true },
-    created_at: { type: DataTypes.DATE, allowNull: false },
-  },
-  {
-    sequelize,
-    modelName: 'EmployeeCompensationHistory',
-    tableName: 'employee_compensation_history',
-    timestamps: false,
-  }
-);
-
-export default EmployeeCompensationHistory;
+export type EmployeeCompensationHistory = typeof employeeCompensationHistory.$inferSelect;
+export type NewEmployeeCompensationHistory = typeof employeeCompensationHistory.$inferInsert;

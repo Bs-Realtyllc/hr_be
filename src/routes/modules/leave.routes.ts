@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const ctrl = require('../controllers/leaves');
-const { authenticate, requireRole } = require('../middleware/auth');
+import * as ctrl from '../../controllers/leave.controller';
+import { authenticate, requireRole } from '../../middleware/auth';
 
 router.get('/out/today', ctrl.outToday);
 router.get('/out/week', ctrl.outThisWeek);
@@ -14,4 +14,4 @@ router.put('/:id/reject', authenticate, ctrl.reject);
 router.put('/:id', authenticate, ctrl.update);
 router.delete('/:id', authenticate, ctrl.cancel);
 
-module.exports = router;
+export default router;

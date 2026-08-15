@@ -1,15 +1,15 @@
-import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import * as employeeRepo from '../repositories/employee.repository';
 import * as passwordResetTokenRepo from '../repositories/passwordResetToken.repository';
 import * as authDto from '../dtos/auth.dto';
+import type { LoginInput, ChangePasswordInput, ForgotPasswordInput, ResetPasswordInput } from '../dtos/auth.dto';
+import AppError from '../pkg/AppError';
 
 function unauthorized(message: string): never {
-  const err: any = new Error(message);
-  err.status = 401;
-  throw err;
+  throw new AppError(message, 401);
 }
 
 export async function sendResetEmail(name: string, to: string, resetLink: string) {
@@ -38,9 +38,10 @@ export async function sendResetEmail(name: string, to: string, resetLink: string
   });
 }
 
-export async function login(body: unknown) {
-  const { email, password } = authDto.toLoginInput(body);
+// Business logic only — no req/res, no raw request bodies. Every input here
+// is already bound+validated by auth.controller.ts via auth.dto.ts.
 
+export async function login({ email, password }: LoginInput) {
   console.log(`[auth] Login attempt for ${email}`);
 
   const emp = await employeeRepo.findAuthByEmail(email);
@@ -51,14 +52,16 @@ export async function login(body: unknown) {
 
   console.log(`[auth] ${emp!.name} (${email}) logged in successfully`);
 
+  // Response-DTO mapping happens here rather than in the controller — the
+  // stripped (no password_hash) shape is itself an input to the JWT signing
+  // below, not just an HTTP output concern, so it can't be deferred until
+  // after this function returns.
   const user = authDto.toLoginResponse(emp!);
   const token = jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: '7d' });
   return { token, user };
 }
 
-export async function changePassword(userId: number, body: unknown) {
-  const { current_password, new_password } = authDto.toChangePasswordInput(body);
-
+export async function changePassword(userId: number, { current_password, new_password }: ChangePasswordInput) {
   const currentHash = await employeeRepo.findPasswordHashById(userId);
   if (currentHash) {
     const valid = await bcrypt.compare(current_password || '', currentHash);
@@ -69,9 +72,7 @@ export async function changePassword(userId: number, body: unknown) {
   await employeeRepo.updatePasswordHash(userId, hash);
 }
 
-export async function forgotPassword(body: unknown) {
-  const { email } = authDto.toForgotPasswordInput(body);
-
+export async function forgotPassword({ email }: ForgotPasswordInput) {
   const emp = await employeeRepo.findActiveBasicByEmail(email);
 
   // Always respond the same way to prevent email enumeration — caller (controller)
@@ -97,14 +98,10 @@ export async function forgotPassword(body: unknown) {
   }
 }
 
-export async function resetPassword(body: unknown) {
-  const { token, new_password } = authDto.toResetPasswordInput(body);
-
+export async function resetPassword({ token, new_password }: ResetPasswordInput) {
   const row = await passwordResetTokenRepo.findValidByToken(token);
   if (!row) {
-    const err: any = new Error('Invalid or expired reset link. Please request a new one.');
-    err.status = 400;
-    throw err;
+    throw new AppError('Invalid or expired reset link. Please request a new one.', 400);
   }
 
   const hash = await bcrypt.hash(new_password, 10);

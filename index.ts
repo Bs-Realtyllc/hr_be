@@ -5,10 +5,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 
+import { sql } from 'drizzle-orm';
 import swaggerSpec from './src/swagger';
 import routes from './src/routes';
 import legacyDb from './src/db';
-import { sequelize } from './src/config/database';
+import { db } from './src/config/database';
 import { renewWebhookChannelIfNeeded } from './src/services/googleCalendar';
 import weeklyReminder from './src/services/weeklyReminder';
 import errorHandler from './src/middleware/errorHandler';
@@ -76,8 +77,8 @@ async function start() {
     console.log(`✔ Database connected  →  ${ENV.DB_HOST}:${ENV.DB_PORT} / ${ENV.DB_NAME}`);
     conn.release();
 
-    await sequelize.authenticate();
-    console.log('✔ Sequelize connected →  ' + ENV.DB_NAME);
+    await db.execute(sql`SELECT 1`);
+    console.log('✔ Drizzle connected   →  ' + ENV.DB_NAME);
   } catch (err: any) {
     console.error('✘ Database connection failed');
     console.error(`  Host     : ${ENV.DB_HOST}:${ENV.DB_PORT}`);

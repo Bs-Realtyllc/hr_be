@@ -1,8 +1,12 @@
 import * as employeeRepo from '../repositories/employee.repository';
-import * as employeeDto from '../dtos/employee.dto';
+import type { EmployeeCreateInput, EmployeeUpdateInput } from '../dtos/employee.dto';
+import AppError from '../pkg/AppError';
 // Not yet converted to Sequelize — still a raw-SQL model file, required as-is.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PayrollAdjustment = require('../models/PayrollAdjustment');
+
+// Business logic only — no req/res, no raw request bodies. Every input here
+// is already bound+validated by the controller via employee.dto.ts.
 
 export async function list() {
   return employeeRepo.findAllActive();
@@ -12,8 +16,7 @@ export async function get(id: string) {
   return employeeRepo.findById(id);
 }
 
-export async function create(body: Record<string, any>, actorId: number | null) {
-  const data = employeeDto.toCreateInput(body);
+export async function create(data: EmployeeCreateInput, actorId: number | null) {
   const id = await employeeRepo.create(data, actorId);
 
   // Seed default leave balances for current year
@@ -23,12 +26,9 @@ export async function create(body: Record<string, any>, actorId: number | null) 
   return id;
 }
 
-export async function update(id: string, body: Record<string, any>, actorId: number | null) {
-  const updates = employeeDto.toUpdateInput(body);
+export async function update(id: string, updates: EmployeeUpdateInput, actorId: number | null) {
   if (!Object.keys(updates).length) {
-    const err: any = new Error('Nothing to update');
-    err.status = 400;
-    throw err;
+    throw new AppError('Nothing to update', 400);
   }
   await employeeRepo.update(id, updates, actorId);
 }
@@ -76,7 +76,11 @@ export async function payrollSummary(id: string) {
   }
 
   const presentDays = workingDays - leaveDays;
-  const dailyRate = emp.salary ? emp.salary / workingDays : 0;
+  // Drizzle (like mysql2's own default decimalNumbers:false) returns DECIMAL
+  // columns as strings — same as the original raw-SQL code, which relied on
+  // JS's implicit string->number coercion here; explicit Number() now that
+  // the compiler is checking it.
+  const dailyRate = emp.salary ? Number(emp.salary) / workingDays : 0;
   const expectedPay = dailyRate * presentDays;
 
   // Overtime pay / leave deductions booked for this month, plus any year-end leave

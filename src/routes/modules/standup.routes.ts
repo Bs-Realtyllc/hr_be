@@ -1,10 +1,10 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const ctrl = require('../controllers/standups');
-const { authenticate } = require('../middleware/auth');
+import * as ctrl from '../../controllers/standup.controller';
+import { authenticate } from '../../middleware/auth';
 
 router.get('/today', authenticate, ctrl.today);
 router.get('/', authenticate, ctrl.list);
 router.post('/', authenticate, ctrl.create);
 
-module.exports = router;
+export default router;

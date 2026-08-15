@@ -1,55 +1,35 @@
-import { DataTypes } from 'sequelize';
-import { sequelize } from '../config/database';
-import { BaseModel, baseAttributes } from './BaseModel';
+import { mysqlTable, int, varchar, date, json, boolean, mysqlEnum } from 'drizzle-orm/mysql-core';
+import { baseColumns } from './BaseModel';
 
 // Core identity + current-state pointer columns only — see
 // src/db/migrate_normalize_employees_p3.sql for what moved off this table onto
 // employee_auth/employee_profile/employee_compensation_history/employee_documents,
 // and src/models/EmployeeFlat.ts for the read-side view that joins it all back
 // together in the pre-redesign shape.
-export class Employee extends BaseModel {
-  declare name: string;
-  declare email: string;
-  declare secondary_email: string | null;
-  declare manager_id: number | null;
-  declare start_date: string | null;
-  declare tech_stack: string[] | null;
-  declare qualifications: string[] | null;
-  declare designation_id: number | null;
-  declare department_id: number | null;
-  declare is_active: boolean;
-  declare status: 'onboarding' | 'active' | 'on_leave' | 'probation' | 'terminated';
-  declare termination_date: string | null;
-  declare termination_reason: string | null;
-}
+//
+// Column-level `.references()` is deliberately not used here — this app keeps
+// the hand-rolled schema.sql/migrate_*.sql pipeline as the source of truth for
+// DDL/FKs (see those files), not drizzle-kit, so Drizzle never generates schema
+// from these definitions. Cross-table relationships for the query API are
+// declared once, explicitly, in src/models/index.ts instead.
+export const employees = mysqlTable('employees', {
+  ...baseColumns,
+  name: varchar('name', { length: 100 }).notNull(),
+  email: varchar('email', { length: 150 }).notNull().unique(),
+  secondary_email: varchar('secondary_email', { length: 150 }).unique(),
+  manager_id: int('manager_id'),
+  start_date: date('start_date', { mode: 'string' }),
+  tech_stack: json('tech_stack').$type<string[]>(),
+  qualifications: json('qualifications').$type<string[]>(),
+  designation_id: int('designation_id'),
+  department_id: int('department_id'),
+  is_active: boolean('is_active').notNull().default(true),
+  status: mysqlEnum('status', ['onboarding', 'active', 'on_leave', 'probation', 'terminated'])
+    .notNull()
+    .default('active'),
+  termination_date: date('termination_date', { mode: 'string' }),
+  termination_reason: varchar('termination_reason', { length: 255 }),
+});
 
-Employee.init(
-  {
-    ...baseAttributes,
-    name: { type: DataTypes.STRING(100), allowNull: false },
-    email: { type: DataTypes.STRING(150), allowNull: false, unique: true },
-    secondary_email: { type: DataTypes.STRING(150), allowNull: true, unique: true },
-    manager_id: { type: DataTypes.INTEGER, allowNull: true },
-    start_date: { type: DataTypes.DATEONLY, allowNull: true },
-    tech_stack: { type: DataTypes.JSON, allowNull: true },
-    qualifications: { type: DataTypes.JSON, allowNull: true },
-    designation_id: { type: DataTypes.INTEGER, allowNull: true },
-    department_id: { type: DataTypes.INTEGER, allowNull: true },
-    is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
-    status: {
-      type: DataTypes.ENUM('onboarding', 'active', 'on_leave', 'probation', 'terminated'),
-      allowNull: false,
-      defaultValue: 'active',
-    },
-    termination_date: { type: DataTypes.DATEONLY, allowNull: true },
-    termination_reason: { type: DataTypes.STRING(255), allowNull: true },
-  },
-  {
-    sequelize,
-    modelName: 'Employee',
-    tableName: 'employees',
-    timestamps: false,
-  }
-);
-
-export default Employee;
+export type Employee = typeof employees.$inferSelect;
+export type NewEmployee = typeof employees.$inferInsert;

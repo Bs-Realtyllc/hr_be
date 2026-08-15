@@ -1,39 +1,16 @@
-import { DataTypes, Model } from 'sequelize';
-import { sequelize } from '../config/database';
-import { auditAttributes } from './BaseModel';
+import { mysqlTable, int, varchar, timestamp, mysqlEnum } from 'drizzle-orm/mysql-core';
+import { auditColumns } from './BaseModel';
 
 // 1:1 with employees — security boundary (password_hash, role). Primary key
-// IS employee_id, not a surrogate id, so this uses auditAttributes (not the
-// full BaseModel) — see BaseModel.ts.
-export class EmployeeAuth extends Model {
-  declare employee_id: number;
-  declare password_hash: string | null;
-  declare role: 'admin' | 'lead' | 'employee';
-  declare last_login_at: Date | null;
-  declare created_at: Date;
-  declare updated_at: Date | null;
-  declare created_by: number | null;
-  declare updated_by: number | null;
-}
+// IS employee_id, not a surrogate id, so this uses auditColumns (not the
+// full baseColumns) — see BaseModel.ts.
+export const employeeAuth = mysqlTable('employee_auth', {
+  employee_id: int('employee_id').primaryKey(),
+  password_hash: varchar('password_hash', { length: 255 }),
+  role: mysqlEnum('role', ['admin', 'lead', 'employee']).notNull().default('employee'),
+  last_login_at: timestamp('last_login_at', { mode: 'date' }),
+  ...auditColumns,
+});
 
-EmployeeAuth.init(
-  {
-    employee_id: { type: DataTypes.INTEGER, primaryKey: true },
-    password_hash: { type: DataTypes.STRING(255), allowNull: true },
-    role: {
-      type: DataTypes.ENUM('admin', 'lead', 'employee'),
-      allowNull: false,
-      defaultValue: 'employee',
-    },
-    last_login_at: { type: DataTypes.DATE, allowNull: true },
-    ...auditAttributes,
-  },
-  {
-    sequelize,
-    modelName: 'EmployeeAuth',
-    tableName: 'employee_auth',
-    timestamps: false,
-  }
-);
-
-export default EmployeeAuth;
+export type EmployeeAuth = typeof employeeAuth.$inferSelect;
+export type NewEmployeeAuth = typeof employeeAuth.$inferInsert;

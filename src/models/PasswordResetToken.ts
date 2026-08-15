@@ -1,28 +1,13 @@
-import { DataTypes } from 'sequelize';
-import { sequelize } from '../config/database';
-import { BaseModel, baseAttributes } from './BaseModel';
+import { mysqlTable, int, varchar, timestamp } from 'drizzle-orm/mysql-core';
+import { baseColumns } from './BaseModel';
 
-export class PasswordResetToken extends BaseModel {
-  declare employee_id: number;
-  declare token: string;
-  declare expires_at: Date;
-  declare used_at: Date | null;
-}
+export const passwordResetTokens = mysqlTable('password_reset_tokens', {
+  ...baseColumns,
+  employee_id: int('employee_id').notNull(),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  expires_at: timestamp('expires_at', { mode: 'date' }).notNull(),
+  used_at: timestamp('used_at', { mode: 'date' }),
+});
 
-PasswordResetToken.init(
-  {
-    ...baseAttributes,
-    employee_id: { type: DataTypes.INTEGER, allowNull: false },
-    token: { type: DataTypes.STRING(255), allowNull: false, unique: true },
-    expires_at: { type: DataTypes.DATE, allowNull: false },
-    used_at: { type: DataTypes.DATE, allowNull: true },
-  },
-  {
-    sequelize,
-    modelName: 'PasswordResetToken',
-    tableName: 'password_reset_tokens',
-    timestamps: false,
-  }
-);
-
-export default PasswordResetToken;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type NewPasswordResetToken = typeof passwordResetTokens.$inferInsert;

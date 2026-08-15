@@ -1,18 +1,8 @@
 import { z } from 'zod';
+import AppError from '../pkg/AppError';
+import { bindAndValidate } from '../pkg/validation';
 
 const ALLOWED_DOMAINS = ['bsrealtyllc.com', 'gitgi.com'];
-
-function badRequest(message: string, status = 400) {
-  const err: any = new Error(message);
-  err.status = status;
-  return err;
-}
-
-function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, message?: string): T {
-  const result = schema.safeParse(data);
-  if (!result.success) throw badRequest(message || result.error.issues[0].message);
-  return result.data;
-}
 
 export interface LoginInput {
   email: string;
@@ -24,11 +14,11 @@ const loginSchema = z.object({
 });
 
 export function toLoginInput(body: unknown): LoginInput {
-  const { email, password } = parseOrThrow(loginSchema, body, 'Email and password required');
+  const { email, password } = bindAndValidate(loginSchema, body, 'Email and password required');
 
   const domain = email.split('@')[1]?.toLowerCase();
   if (!ALLOWED_DOMAINS.includes(domain)) {
-    throw badRequest('Access restricted to organization members only. Please use your company email.', 403);
+    throw new AppError('Access restricted to organization members only. Please use your company email.', 403);
   }
   return { email, password };
 }
@@ -43,10 +33,7 @@ const changePasswordSchema = z.object({
 });
 
 export function toChangePasswordInput(body: unknown): ChangePasswordInput {
-  const { current_password, new_password } = parseOrThrow(
-    changePasswordSchema, body, 'New password must be at least 6 characters'
-  );
-  return { current_password, new_password };
+  return bindAndValidate(changePasswordSchema, body, 'New password must be at least 6 characters');
 }
 
 export interface ForgotPasswordInput {
@@ -57,8 +44,7 @@ const forgotPasswordSchema = z.object({
 });
 
 export function toForgotPasswordInput(body: unknown): ForgotPasswordInput {
-  const { email } = parseOrThrow(forgotPasswordSchema, body, 'Email required');
-  return { email };
+  return bindAndValidate(forgotPasswordSchema, body, 'Email required');
 }
 
 export interface ResetPasswordInput {
@@ -71,22 +57,23 @@ const resetPasswordSchema = z.object({
 });
 
 export function toResetPasswordInput(body: unknown): ResetPasswordInput {
-  const { token, new_password } = parseOrThrow(
-    resetPasswordSchema, body, 'Token and new password (min 6 characters) are required'
-  );
-  return { token, new_password };
+  return bindAndValidate(resetPasswordSchema, body, 'Token and new password (min 6 characters) are required');
 }
 
+// The exact shape findAuthByEmail returns (see employee.repository.ts),
+// minus password_hash — narrower than the full EmployeeResponse since the
+// login query only ever selects these columns.
 export interface UserSummary {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'lead' | 'employee';
-  [key: string]: unknown;
+  role: 'admin' | 'lead' | 'employee' | null;
+  designation: string | null;
+  department: string | null;
 }
 
 // Strip password_hash before this reaches the JWT payload or the response body.
-export function toLoginResponse(employee: Record<string, any>): UserSummary {
+export function toLoginResponse(employee: UserSummary & { password_hash: string | null }): UserSummary {
   const { password_hash, ...user } = employee;
-  return user as UserSummary;
+  return user;
 }

@@ -1,28 +1,13 @@
-import { DataTypes, Model } from 'sequelize';
-import { sequelize } from '../config/database';
+import { mysqlTable, int, varchar, boolean, timestamp } from 'drizzle-orm/mysql-core';
 
 // Lookup table, replacing the free-text `department` column. Not on
 // BaseModel — plain reference data, no created_by/updated_by tracking.
-export class Department extends Model {
-  declare id: number;
-  declare name: string;
-  declare is_active: boolean;
-  declare created_at: Date;
-}
+export const departments = mysqlTable('departments', {
+  id: int('id').autoincrement().primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  is_active: boolean('is_active').notNull().default(true),
+  created_at: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
 
-Department.init(
-  {
-    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    name: { type: DataTypes.STRING(100), allowNull: false, unique: true },
-    is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
-    created_at: { type: DataTypes.DATE, allowNull: false },
-  },
-  {
-    sequelize,
-    modelName: 'Department',
-    tableName: 'departments',
-    timestamps: false,
-  }
-);
-
-export default Department;
+export type Department = typeof departments.$inferSelect;
+export type NewDepartment = typeof departments.$inferInsert;

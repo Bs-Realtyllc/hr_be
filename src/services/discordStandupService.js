@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const Employee = require('../repositories/employee.repository');
-const Standup = require('../models/Standup');
+const Standup = require('../repositories/standup.repository');
 
 // Ed25519 SubjectPublicKeyInfo DER prefix for wrapping raw 32-byte public keys
 const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');

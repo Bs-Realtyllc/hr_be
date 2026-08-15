@@ -1,5 +1,13 @@
 import express from 'express';
 const router = express.Router();
+// Reference example of the standard layering every domain follows:
+//   route (this file)
+//     -> controller (binds req/res; no DB/business logic — src/controllers/employee.controller.ts)
+//       -> service (business logic, orchestrates repositories — src/services/employee.service.ts)
+//         -> repository (the only place queries live — src/repositories/employee.repository.ts)
+//           -> model (schema only — src/models/Employee.ts, EmployeeFlat.ts, etc.)
+// DTOs (src/dtos/employee.dto.ts) sit alongside the controller: they validate
+// the request and shape the response, they don't call anything downstream.
 import * as ctrl from '../../controllers/employee.controller';
 // Not yet converted — untouched .js controller for a domain outside this pilot.
 // eslint-disable-next-line @typescript-eslint/no-var-requires

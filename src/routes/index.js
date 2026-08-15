@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 
-router.use('/auth', require('./modules/auth.routes').default);
+// Domains converted to the standard route -> controller -> service ->
+// repository -> model layering (see src/routes/modules/index.ts) register
+// themselves there once; this just mounts the whole group at once.
+router.use(require('./modules').default);
+
 router.use('/dashboard', require('./dashboard'));
-router.use('/employees', require('./modules/employee.routes').default);
-router.use('/leaves', require('./leaves'));
-router.use('/standups', require('./standups'));
 router.use('/projects', require('./projects'));
 router.use('/events', require('./events'));
 router.use('/holidays', require('./holidays'));

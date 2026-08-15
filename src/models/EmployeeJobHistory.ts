@@ -1,42 +1,21 @@
-import { DataTypes, Model } from 'sequelize';
-import { sequelize } from '../config/database';
+import { mysqlTable, int, date, varchar, timestamp } from 'drizzle-orm/mysql-core';
 
 // Effective-dated, append-only audit trail of designation/department/manager
 // changes. Not on BaseModel — a history row is never updated after insert
 // (effective_to is set once, to close it out), and it already carries its own
 // audit field (changed_by) rather than created_by/updated_by.
-export class EmployeeJobHistory extends Model {
-  declare id: number;
-  declare employee_id: number;
-  declare designation_id: number | null;
-  declare department_id: number | null;
-  declare manager_id: number | null;
-  declare effective_from: string;
-  declare effective_to: string | null;
-  declare change_reason: string | null;
-  declare changed_by: number | null;
-  declare created_at: Date;
-}
+export const employeeJobHistory = mysqlTable('employee_job_history', {
+  id: int('id').autoincrement().primaryKey(),
+  employee_id: int('employee_id').notNull(),
+  designation_id: int('designation_id'),
+  department_id: int('department_id'),
+  manager_id: int('manager_id'),
+  effective_from: date('effective_from', { mode: 'string' }).notNull(),
+  effective_to: date('effective_to', { mode: 'string' }),
+  change_reason: varchar('change_reason', { length: 255 }),
+  changed_by: int('changed_by'),
+  created_at: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
 
-EmployeeJobHistory.init(
-  {
-    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    employee_id: { type: DataTypes.INTEGER, allowNull: false },
-    designation_id: { type: DataTypes.INTEGER, allowNull: true },
-    department_id: { type: DataTypes.INTEGER, allowNull: true },
-    manager_id: { type: DataTypes.INTEGER, allowNull: true },
-    effective_from: { type: DataTypes.DATEONLY, allowNull: false },
-    effective_to: { type: DataTypes.DATEONLY, allowNull: true },
-    change_reason: { type: DataTypes.STRING(255), allowNull: true },
-    changed_by: { type: DataTypes.INTEGER, allowNull: true },
-    created_at: { type: DataTypes.DATE, allowNull: false },
-  },
-  {
-    sequelize,
-    modelName: 'EmployeeJobHistory',
-    tableName: 'employee_job_history',
-    timestamps: false,
-  }
-);
-
-export default EmployeeJobHistory;
+export type EmployeeJobHistory = typeof employeeJobHistory.$inferSelect;
+export type NewEmployeeJobHistory = typeof employeeJobHistory.$inferInsert;
