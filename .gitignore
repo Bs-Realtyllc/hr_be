@@ -1,6 +1,7 @@
 .env.*
 node_modules/
 .env
+dist/
 
 # Never commit these file types
 *.pptx
@@ -10,3 +11,5 @@ node_modules/
 uploads/**
 !uploads/**/
 !uploads/**/.gitkeep
+
+instruction.md

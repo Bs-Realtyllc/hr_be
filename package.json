@@ -1,18 +1,20 @@
 {
   "name": "hr-platform-backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
-    "migrate": "node src/db/migrate.js",
-    "create-admin": "node src/db/create-admin.js",
-    "migrate-employee-data": "node src/db/migrate_employee_data.js"
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch index.ts",
+    "migrate": "tsx src/db/migrate.ts",
+    "create-admin": "tsx src/db/create-admin.ts",
+    "migrate-employee-data": "tsx src/db/migrate_employee_data.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.45.2",
     "express": "^4.18.2",
     "express-rate-limit": "^8.6.2",
     "googleapis": "^173.0.0",
@@ -27,6 +29,18 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.25",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^26.2.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^8.0.1",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
+    "nodemon": "^3.0.1",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
   }
 }
