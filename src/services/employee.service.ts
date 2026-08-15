@@ -1,9 +1,7 @@
 import * as employeeRepo from '../repositories/employee.repository';
+import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
 import type { EmployeeCreateInput, EmployeeUpdateInput } from '../dtos/employee.dto';
 import AppError from '../pkg/AppError';
-// Not yet converted to Sequelize — still a raw-SQL model file, required as-is.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const PayrollAdjustment = require('../models/PayrollAdjustment');
 
 // Business logic only — no req/res, no raw request bodies. Every input here
 // is already bound+validated by the controller via employee.dto.ts.
@@ -85,7 +83,7 @@ export async function payrollSummary(id: string) {
 
   // Overtime pay / leave deductions booked for this month, plus any year-end leave
   // bonus already paid out for this year — each carries its own display title.
-  const adjustments = await PayrollAdjustment.findForEmployeePeriod(id, year, month + 1);
+  const adjustments = await payrollAdjustmentRepo.findForEmployeePeriod(id, year, month + 1);
   const overtimePay = adjustments.filter((a: any) => a.type === 'overtime_pay').reduce((s: number, a: any) => s + Number(a.amount), 0);
   const leaveDeduction = adjustments.filter((a: any) => a.type === 'leave_deduction').reduce((s: number, a: any) => s + Number(a.amount), 0);
   const leaveBonus = adjustments.filter((a: any) => a.type === 'leave_bonus').reduce((s: number, a: any) => s + Number(a.amount), 0);

@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const ctrl = require('../controllers/overtime');
-const { authenticate } = require('../middleware/auth');
+import * as ctrl from '../../controllers/overtime.controller';
+import { authenticate } from '../../middleware/auth';
 
 router.get('/', authenticate, ctrl.list);
 router.post('/', authenticate, ctrl.create);
@@ -10,4 +10,4 @@ router.put('/:id/reject', authenticate, ctrl.reject);
 router.put('/:id', authenticate, ctrl.update);
 router.delete('/:id', authenticate, ctrl.cancel);
 
-module.exports = router;
+export default router;

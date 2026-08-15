@@ -17,3 +17,7 @@ export { milestones } from './Milestone';
 export { projectServices } from './ProjectService';
 export { cultureEvents } from './CultureEvent';
 export { holidays } from './Holiday';
+export { servers } from './Server';
+export { overtimeRequests } from './OvertimeRequest';
+export { payrollAdjustments } from './PayrollAdjustment';
+export { employeeTaxProfiles } from './EmployeeTax';

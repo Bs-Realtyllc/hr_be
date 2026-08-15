@@ -1,10 +1,9 @@
 import * as leaveRepo from '../repositories/leave.repository';
 import * as employeeRepo from '../repositories/employee.repository';
+import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
 import AppError from '../pkg/AppError';
 import type { LeaveCreateInput, LeaveUpdateInput } from '../dtos/leave.dto';
 // Not yet converted — untouched .js files for domains/helpers outside this one.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const PayrollAdjustment = require('../models/PayrollAdjustment');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { buildLeaveEmailSubject, buildLeaveEmailHtml } = require('../controllers/leaveEmailTemplate');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -172,7 +171,7 @@ async function applyLeaveDeductionIfNeeded(leave: any, days: number, year: numbe
   const { dailyRate, amount } = calculateLeaveDeduction(monthlySalary, excessDays);
   if (amount <= 0) return;
 
-  await PayrollAdjustment.create({
+  await payrollAdjustmentRepo.create({
     employee_id: leave.employee_id,
     type: 'leave_deduction',
     title: `Leave Deduction — ${excessDays} day(s) beyond ${leave.leave_type} balance`,

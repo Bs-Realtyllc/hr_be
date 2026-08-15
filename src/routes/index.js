@@ -7,11 +7,6 @@ const router = express.Router();
 router.use(require('./modules').default);
 
 router.use('/dashboard', require('./dashboard'));
-router.use('/servers', require('./servers'));
-router.use('/payroll', require('./payroll'));
-router.use('/overtime', require('./overtime'));
-router.use('/discord', require('./discord'));
-router.use('/webhooks', require('./webhook'));
 router.use('/email-settings', require('./emailSettings'));
 router.use('/reports', require('./reports'));
 router.use('/weekly-reports', require('./weeklyReports'));

@@ -1,10 +1,10 @@
-const {
-  verifyDiscordSignature,
-  findEmployeeByDiscordName,
-  saveStandup,
-} = require('../services/discordStandupService');
+import { Request, Response } from 'express';
+// Not yet converted — untouched .js service (already repointed at
+// standup.repository.ts/employee.repository.ts during their own conversions).
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { verifyDiscordSignature, findEmployeeByDiscordName, saveStandup } = require('../services/discordStandupService');
 
-exports.handleStandupWebhook = async (req, res) => {
+export const handleStandupWebhook = async (req: Request, res: Response) => {
   const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY;
   if (!PUBLIC_KEY) {
     console.error('[discord] DISCORD_PUBLIC_KEY is not set in .env');
@@ -13,18 +13,18 @@ exports.handleStandupWebhook = async (req, res) => {
 
   // ── Log every incoming hit so you can confirm Discord is reaching the server
   console.log('[discord] ← Incoming request');
-  console.log(`[discord]   headers: x-signature-ed25519=${req.headers['x-signature-ed25519']?.slice(0, 16)}...`);
+  console.log(`[discord]   headers: x-signature-ed25519=${(req.headers['x-signature-ed25519'] as string)?.slice(0, 16)}...`);
   console.log(`[discord]   body:    ${JSON.stringify(req.body).slice(0, 200)}`);
 
-  const signature = req.headers['x-signature-ed25519'];
-  const timestamp  = req.headers['x-signature-timestamp'];
+  const signature = req.headers['x-signature-ed25519'] as string;
+  const timestamp = req.headers['x-signature-timestamp'] as string;
 
   if (!signature || !timestamp) {
     console.warn('[discord] Rejected: missing signature headers');
     return res.status(401).send('Missing signature headers');
   }
 
-  if (!verifyDiscordSignature(PUBLIC_KEY, req.rawBody, signature, timestamp)) {
+  if (!verifyDiscordSignature(PUBLIC_KEY, (req as any).rawBody, signature, timestamp)) {
     console.warn('[discord] Rejected: invalid Ed25519 signature');
     return res.status(401).send('Invalid request signature');
   }
@@ -50,7 +50,7 @@ exports.handleStandupWebhook = async (req, res) => {
   // ── /standup Slash Command (type 2) ──────────────────────────────────────────
   // Employee types: /standup yesterday:... today:... blockers:...
   if (type === 2 && data?.name === 'standup') {
-    const opts = Object.fromEntries((data.options || []).map(o => [o.name, o.value]));
+    const opts = Object.fromEntries((data.options || []).map((o: any) => [o.name, o.value]));
     const discordUser = member?.user || req.body.user || {};
     const discordName = discordUser.global_name || discordUser.username || '';
 
@@ -73,7 +73,7 @@ exports.handleStandupWebhook = async (req, res) => {
         type: 4,
         data: { content: `Standup saved for **${employee.name}**!\n> **Yesterday:** ${opts.yesterday}\n> **Today:** ${opts.today}\n> **Blockers:** ${opts.blockers || 'None'}`, flags: 64 },
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('[discord] DB error saving standup:', err.message);
       return res.status(200).json({
         type: 4,
@@ -95,7 +95,7 @@ exports.handleStandupWebhook = async (req, res) => {
 
 // Called internally by the discord.js bot after a standup is confirmed.
 // Protected by a shared secret — no Discord signature required.
-exports.handleInternalStandup = async (req, res) => {
+export const handleInternalStandup = async (req: Request, res: Response) => {
   console.log('[discord-internal] ← Incoming standup submission from bot');
 
   const INTERNAL_TOKEN = process.env.DISCORD_INTERNAL_TOKEN;
@@ -125,7 +125,7 @@ exports.handleInternalStandup = async (req, res) => {
     await saveStandup(employee.id, yesterday, today, blockers);
     console.log(`[discord-internal] ✔ Standup saved — ${employee.name} (id ${employee.id})`);
     return res.json({ success: true, employee: employee.name });
-  } catch (err) {
+  } catch (err: any) {
     console.error('[discord-internal] DB error:', err.message);
     return res.status(500).json({ error: 'Database error' });
   }
