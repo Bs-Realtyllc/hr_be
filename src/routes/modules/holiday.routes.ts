@@ -1,10 +1,10 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const ctrl = require('../controllers/holidays');
-const { authenticate, requireRole } = require('../middleware/auth');
+import * as ctrl from '../../controllers/holiday.controller';
+import { authenticate, requireRole } from '../../middleware/auth';
 
 router.get('/', authenticate, ctrl.list);
 router.post('/', authenticate, requireRole('admin'), ctrl.create);
 router.delete('/:id', authenticate, requireRole('admin'), ctrl.remove);
 
-module.exports = router;
+export default router;

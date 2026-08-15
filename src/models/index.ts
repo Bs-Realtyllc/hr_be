@@ -16,3 +16,4 @@ export { projectAssignments } from './ProjectAssignment';
 export { milestones } from './Milestone';
 export { projectServices } from './ProjectService';
 export { cultureEvents } from './CultureEvent';
+export { holidays } from './Holiday';
