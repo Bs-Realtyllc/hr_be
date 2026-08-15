@@ -7,23 +7,23 @@
 // employee_profile, employee_job_history, employee_compensation_history,
 // employee_documents) and the departments/designations lookup tables from
 // today's `employees` row data. Standalone script, run manually — mirrors
-// create-admin.js's precedent of not being part of migrate.js's auto-run path.
+// create-admin.ts's precedent of not being part of migrate.ts's auto-run path.
 //
 // Safe to re-run: every step is idempotent (INSERT IGNORE / ON DUPLICATE KEY
 // UPDATE / existence checks), so running this twice just no-ops the second time.
 //
-// Usage: node src/db/migrate_employee_data.js
-//        node src/db/migrate_employee_data.js --verify   (report-only, no writes)
+// Usage: npm run migrate-employee-data
+//        npm run migrate-employee-data -- --verify   (report-only, no writes)
 
-const mysql = require('mysql2/promise');
-require('dotenv').config();
+import mysql from 'mysql2/promise';
+import 'dotenv/config';
 
 const VERIFY_ONLY = process.argv.includes('--verify');
 
 (async () => {
   const conn = await mysql.createConnection({
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
+    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : undefined,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
@@ -50,15 +50,19 @@ const VERIFY_ONLY = process.argv.includes('--verify');
        SET e.designation_id = d.id WHERE e.designation_id IS NULL`
     );
   }
-  const [[deptCount]] = await conn.query('SELECT COUNT(*) AS n FROM departments');
-  const [[desigCount]] = await conn.query('SELECT COUNT(*) AS n FROM designations');
+  const [[deptCount]]: any = await conn.query('SELECT COUNT(*) AS n FROM departments');
+  const [[desigCount]]: any = await conn.query('SELECT COUNT(*) AS n FROM designations');
   console.log(`departments: ${deptCount.n} rows, designations: ${desigCount.n} rows`);
 
   // ── 2. Pull every employee row (all statuses, not just active) ───────────
-  const [employees] = await conn.query('SELECT * FROM employees');
+  const [employees]: any = await conn.query('SELECT * FROM employees');
   console.log(`Backfilling ${employees.length} employee row(s)…\n`);
 
-  let authWritten = 0, profileWritten = 0, jobHistWritten = 0, compHistWritten = 0, docsWritten = 0;
+  let authWritten = 0,
+    profileWritten = 0,
+    jobHistWritten = 0,
+    compHistWritten = 0,
+    docsWritten = 0;
 
   for (const emp of employees) {
     // employee_auth
@@ -84,8 +88,20 @@ const VERIFY_ONLY = process.argv.includes('--verify');
            emergency_contact = VALUES(emergency_contact), dob = VALUES(dob), bio = VALUES(bio), address = VALUES(address),
            timezone = VALUES(timezone), work_hours = VALUES(work_hours),
            leave_policy_accepted = VALUES(leave_policy_accepted), leave_policy_accepted_at = VALUES(leave_policy_accepted_at)`,
-        [emp.id, emp.phone, emp.alt_phone, emp.discord_username, emp.emergency_contact, emp.dob, emp.bio, emp.address,
-         emp.timezone, emp.work_hours, emp.leave_policy_accepted, emp.leave_policy_accepted_at]
+        [
+          emp.id,
+          emp.phone,
+          emp.alt_phone,
+          emp.discord_username,
+          emp.emergency_contact,
+          emp.dob,
+          emp.bio,
+          emp.address,
+          emp.timezone,
+          emp.work_hours,
+          emp.leave_policy_accepted,
+          emp.leave_policy_accepted_at,
+        ]
       );
     }
     profileWritten++;
@@ -94,15 +110,15 @@ const VERIFY_ONLY = process.argv.includes('--verify');
     // Re-runs must not duplicate the current row, so check first.
     const effectiveFrom = emp.start_date || emp.created_at;
     if (!VERIFY_ONLY) {
-      const [[existingJob]] = await conn.query(
+      const [[existingJob]]: any = await conn.query(
         'SELECT id FROM employee_job_history WHERE employee_id = ? AND effective_to IS NULL',
         [emp.id]
       );
       if (!existingJob) {
-        const [[dept]] = emp.department
+        const [[dept]]: any = emp.department
           ? await conn.query('SELECT id FROM departments WHERE name = ?', [emp.department])
           : [[null]];
-        const [[desig]] = emp.designation
+        const [[desig]]: any = emp.designation
           ? await conn.query('SELECT id FROM designations WHERE title = ?', [emp.designation])
           : [[null]];
         await conn.query(
@@ -118,7 +134,7 @@ const VERIFY_ONLY = process.argv.includes('--verify');
     // employee_compensation_history — only if a salary is set; same "one current row" rule.
     if (emp.salary != null) {
       if (!VERIFY_ONLY) {
-        const [[existingComp]] = await conn.query(
+        const [[existingComp]]: any = await conn.query(
           'SELECT id FROM employee_compensation_history WHERE employee_id = ? AND effective_to IS NULL',
           [emp.id]
         );
@@ -135,7 +151,7 @@ const VERIFY_ONLY = process.argv.includes('--verify');
     }
 
     // employee_documents — one row per non-null doc column, best-effort uploaded_at.
-    const docs = [
+    const docs: [string, string | null][] = [
       ['profile_picture', emp.profile_picture],
       ['citizenship_front', emp.citizenship_front],
       ['citizenship_back', emp.citizenship_back],
@@ -143,7 +159,7 @@ const VERIFY_ONLY = process.argv.includes('--verify');
     for (const [docType, filename] of docs) {
       if (!filename) continue;
       if (!VERIFY_ONLY) {
-        const [[existingDoc]] = await conn.query(
+        const [[existingDoc]]: any = await conn.query(
           'SELECT id FROM employee_documents WHERE employee_id = ? AND doc_type = ? AND is_current = TRUE',
           [emp.id, docType]
         );
@@ -167,15 +183,15 @@ const VERIFY_ONLY = process.argv.includes('--verify');
 
   // ── 3. Verification: diff row counts / spot-check values ────────────────
   console.log('\n── Verification ──');
-  const [[empCount]] = await conn.query('SELECT COUNT(*) AS n FROM employees');
-  const [[authCount]] = await conn.query('SELECT COUNT(*) AS n FROM employee_auth');
-  const [[profileCount]] = await conn.query('SELECT COUNT(*) AS n FROM employee_profile');
+  const [[empCount]]: any = await conn.query('SELECT COUNT(*) AS n FROM employees');
+  const [[authCount]]: any = await conn.query('SELECT COUNT(*) AS n FROM employee_auth');
+  const [[profileCount]]: any = await conn.query('SELECT COUNT(*) AS n FROM employee_profile');
   console.log(`employees: ${empCount.n} | employee_auth: ${authCount.n} | employee_profile: ${profileCount.n}`);
   if (authCount.n !== empCount.n || profileCount.n !== empCount.n) {
     console.warn('WARNING: row counts do not match 1:1 — investigate before proceeding to Phase 3.');
   }
 
-  const [mismatches] = await conn.query(`
+  const [mismatches]: any = await conn.query(`
     SELECT e.id, e.email, e.role AS legacy_role, a.role AS auth_role
     FROM employees e JOIN employee_auth a ON a.employee_id = e.id
     WHERE e.role <> a.role OR e.password_hash <=> a.password_hash = 0
@@ -188,7 +204,7 @@ const VERIFY_ONLY = process.argv.includes('--verify');
 
   await conn.end();
   console.log('\nDone.');
-})().catch(err => {
+})().catch((err) => {
   console.error('Backfill aborted:', err.message);
   process.exit(1);
 });

@@ -5,9 +5,7 @@ import * as emailSettingsRepo from '../repositories/emailSettings.repository';
 import AppError from '../pkg/AppError';
 import type { LeaveCreateInput, LeaveUpdateInput } from '../dtos/leave.dto';
 import { toMonthlySalary, calculateLeaveDeduction } from '../pkg/payrollCalculator';
-// Not yet converted — untouched .js helper (pure HTML template builder, no DB/architecture concerns).
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { buildLeaveEmailSubject, buildLeaveEmailHtml } = require('../controllers/leaveEmailTemplate');
+import { buildLeaveEmailSubject, buildLeaveEmailHtml } from './leaveEmailTemplate';
 
 interface AuthUser {
   id: number;

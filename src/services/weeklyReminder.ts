@@ -1,6 +1,6 @@
-const cron = require('node-cron');
-const nodemailer = require('nodemailer');
-const Employee = require('../repositories/employee.repository');
+import cron from 'node-cron';
+import nodemailer from 'nodemailer';
+import * as employeeRepo from '../repositories/employee.repository';
 
 function buildTransporter() {
   return nodemailer.createTransport({
@@ -14,7 +14,7 @@ function buildTransporter() {
   });
 }
 
-function buildHtml(name, uploadUrl) {
+function buildHtml(name: string, uploadUrl: string): string {
   return `
     <p>Hi ${name},</p>
     <p>It's Sunday — time to submit your <strong>weekly work update (PPT/PDF)</strong> for this past week.</p>
@@ -23,7 +23,7 @@ function buildHtml(name, uploadUrl) {
   `;
 }
 
-async function sendWeeklyReminders() {
+export async function sendWeeklyReminders() {
   if (!process.env.MAIL_HOST) {
     console.info('[weekly-reminder] MAIL_HOST not set — skipping weekly PPT reminder email');
     return;
@@ -32,35 +32,35 @@ async function sendWeeklyReminders() {
   const uploadUrl = `${process.env.FRONTEND_URL}/weekly-reports`;
   const transporter = buildTransporter();
 
-  let employees;
+  let employees: any[];
   try {
-    employees = await Employee.findAllActive();
-  } catch (err) {
+    employees = await employeeRepo.findAllActive();
+  } catch (err: any) {
     console.error('[weekly-reminder] Failed to load employees:', err.message);
     return;
   }
 
   const results = await Promise.allSettled(
     employees
-      .filter(e => e.email)
-      .map(e => transporter.sendMail({
-        from: process.env.MAIL_FROM || process.env.MAIL_USER,
-        to: e.email,
-        subject: 'Weekly Work Update — Please Submit Your PPT',
-        html: buildHtml(e.name, uploadUrl),
-      }))
+      .filter((e) => e.email)
+      .map((e) =>
+        transporter.sendMail({
+          from: process.env.MAIL_FROM || process.env.MAIL_USER,
+          to: e.email,
+          subject: 'Weekly Work Update — Please Submit Your PPT',
+          html: buildHtml(e.name, uploadUrl),
+        })
+      )
   );
 
-  const failed = results.filter(r => r.status === 'rejected').length;
+  const failed = results.filter((r) => r.status === 'rejected').length;
   console.log(`[weekly-reminder] Sent ${results.length - failed}/${results.length} weekly PPT reminder emails`);
 }
 
-function start() {
+export function start() {
   // Every Sunday at 10:00 AM server time.
   cron.schedule('0 10 * * 0', () => {
-    sendWeeklyReminders().catch(err => console.error('[weekly-reminder] Job failed:', err.message));
+    sendWeeklyReminders().catch((err: any) => console.error('[weekly-reminder] Job failed:', err.message));
   });
   console.log('✔ Weekly PPT reminder scheduled  →  Sundays at 10:00 AM');
 }
-
-module.exports = { start, sendWeeklyReminders };

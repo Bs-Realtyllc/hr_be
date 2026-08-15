@@ -11,3 +11,5 @@ dist/
 uploads/**
 !uploads/**/
 !uploads/**/.gitkeep
+
+instruction.md

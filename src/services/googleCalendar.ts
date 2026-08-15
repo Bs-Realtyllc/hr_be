@@ -1,9 +1,9 @@
-const { google } = require('googleapis');
-const googleSettingsRepo = require('../repositories/googleSettings.repository');
+import { google } from 'googleapis';
+import * as googleSettingsRepo from '../repositories/googleSettings.repository';
 
 // Single in-flight refresh promise — all concurrent callers await the same one
 // instead of each racing to call refreshAccessToken() simultaneously.
-let _refreshInFlight = null;
+let _refreshInFlight: Promise<void> | null = null;
 
 function makeOAuth2Client() {
   return new google.auth.OAuth2(
@@ -13,7 +13,7 @@ function makeOAuth2Client() {
   );
 }
 
-function getAuthUrl() {
+export function getAuthUrl() {
   const client = makeOAuth2Client();
   return client.generateAuthUrl({
     access_type: 'offline',
@@ -25,13 +25,13 @@ function getAuthUrl() {
   });
 }
 
-async function exchangeCodeForTokens(code) {
+export async function exchangeCodeForTokens(code: string) {
   const client = makeOAuth2Client();
   const { tokens } = await client.getToken(code);
   return tokens;
 }
 
-async function _doRefresh(client, row) {
+async function _doRefresh(client: any, row: any) {
   const { credentials } = await client.refreshAccessToken();
 
   // Google occasionally rotates the refresh token — persist it if returned.
@@ -44,11 +44,11 @@ async function _doRefresh(client, row) {
 }
 
 // Returns an authenticated OAuth2 client, refreshing the access token if needed.
-async function getAuthenticatedClient() {
-  const row = await googleSettingsRepo.findFull();
+export async function getAuthenticatedClient() {
+  const row: any = await googleSettingsRepo.findFull();
 
   if (!row?.refresh_token) {
-    const err = new Error('Google Calendar not connected. Admin must connect first.');
+    const err: any = new Error('Google Calendar not connected. Admin must connect first.');
     err.code = 'GOOGLE_NOT_CONNECTED';
     throw err;
   }
@@ -56,8 +56,8 @@ async function getAuthenticatedClient() {
   const client = makeOAuth2Client();
   client.setCredentials({
     refresh_token: row.refresh_token,
-    access_token:  row.access_token,
-    expiry_date:   row.token_expiry ? new Date(row.token_expiry).getTime() : null,
+    access_token: row.access_token,
+    expiry_date: row.token_expiry ? new Date(row.token_expiry).getTime() : null,
   });
 
   const expiry = row.token_expiry ? new Date(row.token_expiry).getTime() : 0;
@@ -66,16 +66,18 @@ async function getAuthenticatedClient() {
   if (needsRefresh) {
     // Coalesce concurrent refresh attempts into one network call.
     if (!_refreshInFlight) {
-      _refreshInFlight = _doRefresh(client, row).finally(() => { _refreshInFlight = null; });
+      _refreshInFlight = _doRefresh(client, row).finally(() => {
+        _refreshInFlight = null;
+      });
     }
     try {
       await _refreshInFlight;
-    } catch (err) {
+    } catch (err: any) {
       // HTTP 400/401 from Google means the refresh token was revoked;
       // the admin must go through the OAuth flow again.
       const status = err.response?.status;
       if (status === 400 || status === 401) {
-        const revoked = new Error('Google Calendar token revoked. Admin must reconnect via /api/google/auth-url.');
+        const revoked: any = new Error('Google Calendar token revoked. Admin must reconnect via /api/google/auth-url.');
         revoked.code = 'GOOGLE_TOKEN_REVOKED';
         throw revoked;
       }
@@ -86,7 +88,19 @@ async function getAuthenticatedClient() {
   return client;
 }
 
-async function createMeetingEvent({ title, description, startDateTime, endDateTime, attendees }) {
+export async function createMeetingEvent({
+  title,
+  description,
+  startDateTime,
+  endDateTime,
+  attendees,
+}: {
+  title: string;
+  description?: string;
+  startDateTime: string;
+  endDateTime: string;
+  attendees?: string[];
+}) {
   const auth = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth });
 
@@ -97,8 +111,8 @@ async function createMeetingEvent({ title, description, startDateTime, endDateTi
       summary: title,
       description: description || '',
       start: { dateTime: startDateTime, timeZone: process.env.APP_TIMEZONE || 'UTC' },
-      end:   { dateTime: endDateTime,   timeZone: process.env.APP_TIMEZONE || 'UTC' },
-      attendees: (attendees || []).map(email => ({ email })),
+      end: { dateTime: endDateTime, timeZone: process.env.APP_TIMEZONE || 'UTC' },
+      attendees: (attendees || []).map((email) => ({ email })),
       conferenceData: {
         createRequest: {
           requestId: `meet-${Date.now()}`,
@@ -108,11 +122,11 @@ async function createMeetingEvent({ title, description, startDateTime, endDateTi
     },
   });
 
-  const meetLink = data.conferenceData?.entryPoints?.find(e => e.entryPointType === 'video')?.uri || null;
+  const meetLink = data.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri || null;
   return { googleEventId: data.id, meetLink };
 }
 
-async function listUpcomingEvents(maxResults = 100) {
+export async function listUpcomingEvents(maxResults = 100) {
   const auth = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth });
 
@@ -126,7 +140,7 @@ async function listUpcomingEvents(maxResults = 100) {
   return data.items || [];
 }
 
-async function registerWebhookChannel(webhookUrl) {
+export async function registerWebhookChannel(webhookUrl: string) {
   const auth = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth });
   const channelId = `hr-cal-${Date.now()}`;
@@ -142,11 +156,11 @@ async function registerWebhookChannel(webhookUrl) {
     },
   });
 
-  await googleSettingsRepo.updateChannelInfo(data.id, data.resourceId, new Date(expiration));
+  await googleSettingsRepo.updateChannelInfo(data.id as string, data.resourceId as string, new Date(expiration));
 }
 
-async function stopWebhookChannel() {
-  const row = await googleSettingsRepo.findFull();
+export async function stopWebhookChannel() {
+  const row: any = await googleSettingsRepo.findFull();
   if (!row?.channel_id || !row?.resource_id) return;
 
   try {
@@ -163,10 +177,10 @@ async function stopWebhookChannel() {
 
 // Call this on server startup (and periodically) to keep the push channel alive.
 // Renews if the channel expires within 24 hours or is missing.
-async function renewWebhookChannelIfNeeded() {
+export async function renewWebhookChannelIfNeeded() {
   if (!process.env.GOOGLE_WEBHOOK_URL) return;
 
-  const row = await googleSettingsRepo.findChannelExpiry();
+  const row: any = await googleSettingsRepo.findChannelExpiry();
   if (!row) return;
 
   const expiry = row.channel_expiry ? new Date(row.channel_expiry).getTime() : 0;
@@ -177,14 +191,3 @@ async function renewWebhookChannelIfNeeded() {
     await registerWebhookChannel(`${process.env.GOOGLE_WEBHOOK_URL}/api/google/webhook`);
   }
 }
-
-module.exports = {
-  getAuthUrl,
-  exchangeCodeForTokens,
-  getAuthenticatedClient,
-  createMeetingEvent,
-  listUpcomingEvents,
-  registerWebhookChannel,
-  stopWebhookChannel,
-  renewWebhookChannelIfNeeded,
-};

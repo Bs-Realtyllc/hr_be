@@ -10,7 +10,7 @@ import swaggerSpec from './src/swagger';
 import routes from './src/routes';
 import { db } from './src/config/database';
 import { renewWebhookChannelIfNeeded } from './src/services/googleCalendar';
-import weeklyReminder from './src/services/weeklyReminder';
+import * as weeklyReminder from './src/services/weeklyReminder';
 import errorHandler from './src/middleware/errorHandler';
 
 // ── Env validation ────────────────────────────────────────────────────────────

@@ -1,11 +1,9 @@
-function buildLeaveEmailSubject() {
+export function buildLeaveEmailSubject(): string {
   return 'Leave Request';
 }
 
-function buildLeaveEmailHtml(leave, start, end, isSingleDay) {
-  const datePhrase = isSingleDay
-    ? start
-    : `${start} to ${end}`;
+export function buildLeaveEmailHtml(leave: any, start: string, end: string, isSingleDay: boolean): string {
+  const datePhrase = isSingleDay ? start : `${start} to ${end}`;
 
   return `<!DOCTYPE html>
 <html>
@@ -34,5 +32,3 @@ function buildLeaveEmailHtml(leave, start, end, isSingleDay) {
 </body>
 </html>`;
 }
-
-module.exports = { buildLeaveEmailSubject, buildLeaveEmailHtml };

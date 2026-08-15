@@ -1,10 +1,7 @@
 import * as policyRepo from '../repositories/policy.repository';
 import * as policyAckRepo from '../repositories/policyAcknowledgement.repository';
 import AppError from '../pkg/AppError';
-// Not yet converted — untouched .js service (already repointed at
-// employee.repository.ts/policy.repository.ts, see below).
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const policyAcknowledgementNotifier = require('../services/policyAcknowledgementService');
+import { notifyRejection } from './policyAcknowledgementService';
 
 export async function submitAcknowledgement(policyId: string, employeeId: number, signedFilePath: string) {
   const policy = await policyRepo.findById(policyId);
@@ -37,7 +34,9 @@ export async function reviewSubmission(
   await policyAckRepo.review(ack.id, { status, rejectionReason, reviewedBy });
 
   if (status === 'rejected') {
-    policyAcknowledgementNotifier.notifyRejection(ack, rejectionReason).catch((err: any) =>
+    // rejectionReason is guaranteed non-null here — toReviewInput requires it
+    // whenever status is 'rejected'.
+    notifyRejection(ack, rejectionReason as string).catch((err: any) =>
       console.error('[policy-ack] Failed to send rejection email:', err.message)
     );
   }

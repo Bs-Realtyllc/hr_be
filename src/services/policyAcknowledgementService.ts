@@ -1,16 +1,16 @@
-const nodemailer = require('nodemailer');
-const Policy = require('../repositories/policy.repository');
-const Employee = require('../repositories/employee.repository');
+import nodemailer from 'nodemailer';
+import * as policyRepo from '../repositories/policy.repository';
+import * as employeeRepo from '../repositories/employee.repository';
 
-exports.notifyRejection = async (ack, reason) => {
+export async function notifyRejection(ack: { employee_id: number; policy_id: number }, reason: string) {
   if (!process.env.MAIL_HOST) {
     console.info('[policy-ack] MAIL_HOST not set — skipping rejection email');
     return;
   }
 
-  const [employee, policy] = await Promise.all([
-    Employee.findById(ack.employee_id),
-    Policy.findById(ack.policy_id),
+  const [employee, policy]: [any, any] = await Promise.all([
+    employeeRepo.findById(ack.employee_id),
+    policyRepo.findById(ack.policy_id),
   ]);
   if (!employee?.email || !policy) return;
 
@@ -34,4 +34,4 @@ exports.notifyRejection = async (ack, reason) => {
       <p style="color:#888;font-size:12px">HR Platform</p>
     `,
   });
-};
+}

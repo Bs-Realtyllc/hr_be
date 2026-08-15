@@ -1,10 +1,6 @@
 import mysql from 'mysql2/promise';
 import { drizzle } from 'drizzle-orm/mysql2';
 
-// New ORM-backed connection, used only by domains converted to Drizzle
-// (currently: Employees, Auth). Everything else still goes through the
-// legacy mysql2 pool in src/db/index.js until it's converted too — both
-// point at the same database, so they're safe to run side by side.
 export const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   port: Number(process.env.DB_PORT) || 3306,
