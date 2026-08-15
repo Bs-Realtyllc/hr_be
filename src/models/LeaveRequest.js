@@ -1,5 +1,11 @@
 const db = require('../db');
 
+//find all leave request
+exports.findAllLeaveRequests = async(req, res)=>{
+  const [allRequests] = await db.query(`SELECT * FROM leave_requests`)
+  return allRequests
+}
+
 exports.findWithNames = async ({ employeeId, status }) => {
   let query = `
     SELECT lr.*, e.name AS employee_name, e.designation,
