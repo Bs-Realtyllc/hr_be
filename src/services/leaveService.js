@@ -1,5 +1,5 @@
 const LeaveRequest = require('../models/LeaveRequest');
-const Employee = require('../models/Employee');
+const Employee = require('../repositories/employee.repository');
 const PayrollAdjustment = require('../models/PayrollAdjustment');
 const { buildLeaveEmailSubject, buildLeaveEmailHtml } = require('../controllers/leaveEmailTemplate');
 const { toMonthlySalary, calculateLeaveDeduction } = require('../pkg/payrollCalculator');

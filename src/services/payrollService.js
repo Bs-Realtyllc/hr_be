@@ -1,4 +1,4 @@
-const Employee = require('../models/Employee');
+const Employee = require('../repositories/employee.repository');
 const EmployeeTax = require('../models/EmployeeTax');
 const PayrollAdjustment = require('../models/PayrollAdjustment');
 const LeaveRequest = require('../models/LeaveRequest');

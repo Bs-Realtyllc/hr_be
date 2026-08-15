@@ -1,5 +1,5 @@
 const Standup = require('../models/Standup');
-const Employee = require('../models/Employee');
+const Employee = require('../repositories/employee.repository');
 const standupDto = require('../dtos/standupDto');
 const asyncHandler = require('../middleware/asyncHandler');
 

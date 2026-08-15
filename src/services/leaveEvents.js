@@ -1,4 +1,4 @@
-const Employee = require('../models/Employee');
+const Employee = require('../repositories/employee.repository');
 const LeaveRequest = require('../models/LeaveRequest');
 
 const DEFAULT_LEAVE_TYPE = 'sick'; // fallback if a future payload omits leave_type

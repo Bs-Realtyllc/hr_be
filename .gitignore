@@ -1,6 +1,7 @@
 .env.*
 node_modules/
 .env
+dist/
 
 # Never commit these file types
 *.pptx

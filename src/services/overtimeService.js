@@ -1,5 +1,5 @@
 const OvertimeRequest = require('../models/OvertimeRequest');
-const Employee = require('../models/Employee');
+const Employee = require('../repositories/employee.repository');
 const PayrollAdjustment = require('../models/PayrollAdjustment');
 const { toMonthlySalary, calculateOvertimePay } = require('../pkg/payrollCalculator');
 

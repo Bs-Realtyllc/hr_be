@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const nodemailer = require('nodemailer');
-const Employee = require('../models/Employee');
+const Employee = require('../repositories/employee.repository');
 
 function buildTransporter() {
   return nodemailer.createTransport({

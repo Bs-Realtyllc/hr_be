@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 
-router.use('/auth', require('./auth'));
+router.use('/auth', require('./modules/auth.routes').default);
 router.use('/dashboard', require('./dashboard'));
-router.use('/employees', require('./employees'));
+router.use('/employees', require('./modules/employee.routes').default);
 router.use('/leaves', require('./leaves'));
 router.use('/standups', require('./standups'));
 router.use('/projects', require('./projects'));

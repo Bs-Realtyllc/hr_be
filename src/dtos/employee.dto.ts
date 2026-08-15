@@ -1,12 +1,12 @@
-const { z } = require('zod');
+import { z } from 'zod';
 
 const UPDATE_FIELDS = [
   'name', 'phone', 'secondary_email', 'discord_username', 'emergency_contact', 'designation',
   'department', 'manager_id', 'timezone', 'work_hours', 'tech_stack', 'role',
-];
+] as const;
 
-// Matches the `employees.role` ENUM in schema.sql.
-const ROLES = ['admin', 'lead', 'employee'];
+// Matches the `employee_auth.role` ENUM in schema.sql.
+const ROLES = ['admin', 'lead', 'employee'] as const;
 
 const emailField = z.string().trim().email('must be a valid email address');
 
@@ -28,23 +28,53 @@ const fieldSchemas = {
   work_hours: z.string().trim().min(1),
   tech_stack: z.array(z.string()),
   role: z.enum(ROLES),
-};
+} as const;
 
-function validateField(field, value) {
+type FieldName = keyof typeof fieldSchemas;
+
+function validateField(field: FieldName, value: unknown) {
   if (value === undefined || value === null) return; // null/undefined allowed — defaulted or nullable below
   const schema = fieldSchemas[field];
   if (!schema) return;
   const result = schema.safeParse(value);
   if (!result.success) {
-    const err = new Error(`${field}: ${result.error.issues[0].message}`);
+    const err: any = new Error(`${field}: ${result.error.issues[0].message}`);
     err.status = 400;
     throw err;
   }
 }
 
-exports.toCreateInput = (body) => {
+// "Interface" types for the service/controller layer — the request/response shapes.
+export interface EmployeeCreateInput {
+  name: string;
+  email: string;
+  secondary_email: string | null;
+  phone: string | null;
+  emergency_contact: string | null;
+  designation: string | null;
+  department: string | null;
+  manager_id: number | null;
+  start_date: string | null;
+  timezone: string;
+  work_hours: string;
+  tech_stack: string[];
+  role: (typeof ROLES)[number];
+}
+
+export type EmployeeUpdateInput = Partial<Pick<EmployeeCreateInput,
+  'name' | 'phone' | 'secondary_email' | 'designation' | 'department' | 'manager_id' | 'timezone' | 'work_hours' | 'tech_stack' | 'role'
+>> & { discord_username?: string | null; emergency_contact?: string | null };
+
+export interface EmployeeResponse {
+  id: number;
+  name: string;
+  email: string;
+  [key: string]: unknown;
+}
+
+export function toCreateInput(body: Record<string, any>): EmployeeCreateInput {
   if (!body.name || !body.email) {
-    const err = new Error('name and email are required');
+    const err: any = new Error('name and email are required');
     err.status = 400;
     throw err;
   }
@@ -78,10 +108,10 @@ exports.toCreateInput = (body) => {
     tech_stack: body.tech_stack || [],
     role: body.role || 'employee',
   };
-};
+}
 
-exports.toUpdateInput = (body) => {
-  const updates = {};
+export function toUpdateInput(body: Record<string, any>): EmployeeUpdateInput {
+  const updates: Record<string, any> = {};
   UPDATE_FIELDS.forEach((f) => {
     if (body[f] !== undefined) {
       validateField(f, body[f]);
@@ -89,13 +119,15 @@ exports.toUpdateInput = (body) => {
     }
   });
   return updates;
-};
+}
 
 // Strip fields that should never reach the client (password_hash).
-exports.toResponse = (employee) => {
-  if (!employee) return employee;
+export function toResponse(employee: Record<string, any> | null): EmployeeResponse | null {
+  if (!employee) return null;
   const { password_hash, ...safe } = employee;
-  return safe;
-};
+  return safe as EmployeeResponse;
+}
 
-exports.toResponseList = (employees) => employees.map(exports.toResponse);
+export function toResponseList(employees: Record<string, any>[]): EmployeeResponse[] {
+  return employees.map((e) => toResponse(e) as EmployeeResponse);
+}

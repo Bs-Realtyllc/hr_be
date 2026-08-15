@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 const Policy = require('../models/Policy');
-const Employee = require('../models/Employee');
+const Employee = require('../repositories/employee.repository');
 
 exports.notifyRejection = async (ack, reason) => {
   if (!process.env.MAIL_HOST) {

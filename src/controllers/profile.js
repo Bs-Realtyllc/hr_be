@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const Employee = require('../models/Employee');
+const Employee = require('../repositories/employee.repository');
 const profileDto = require('../dtos/profileDto');
 const cultureEventService = require('../services/cultureEventService');
 const asyncHandler = require('../middleware/asyncHandler');

@@ -1,8 +1,10 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const ctrl = require('../controllers/employees');
-const ackCtrl = require('../controllers/policyAcknowledgements');
-const { authenticate, requireRole } = require('../middleware/auth');
+import * as ctrl from '../../controllers/employee.controller';
+// Not yet converted — untouched .js controller for a domain outside this pilot.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const ackCtrl = require('../../controllers/policyAcknowledgements');
+import { authenticate, requireRole } from '../../middleware/auth';
 
 // Read access: any authenticated employee (many non-admin pages — culture, feedback,
 // standups, goals, performance, projects, dashboard — list/display employees).
@@ -18,4 +20,4 @@ router.post('/', authenticate, requireRole('admin', 'lead'), ctrl.create);
 router.put('/:id', authenticate, requireRole('admin', 'lead'), ctrl.update);
 router.delete('/:id', authenticate, requireRole('admin'), ctrl.remove);
 
-module.exports = router;
+export default router;

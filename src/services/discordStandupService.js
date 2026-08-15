@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const Employee = require('../models/Employee');
+const Employee = require('../repositories/employee.repository');
 const Standup = require('../models/Standup');
 
 // Ed25519 SubjectPublicKeyInfo DER prefix for wrapping raw 32-byte public keys
