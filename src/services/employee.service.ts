@@ -1,10 +1,23 @@
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
+import nodemailer from 'nodemailer';
 import * as employeeRepo from '../repositories/employee.repository';
 import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
 import type { EmployeeCreateInput, EmployeeUpdateInput } from '../dtos/employee.dto';
 import AppError from '../pkg/AppError';
+import {
+  buildApprovalEmailSubject,
+  buildApprovalEmailHtml,
+  buildRejectionEmailSubject,
+  buildRejectionEmailHtml,
+} from './onboardingEmailTemplate';
 
 export async function list() {
   return employeeRepo.findAllActive();
+}
+
+export async function listOnboarding() {
+  return employeeRepo.findAllOnboarding();
 }
 
 export async function get(id: string) {
@@ -29,6 +42,96 @@ export async function update(id: string, updates: EmployeeUpdateInput, actorId: 
 
 export async function remove(id: string, actorId: number | null) {
   await employeeRepo.deactivate(id, actorId);
+}
+
+const TEMP_PASSWORD_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+
+function generateTempPassword(length = 10): string {
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += TEMP_PASSWORD_CHARS[crypto.randomInt(TEMP_PASSWORD_CHARS.length)];
+  }
+  return result;
+}
+
+async function sendApprovalEmail(name: string, to: string, tempPassword: string) {
+  const loginUrl = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/login` : 'http://localhost:6001/login';
+
+  if (!process.env.MAIL_HOST) {
+    console.info(`[employee] MAIL_HOST not set — temp password for ${to}: ${tempPassword}`);
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.MAIL_HOST,
+    port: Number(process.env.MAIL_PORT) || 587,
+    secure: process.env.MAIL_SECURE === 'true',
+    auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+  });
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM || process.env.MAIL_USER,
+    to,
+    subject: buildApprovalEmailSubject(),
+    html: buildApprovalEmailHtml(name, to, tempPassword, loginUrl),
+  });
+}
+
+async function sendRejectionEmail(name: string, to: string) {
+  if (!process.env.MAIL_HOST) {
+    console.info(`[employee] MAIL_HOST not set — skipping rejection email to ${to}`);
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.MAIL_HOST,
+    port: Number(process.env.MAIL_PORT) || 587,
+    secure: process.env.MAIL_SECURE === 'true',
+    auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+  });
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM || process.env.MAIL_USER,
+    to,
+    subject: buildRejectionEmailSubject(),
+    html: buildRejectionEmailHtml(name),
+  });
+}
+
+export async function approve(id: string, actorId: number | null) {
+  const employee = await employeeRepo.findById(id);
+  if (!employee) throw new AppError('Not found', 404);
+  if (employee.status !== 'onboarding') {
+    throw new AppError('Only pending applicants can be approved', 400);
+  }
+
+  const tempPassword = generateTempPassword();
+  const passwordHash = await bcrypt.hash(tempPassword, 10);
+  await employeeRepo.approve(id, passwordHash, actorId);
+
+  try {
+    await sendApprovalEmail(employee.name, employee.email, tempPassword);
+  } catch (err: any) {
+    console.error(`[employee] Failed to send approval email for ${id}:`, err.message);
+  }
+}
+
+export async function reject(id: string, notify: boolean) {
+  const employee = await employeeRepo.findById(id);
+  if (!employee) throw new AppError('Not found', 404);
+  if (employee.status !== 'onboarding') {
+    throw new AppError('Only pending applicants can be rejected', 400);
+  }
+
+  if (notify) {
+    try {
+      await sendRejectionEmail(employee.name, employee.email);
+    } catch (err: any) {
+      console.error(`[employee] Failed to send rejection email for ${id}:`, err.message);
+    }
+  }
+
+  await employeeRepo.reject(id);
 }
 
 export async function payrollSummary(id: string) {

@@ -4,7 +4,7 @@ import { auditColumns } from './BaseModel';
 export const employeeAuth = mysqlTable('employee_auth', {
   employee_id: int('employee_id').primaryKey(),
   password_hash: varchar('password_hash', { length: 255 }),
-  role: mysqlEnum('role', ['admin', 'lead', 'employee']).notNull().default('employee'),
+  role: mysqlEnum('role', ['admin', 'lead', 'employee', 'intern']).notNull().default('employee'),
   last_login_at: timestamp('last_login_at', { mode: 'date' }),
   ...auditColumns,
 });

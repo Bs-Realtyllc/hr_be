@@ -37,7 +37,7 @@ export async function cancel(id: string, userId: number) {
 }
 
 export async function approve(id: string, user: AuthUser) {
-  if (user.role === 'employee') throw new AppError('Insufficient permissions', 403);
+  if (!['admin', 'lead'].includes(user.role)) throw new AppError('Insufficient permissions', 403);
 
   const ot: any = await overtimeRepo.findWithEmployeeById(id);
   if (!ot) throw new AppError('Not found', 404);
@@ -77,7 +77,7 @@ export async function approve(id: string, user: AuthUser) {
 }
 
 export async function reject(id: string, user: AuthUser) {
-  if (user.role === 'employee') throw new AppError('Insufficient permissions', 403);
+  if (!['admin', 'lead'].includes(user.role)) throw new AppError('Insufficient permissions', 403);
 
   const ot = await overtimeRepo.findById(id);
   if (!ot) throw new AppError('Not found', 404);

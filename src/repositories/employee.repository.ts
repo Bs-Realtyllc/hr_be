@@ -45,6 +45,15 @@ export async function findAllActive() {
     .orderBy(employeesFlat.name);
 }
 
+export async function findAllOnboarding() {
+  return db
+    .select(flatWithManager)
+    .from(employeesFlat)
+    .leftJoin(manager, eq(employeesFlat.manager_id, manager.id))
+    .where(eq(employeesFlat.status, 'onboarding'))
+    .orderBy(employeesFlat.name);
+}
+
 export async function findById(id: number | string) {
   const rows = await db
     .select(flatWithManager)
@@ -167,6 +176,8 @@ export async function create(data: EmployeeCreateInput, actorId: number | null =
       qualifications: [],
       designation_id: designationId,
       department_id: departmentId,
+      is_active: data.status !== 'onboarding',
+      status: data.status,
       created_by: actorId,
       updated_by: actorId,
       created_at: new Date(),
@@ -179,8 +190,20 @@ export async function create(data: EmployeeCreateInput, actorId: number | null =
       {
         phone: data.phone,
         emergency_contact: data.emergency_contact,
+        emergency_contact_name: data.emergency_contact_name,
         timezone: data.timezone,
         work_hours: data.work_hours,
+        gender: data.gender,
+        permanent_address: data.permanent_address,
+        education_level: data.education_level,
+        institution_name: data.institution_name,
+        field_of_study: data.field_of_study,
+        graduation_date: data.graduation_date,
+        previous_experience: data.previous_experience,
+        areas_of_interest: data.areas_of_interest,
+        linkedin_url: data.linkedin_url,
+        github_url: data.github_url,
+        portfolio_url: data.portfolio_url,
       },
       tx,
       actorId
@@ -211,7 +234,9 @@ export async function seedLeaveBalances(employeeId: number | string, year: numbe
 }
 
 const PROFILE_UPDATE_FIELDS = [
-  'phone', 'alt_phone', 'discord_username', 'emergency_contact', 'dob', 'bio', 'address',
+  'phone', 'alt_phone', 'discord_username', 'emergency_contact', 'emergency_contact_name', 'dob', 'gender',
+  'bio', 'address', 'permanent_address', 'education_level', 'institution_name', 'field_of_study',
+  'graduation_date', 'previous_experience', 'areas_of_interest', 'linkedin_url', 'github_url', 'portfolio_url',
   'timezone', 'work_hours', 'leave_policy_accepted', 'leave_policy_accepted_at',
 ];
 const EMPLOYEES_TABLE_FIELDS = ['name', 'email', 'secondary_email', 'tech_stack', 'qualifications', 'manager_id', 'start_date'];
@@ -273,6 +298,20 @@ export async function deactivate(id: number | string, actorId: number | null = n
     .update(employees)
     .set({ is_active: false, status: 'terminated', updated_by: actorId })
     .where(eq(employees.id, Number(id)));
+}
+
+export async function approve(id: number | string, passwordHash: string, actorId: number | null = null) {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(employees)
+      .set({ is_active: true, status: 'active', updated_by: actorId })
+      .where(eq(employees.id, Number(id)));
+    await upsertAuth(id, { password_hash: passwordHash }, tx, actorId);
+  });
+}
+
+export async function reject(id: number | string) {
+  await db.delete(employees).where(eq(employees.id, Number(id)));
 }
 
 export async function findPayrollBaseById(id: number | string) {
@@ -432,7 +471,9 @@ export async function upsertAuth(
 }
 
 const PROFILE_COLUMNS = [
-  'phone', 'alt_phone', 'discord_username', 'emergency_contact', 'dob', 'bio', 'address',
+  'phone', 'alt_phone', 'discord_username', 'emergency_contact', 'emergency_contact_name', 'dob', 'gender',
+  'bio', 'address', 'permanent_address', 'education_level', 'institution_name', 'field_of_study',
+  'graduation_date', 'previous_experience', 'areas_of_interest', 'linkedin_url', 'github_url', 'portfolio_url',
   'timezone', 'work_hours', 'leave_policy_accepted', 'leave_policy_accepted_at',
 ];
 export async function upsertProfile(

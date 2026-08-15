@@ -113,7 +113,7 @@ const options = {
             },
             role: {
               type: "string",
-              enum: ["admin", "lead", "employee"],
+              enum: ["admin", "lead", "employee", "intern"],
               example: "employee",
             },
             discord_username: { type: "string", nullable: true },
@@ -125,6 +125,26 @@ const options = {
             },
             profile_picture: { type: "string", nullable: true },
             is_active: { type: "boolean" },
+            status: {
+              type: "string",
+              enum: ["onboarding", "active", "on_leave", "probation", "terminated"],
+            },
+            gender: {
+              type: "string",
+              enum: ["male", "female", "other", "prefer_not_to_say"],
+              nullable: true,
+            },
+            permanent_address: { type: "string", nullable: true },
+            education_level: { type: "string", nullable: true },
+            institution_name: { type: "string", nullable: true },
+            field_of_study: { type: "string", nullable: true },
+            graduation_date: { type: "string", format: "date", nullable: true },
+            previous_experience: { type: "string", nullable: true },
+            areas_of_interest: { type: "string", nullable: true },
+            linkedin_url: { type: "string", nullable: true },
+            github_url: { type: "string", nullable: true },
+            portfolio_url: { type: "string", nullable: true },
+            emergency_contact_name: { type: "string", nullable: true },
           },
         },
         EmployeeInput: {
@@ -135,6 +155,7 @@ const options = {
             email: { type: "string", format: "email" },
             phone: { type: "string" },
             emergency_contact: { type: "string" },
+            emergency_contact_name: { type: "string", nullable: true },
             designation: { type: "string" },
             department: { type: "string" },
             manager_id: { type: "integer", nullable: true },
@@ -144,14 +165,36 @@ const options = {
             tech_stack: { type: "array", items: { type: "string" } },
             role: {
               type: "string",
-              enum: ["admin", "lead", "employee"],
+              enum: ["admin", "lead", "employee", "intern"],
               default: "employee",
+            },
+            status: {
+              type: "string",
+              enum: ["onboarding", "active"],
+              default: "active",
+              description:
+                "Create only — 'onboarding' creates a pending applicant (is_active = false) awaiting approval via PUT /{id}/approve or PUT /{id}/reject.",
             },
             discord_username: {
               type: "string",
               description:
                 "Update only — matched against Discord standup submissions",
             },
+            gender: {
+              type: "string",
+              enum: ["male", "female", "other", "prefer_not_to_say"],
+              nullable: true,
+            },
+            permanent_address: { type: "string", nullable: true },
+            education_level: { type: "string", nullable: true },
+            institution_name: { type: "string", nullable: true },
+            field_of_study: { type: "string", nullable: true },
+            graduation_date: { type: "string", format: "date", nullable: true },
+            previous_experience: { type: "string", nullable: true },
+            areas_of_interest: { type: "string", nullable: true },
+            linkedin_url: { type: "string", nullable: true },
+            github_url: { type: "string", nullable: true },
+            portfolio_url: { type: "string", nullable: true },
           },
         },
         EmployeePayrollSummary: {
@@ -1247,6 +1290,35 @@ const options = {
           },
         },
       },
+      "/api/employees/onboarding": {
+        get: {
+          tags: ["Employees"],
+          summary: "List pending applicants awaiting approval",
+          description:
+            "Admin only. Returns employees created with status = 'onboarding' (is_active = false).",
+          responses: {
+            200: {
+              description: "Array of pending applicants",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/Employee" },
+                  },
+                },
+              },
+            },
+            403: {
+              description: "Insufficient permissions",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
       "/api/employees/{id}": {
         get: {
           tags: ["Employees"],
@@ -1365,6 +1437,84 @@ const options = {
                 },
               },
             },
+          },
+        },
+      },
+      "/api/employees/{id}/approve": {
+        put: {
+          tags: ["Employees"],
+          summary: "Approve a pending applicant",
+          description:
+            "Admin only. Sets is_active = true and status = 'active', generates a one-time password, and emails it to the employee's company email. Fails if the employee is not currently in 'onboarding' status.",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Approved",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Success" },
+                },
+              },
+            },
+            400: {
+              description: "Employee is not a pending applicant",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: { description: "Not found" },
+          },
+        },
+      },
+      "/api/employees/{id}/reject": {
+        put: {
+          tags: ["Employees"],
+          summary: "Reject a pending applicant",
+          description:
+            "Admin only. Permanently deletes the employee record. Only allowed while the employee is still in 'onboarding' status — never affects an active or terminated employee.",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+            {
+              name: "send_mail",
+              in: "query",
+              required: false,
+              description:
+                "If true, sends a rejection notice to the employee before deleting their record.",
+              schema: { type: "boolean", default: false },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Rejected and deleted",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Success" },
+                },
+              },
+            },
+            400: {
+              description: "Employee is not a pending applicant",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: { description: "Not found" },
           },
         },
       },

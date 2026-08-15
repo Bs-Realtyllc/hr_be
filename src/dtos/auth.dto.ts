@@ -64,7 +64,7 @@ export interface UserSummary {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'lead' | 'employee' | null;
+  role: 'admin' | 'lead' | 'employee' | 'intern' | null;
   designation: string | null;
   department: string | null;
 }
