@@ -3,6 +3,7 @@ import authRoutes from './auth.routes';
 import employeeRoutes from './employee.routes';
 import leaveRoutes from './leave.routes';
 import standupRoutes from './standup.routes';
+import projectRoutes from './project.routes';
 
 // Every domain converted to the standard layering — route -> controller ->
 // service -> repository -> model (see src/routes/modules/employee.routes.ts
@@ -16,6 +17,7 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/employees', router: employeeRoutes },
   { path: '/leaves', router: leaveRoutes },
   { path: '/standups', router: standupRoutes },
+  { path: '/projects', router: projectRoutes },
 ];
 
 const router = Router();

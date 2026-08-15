@@ -1,7 +1,9 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const ctrl = require('../controllers/projects');
+import * as ctrl from '../../controllers/project.controller';
 
+// No auth middleware here — matches the original route file exactly (this
+// domain has never required authentication on any of its endpoints).
 router.get('/by-employee/:empId', ctrl.byEmployee);
 router.get('/', ctrl.list);
 router.post('/', ctrl.create);
@@ -18,4 +20,4 @@ router.get('/:id/services', ctrl.getServices);
 router.post('/:id/services', ctrl.addService);
 router.delete('/:id/services/:serviceKey', ctrl.removeService);
 
-module.exports = router;
+export default router;

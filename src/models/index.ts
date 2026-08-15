@@ -11,3 +11,7 @@ export { passwordResetTokens } from './PasswordResetToken';
 export { leaveRequests } from './LeaveRequest';
 export { leaveBalances } from './LeaveBalance';
 export { standups } from './Standup';
+export { projects } from './Project';
+export { projectAssignments } from './ProjectAssignment';
+export { milestones } from './Milestone';
+export { projectServices } from './ProjectService';
