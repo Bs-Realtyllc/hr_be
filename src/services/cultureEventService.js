@@ -1,5 +1,5 @@
 const Employee = require('../repositories/employee.repository');
-const CultureEvent = require('../models/CultureEvent');
+const CultureEvent = require('../repositories/cultureEvent.repository');
 
 // Called when an employee sets/changes their date of birth (see profile.js) —
 // keeps their yearly birthday entry on the culture-events calendar in sync.

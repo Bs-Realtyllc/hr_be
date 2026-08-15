@@ -4,6 +4,7 @@ import employeeRoutes from './employee.routes';
 import leaveRoutes from './leave.routes';
 import standupRoutes from './standup.routes';
 import projectRoutes from './project.routes';
+import cultureEventRoutes from './cultureEvent.routes';
 
 // Every domain converted to the standard layering — route -> controller ->
 // service -> repository -> model (see src/routes/modules/employee.routes.ts
@@ -18,6 +19,7 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/leaves', router: leaveRoutes },
   { path: '/standups', router: standupRoutes },
   { path: '/projects', router: projectRoutes },
+  { path: '/events', router: cultureEventRoutes },
 ];
 
 const router = Router();

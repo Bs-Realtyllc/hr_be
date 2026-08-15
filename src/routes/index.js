@@ -7,7 +7,6 @@ const router = express.Router();
 router.use(require('./modules').default);
 
 router.use('/dashboard', require('./dashboard'));
-router.use('/events', require('./events'));
 router.use('/holidays', require('./holidays'));
 router.use('/servers', require('./servers'));
 router.use('/payroll', require('./payroll'));
