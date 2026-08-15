@@ -82,8 +82,9 @@ async function runFile(conn: Connection, filePath: string): Promise<boolean> {
     if (err.code !== 'ER_NO_SUCH_TABLE') throw err;
   }
 
+  const migrationsDir = path.join(__dirname, 'migrations');
   const migrationFiles = fs
-    .readdirSync(__dirname)
+    .readdirSync(migrationsDir)
     .filter((f) => f.startsWith('migrate_') && f.endsWith('.sql'))
     .sort();
 
@@ -93,7 +94,7 @@ async function runFile(conn: Connection, filePath: string): Promise<boolean> {
       console.log(`  ${file}: already applied, skipping`);
       continue;
     }
-    const ok = await runFile(conn, path.join(__dirname, file));
+    const ok = await runFile(conn, path.join(migrationsDir, file));
     if (ok) {
       try {
         await conn.query('INSERT IGNORE INTO schema_migrations (filename) VALUES (?)', [file]);

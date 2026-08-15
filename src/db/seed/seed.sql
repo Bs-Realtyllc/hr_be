@@ -1,6 +1,6 @@
 -- =============================================================
 --  HR Platform — Demo Seed Data
---  Run: mysql -u root -p hr_platform < seed.sql   (after `npm run migrate`)
+--  Run: mysql -u root -p hr_platform < src/db/seed/seed.sql   (after `npm run migrate`)
 --  Reference date: 2026-06-21
 --
 --  Rewritten post-normalization (Phase 5 dropped role/department/designation/
