@@ -1,21 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 const Policy = require('../models/Policy');
+const asyncHandler = require('../middleware/asyncHandler');
+const AppError = require('../pkg/AppError');
 
-exports.listPolicies = async (req, res) => {
-  try {
-    const { category } = req.query;
-    const policies = await Policy.listActive(category);
-    res.json(policies);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+exports.listPolicies = asyncHandler(async (req, res) => {
+  const { category } = req.query;
+  const policies = await Policy.listActive(category);
+  res.json(policies);
+});
 
-exports.uploadPolicy = async (req, res) => {
+exports.uploadPolicy = asyncHandler(async (req, res) => {
   const { type, title, category } = req.body;
-  if (!type || !title) return res.status(400).json({ error: 'type and title are required' });
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  if (!type || !title) throw new AppError('type and title are required', 400);
+  if (!req.file) throw new AppError('No file uploaded', 400);
 
   try {
     const previous = await Policy.findActiveByType(type);
@@ -34,35 +32,27 @@ exports.uploadPolicy = async (req, res) => {
     res.json({ id, version, filename: req.file.filename });
   } catch (err) {
     deleteUpload(req.file.filename);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
-};
+});
 
-exports.deletePolicy = async (req, res) => {
-  try {
-    const policy = await Policy.findById(req.params.id);
-    if (!policy) return res.status(404).json({ error: 'Policy not found' });
+exports.deletePolicy = asyncHandler(async (req, res) => {
+  const policy = await Policy.findById(req.params.id);
+  if (!policy) throw new AppError('Policy not found', 404);
 
-    await Policy.remove(policy.id);
-    deleteUpload(policy.file_path);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+  await Policy.remove(policy.id);
+  deleteUpload(policy.file_path);
+  res.json({ success: true });
+});
 
-exports.setPinned = async (req, res) => {
+exports.setPinned = asyncHandler(async (req, res) => {
   const { pinned } = req.body;
-  try {
-    const policy = await Policy.findById(req.params.id);
-    if (!policy) return res.status(404).json({ error: 'Policy not found' });
+  const policy = await Policy.findById(req.params.id);
+  if (!policy) throw new AppError('Policy not found', 404);
 
-    await Policy.setPinned(policy.id, !!pinned);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+  await Policy.setPinned(policy.id, !!pinned);
+  res.json({ success: true });
+});
 
 function deleteUpload(filename) {
   const full = path.join(__dirname, '../../uploads/policies', filename);

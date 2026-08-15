@@ -6,7 +6,7 @@ const db = require('../db');
 exports.findWithEmployeeNames = async ({ employeeId, month, year, fromYear, fromMonth, toYear, toMonth }) => {
   let q = `SELECT r.*, e.name AS employee_name, e.designation, e.department
            FROM monthly_reports r
-           JOIN employees e ON r.employee_id = e.id
+           JOIN employees_flat e ON r.employee_id = e.id
            WHERE 1=1`;
   const p = [];
 

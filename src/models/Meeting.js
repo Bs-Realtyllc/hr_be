@@ -4,7 +4,7 @@ exports.findUpcomingScheduled = async () => {
   const [rows] = await db.query(
     `SELECT m.*, e.name AS creator_name
      FROM meetings m
-     LEFT JOIN employees e ON m.created_by = e.id
+     LEFT JOIN employees_flat e ON m.created_by = e.id
      WHERE m.status = 'scheduled'
        AND m.start_datetime >= DATE_SUB(NOW(), INTERVAL 7 DAY)
      ORDER BY m.start_datetime ASC`

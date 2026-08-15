@@ -1,10 +1,45 @@
 -- =============================================================
 --  HR Platform — Demo Seed Data
---  Run: mariadb -u root -pkshitizgajurel hr_platform < seed.sql
+--  Run: mysql -u root -p hr_platform < seed.sql   (after `npm run migrate`)
 --  Reference date: 2026-06-21
+--
+--  Rewritten post-normalization (Phase 5 dropped role/department/designation/
+--  salary/pay_frequency/timezone/work_hours/password_hash from `employees` —
+--  see migrate_normalize_employees_p3.sql). Employees now insert across three
+--  tables, same as Employee.js's create() does:
+--    employees          — id, name, email, manager_id, start_date, tech_stack
+--    employee_auth      — password_hash, role
+--    employee_profile   — timezone, work_hours
+--  designation/department are resolved to designation_id/department_id via
+--  the departments/designations lookup tables instead of free text.
+--
+--  Also remapped leave_type from the retired casual/annual categories to the
+--  current ones (sick/bereavement/maternity/paternity) — see
+--  migrate_leave_policy.sql — since leave_balances no longer accepts the old
+--  values at all, and leave_requests only keeps them for historical rows.
 -- =============================================================
 
 USE hr_platform;
+
+-- ─────────────────────────────────────────────────────────────
+-- 0. LOOKUP TABLES — departments / designations
+--    Seeded first so employees can be resolved to their ids below.
+-- ─────────────────────────────────────────────────────────────
+
+INSERT IGNORE INTO departments (name) VALUES
+  ('Engineering'), ('Design'), ('Product'), ('Operations');
+
+INSERT IGNORE INTO designations (title, department_id) VALUES
+  ('Engineering Lead',        (SELECT id FROM departments WHERE name = 'Engineering')),
+  ('Senior Backend Engineer', (SELECT id FROM departments WHERE name = 'Engineering')),
+  ('Frontend Engineer',       (SELECT id FROM departments WHERE name = 'Engineering')),
+  ('Full Stack Engineer',     (SELECT id FROM departments WHERE name = 'Engineering')),
+  ('DevOps Engineer',         (SELECT id FROM departments WHERE name = 'Engineering')),
+  ('UI/UX Designer',          (SELECT id FROM departments WHERE name = 'Design')),
+  ('Product Designer',        (SELECT id FROM departments WHERE name = 'Design')),
+  ('Product Manager',         (SELECT id FROM departments WHERE name = 'Product')),
+  ('HR Manager',              (SELECT id FROM departments WHERE name = 'Operations')),
+  ('Operations Lead',         (SELECT id FROM departments WHERE name = 'Operations'));
 
 -- ─────────────────────────────────────────────────────────────
 -- 1. EMPLOYEES
@@ -12,96 +47,135 @@ USE hr_platform;
 --    Only Kshitiz (id=1) is updated — others are inserted fresh
 -- ─────────────────────────────────────────────────────────────
 
--- Update Kshitiz (id=1, already exists) to admin + lead
+-- Update Kshitiz (id=1, already exists) — core identity fields only.
 UPDATE employees
-SET role        = 'admin',
-    department  = 'Engineering',
-    designation = 'Engineering Lead',
-    salary      = 4500.00,
-    start_date  = '2023-01-15',
-    tech_stack  = '["Node.js","React","MySQL","Docker"]',
-    timezone    = 'Asia/Kathmandu',
-    work_hours  = '9 AM - 6 PM'
+SET designation_id = (SELECT id FROM designations WHERE title = 'Engineering Lead'),
+    department_id  = (SELECT id FROM departments WHERE name = 'Engineering'),
+    start_date     = '2023-01-15',
+    tech_stack     = '["Node.js","React","MySQL","Docker"]'
 WHERE id = 1;
 
+INSERT INTO employee_auth (employee_id, password_hash, role) VALUES
+  (1, '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'admin')
+ON DUPLICATE KEY UPDATE
+  password_hash = VALUES(password_hash),
+  role           = VALUES(role);
+
+INSERT INTO employee_profile (employee_id, timezone, work_hours) VALUES
+  (1, 'Asia/Kathmandu', '9 AM - 6 PM')
+ON DUPLICATE KEY UPDATE
+  timezone   = VALUES(timezone),
+  work_hours = VALUES(work_hours);
+
 INSERT INTO employees
-  (id, name, email, phone, designation, department, manager_id, role,
-   salary, pay_frequency, start_date, timezone, work_hours, tech_stack,
-   password_hash, is_active)
+  (id, name, email, manager_id, start_date, tech_stack, designation_id, department_id, is_active)
 VALUES
 -- Engineering — Backend
-(2,  'Priya Sharma',     'priya@bsrealtyllc.com',   '+977-9841000002', 'Senior Backend Engineer', 'Engineering', 1, 'lead',
- 3800.00, 'monthly', '2023-03-01', 'Asia/Kathmandu', '9 AM - 6 PM', '["Node.js","PostgreSQL","Redis","AWS"]',
- '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', TRUE),
+(2,  'Priya Sharma',     'priya@bsrealtyllc.com',   1, '2023-03-01', '["Node.js","PostgreSQL","Redis","AWS"]',
+ (SELECT id FROM designations WHERE title = 'Senior Backend Engineer'), (SELECT id FROM departments WHERE name = 'Engineering'), TRUE),
 
-(3,  'Rohan Thapa',      'rohan@bsrealtyllc.com',   '+977-9841000003', 'Frontend Engineer',       'Engineering', 1, 'employee',
- 2800.00, 'monthly', '2023-06-15', 'Asia/Kathmandu', '9 AM - 6 PM', '["React","TypeScript","Next.js","Tailwind"]',
- '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', TRUE),
+(3,  'Rohan Thapa',      'rohan@bsrealtyllc.com',   1, '2023-06-15', '["React","TypeScript","Next.js","Tailwind"]',
+ (SELECT id FROM designations WHERE title = 'Frontend Engineer'), (SELECT id FROM departments WHERE name = 'Engineering'), TRUE),
 
-(4,  'Ankit Joshi',      'ankit@bsrealtyllc.com',   '+977-9841000004', 'Full Stack Engineer',     'Engineering', 1, 'employee',
- 3000.00, 'monthly', '2023-09-01', 'Asia/Kathmandu', '9 AM - 6 PM', '["React","Node.js","MongoDB","GraphQL"]',
- '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', TRUE),
+(4,  'Ankit Joshi',      'ankit@bsrealtyllc.com',   1, '2023-09-01', '["React","Node.js","MongoDB","GraphQL"]',
+ (SELECT id FROM designations WHERE title = 'Full Stack Engineer'), (SELECT id FROM departments WHERE name = 'Engineering'), TRUE),
 
-(5,  'Sara Magar',       'sara@bsrealtyllc.com',    '+977-9841000005', 'DevOps Engineer',         'Engineering', 1, 'employee',
- 3200.00, 'monthly', '2024-01-10', 'Asia/Kathmandu', '9 AM - 6 PM', '["Docker","Kubernetes","CI/CD","Linux","AWS"]',
- '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', TRUE),
+(5,  'Sara Magar',       'sara@bsrealtyllc.com',    1, '2024-01-10', '["Docker","Kubernetes","CI/CD","Linux","AWS"]',
+ (SELECT id FROM designations WHERE title = 'DevOps Engineer'), (SELECT id FROM departments WHERE name = 'Engineering'), TRUE),
 
 -- Design
-(6,  'Nisha Tamang',     'nisha@bsrealtyllc.com',   '+977-9841000006', 'UI/UX Designer',          'Design',      NULL, 'lead',
- 2900.00, 'monthly', '2023-04-01', 'Asia/Kathmandu', '10 AM - 7 PM', '["Figma","Adobe XD","Prototyping","Framer"]',
- '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', TRUE),
+(6,  'Nisha Tamang',     'nisha@bsrealtyllc.com',   NULL, '2023-04-01', '["Figma","Adobe XD","Prototyping","Framer"]',
+ (SELECT id FROM designations WHERE title = 'UI/UX Designer'), (SELECT id FROM departments WHERE name = 'Design'), TRUE),
 
-(7,  'Bikash Rai',       'bikash@bsrealtyllc.com',  '+977-9841000007', 'Product Designer',        'Design',      6, 'employee',
- 2400.00, 'monthly', '2024-02-15', 'Asia/Kathmandu', '10 AM - 7 PM', '["Figma","Illustrator","Motion Design"]',
- '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', TRUE),
+(7,  'Bikash Rai',       'bikash@bsrealtyllc.com',  6, '2024-02-15', '["Figma","Illustrator","Motion Design"]',
+ (SELECT id FROM designations WHERE title = 'Product Designer'), (SELECT id FROM departments WHERE name = 'Design'), TRUE),
 
 -- Product
-(8,  'Amit Karki',       'amit@bsrealtyllc.com',    '+977-9841000008', 'Product Manager',         'Product',     NULL, 'lead',
- 3500.00, 'monthly', '2023-02-01', 'Asia/Kathmandu', '9 AM - 6 PM', '["Jira","Notion","Figma","SQL"]',
- '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', TRUE),
+(8,  'Amit Karki',       'amit@bsrealtyllc.com',    NULL, '2023-02-01', '["Jira","Notion","Figma","SQL"]',
+ (SELECT id FROM designations WHERE title = 'Product Manager'), (SELECT id FROM departments WHERE name = 'Product'), TRUE),
 
 -- Operations
-(9,  'Sunita Shrestha',  'sunita@bsrealtyllc.com',  '+977-9841000009', 'HR Manager',              'Operations',  NULL, 'admin',
- 3000.00, 'monthly', '2022-11-01', 'Asia/Kathmandu', '9 AM - 5 PM', '["HRMS","Payroll","Recruitment"]',
- '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', TRUE),
+(9,  'Sunita Shrestha',  'sunita@bsrealtyllc.com',  NULL, '2022-11-01', '["HRMS","Payroll","Recruitment"]',
+ (SELECT id FROM designations WHERE title = 'HR Manager'), (SELECT id FROM departments WHERE name = 'Operations'), TRUE),
 
-(10, 'Dipesh Adhikari',  'dipesh@bsrealtyllc.com',  '+977-9841000010', 'Operations Lead',         'Operations',  9, 'employee',
- 2600.00, 'monthly', '2023-07-01', 'Asia/Kathmandu', '9 AM - 5 PM', '["Excel","Process Mgmt","Vendor Relations"]',
- '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', TRUE)
+(10, 'Dipesh Adhikari',  'dipesh@bsrealtyllc.com',  9, '2023-07-01', '["Excel","Process Mgmt","Vendor Relations"]',
+ (SELECT id FROM designations WHERE title = 'Operations Lead'), (SELECT id FROM departments WHERE name = 'Operations'), TRUE)
 
 ON DUPLICATE KEY UPDATE
-  designation = VALUES(designation),
-  department  = VALUES(department),
-  salary      = VALUES(salary),
-  is_active   = VALUES(is_active);
+  designation_id = VALUES(designation_id),
+  department_id  = VALUES(department_id),
+  is_active      = VALUES(is_active);
+
+INSERT INTO employee_auth (employee_id, password_hash, role) VALUES
+  (2,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'lead'),
+  (3,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
+  (4,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
+  (5,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
+  (6,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'lead'),
+  (7,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
+  (8,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'lead'),
+  (9,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'admin'),
+  (10, '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee')
+ON DUPLICATE KEY UPDATE
+  password_hash = VALUES(password_hash),
+  role           = VALUES(role);
+
+INSERT INTO employee_profile (employee_id, timezone, work_hours) VALUES
+  (2,  'Asia/Kathmandu', '9 AM - 6 PM'),
+  (3,  'Asia/Kathmandu', '9 AM - 6 PM'),
+  (4,  'Asia/Kathmandu', '9 AM - 6 PM'),
+  (5,  'Asia/Kathmandu', '9 AM - 6 PM'),
+  (6,  'Asia/Kathmandu', '10 AM - 7 PM'),
+  (7,  'Asia/Kathmandu', '10 AM - 7 PM'),
+  (8,  'Asia/Kathmandu', '9 AM - 6 PM'),
+  (9,  'Asia/Kathmandu', '9 AM - 5 PM'),
+  (10, 'Asia/Kathmandu', '9 AM - 5 PM')
+ON DUPLICATE KEY UPDATE
+  timezone   = VALUES(timezone),
+  work_hours = VALUES(work_hours);
+
+INSERT INTO employee_compensation_history (employee_id, salary, pay_frequency, effective_from, change_reason) VALUES
+  (1,  4500.00, 'monthly', '2023-01-15', 'seed'),
+  (2,  3800.00, 'monthly', '2023-03-01', 'seed'),
+  (3,  2800.00, 'monthly', '2023-06-15', 'seed'),
+  (4,  3000.00, 'monthly', '2023-09-01', 'seed'),
+  (5,  3200.00, 'monthly', '2024-01-10', 'seed'),
+  (6,  2900.00, 'monthly', '2023-04-01', 'seed'),
+  (7,  2400.00, 'monthly', '2024-02-15', 'seed'),
+  (8,  3500.00, 'monthly', '2023-02-01', 'seed'),
+  (9,  3000.00, 'monthly', '2022-11-01', 'seed'),
+  (10, 2600.00, 'monthly', '2023-07-01', 'seed')
+ON DUPLICATE KEY UPDATE salary = VALUES(salary);
 
 
 -- ─────────────────────────────────────────────────────────────
 -- 2. LEAVE BALANCES  (year 2026)
+--    leave_type remapped: casual -> sick, annual -> alternating
+--    maternity/paternity so seeded data spans all four current categories.
 -- ─────────────────────────────────────────────────────────────
 
 INSERT INTO leave_balances (employee_id, leave_type, total, taken, year)
 VALUES
 -- Kshitiz
-(1,'casual',12,2,2026),(1,'sick',12,1,2026),(1,'annual',15,3,2026),
+(1,'sick',12,2,2026),(1,'bereavement',3,0,2026),(1,'paternity',30,3,2026),
 -- Priya
-(2,'casual',12,3,2026),(2,'sick',12,2,2026),(2,'annual',15,5,2026),
--- Rohan (currently on annual leave → taken reflects it)
-(3,'casual',12,1,2026),(3,'sick',12,0,2026),(3,'annual',15,8,2026),
+(2,'sick',12,3,2026),(2,'bereavement',3,0,2026),(2,'maternity',60,5,2026),
+-- Rohan (currently on leave -> taken reflects it)
+(3,'sick',12,1,2026),(3,'bereavement',3,0,2026),(3,'paternity',30,8,2026),
 -- Ankit
-(4,'casual',12,2,2026),(4,'sick',12,3,2026),(4,'annual',15,2,2026),
+(4,'sick',12,2,2026),(4,'bereavement',3,1,2026),(4,'paternity',30,2,2026),
 -- Sara
-(5,'casual',12,0,2026),(5,'sick',12,1,2026),(5,'annual',15,0,2026),
+(5,'sick',12,0,2026),(5,'bereavement',3,0,2026),(5,'maternity',60,0,2026),
 -- Nisha (on sick leave today)
-(6,'casual',12,1,2026),(6,'sick',12,3,2026),(6,'annual',15,4,2026),
+(6,'sick',12,3,2026),(6,'bereavement',3,0,2026),(6,'maternity',60,4,2026),
 -- Bikash
-(7,'casual',12,0,2026),(7,'sick',12,0,2026),(7,'annual',15,2,2026),
+(7,'sick',12,0,2026),(7,'bereavement',3,0,2026),(7,'paternity',30,2,2026),
 -- Amit
-(8,'casual',12,1,2026),(8,'sick',12,0,2026),(8,'annual',15,1,2026),
+(8,'sick',12,1,2026),(8,'bereavement',3,0,2026),(8,'paternity',30,1,2026),
 -- Sunita
-(9,'casual',12,0,2026),(9,'sick',12,0,2026),(9,'annual',15,0,2026),
+(9,'sick',12,0,2026),(9,'bereavement',3,0,2026),(9,'maternity',60,0,2026),
 -- Dipesh
-(10,'casual',12,1,2026),(10,'sick',12,2,2026),(10,'annual',15,0,2026)
+(10,'sick',12,2,2026),(10,'bereavement',3,1,2026),(10,'paternity',30,0,2026)
 
 ON DUPLICATE KEY UPDATE
   total  = VALUES(total),
@@ -112,33 +186,34 @@ ON DUPLICATE KEY UPDATE
 -- 3. LEAVE REQUESTS
 --    Today = 2026-06-21
 --    This week = 2026-06-21 through 2026-06-27
+--    leave_type remapped from casual/annual to the current four categories.
 -- ─────────────────────────────────────────────────────────────
 
 INSERT INTO leave_requests
   (id, employee_id, leave_type, start_date, end_date, reason, status, reviewed_by, reviewed_at)
 VALUES
--- OUT TODAY: Rohan on annual leave June 19-24
-(1,  3, 'annual', '2026-06-19', '2026-06-24',
+-- OUT TODAY: Rohan on leave June 19-24
+(1,  3, 'paternity', '2026-06-19', '2026-06-24',
  'Family trip to Pokhara', 'approved', 1, '2026-06-10 10:00:00'),
 
 -- OUT TODAY: Nisha on sick leave June 21
 (2,  6, 'sick', '2026-06-21', '2026-06-21',
  'Fever and cold', 'approved', 9, '2026-06-21 08:30:00'),
 
--- OUT THIS WEEK: Bikash on annual leave June 23-25
-(3,  7, 'annual', '2026-06-23', '2026-06-25',
+-- OUT THIS WEEK: Bikash on leave June 23-25
+(3,  7, 'paternity', '2026-06-23', '2026-06-25',
  'Personal work', 'approved', 9, '2026-06-15 14:00:00'),
 
 -- PENDING: Priya wants July 1-5 off
-(4,  2, 'annual', '2026-07-01', '2026-07-05',
+(4,  2, 'maternity', '2026-07-01', '2026-07-05',
  'Vacation planned with family', 'pending', NULL, NULL),
 
--- PENDING: Ankit casual June 25
-(5,  4, 'casual', '2026-06-25', '2026-06-25',
+-- PENDING: Ankit bereavement June 25
+(5,  4, 'bereavement', '2026-06-25', '2026-06-25',
  'Personal errand', 'pending', NULL, NULL),
 
--- PENDING: Sara annual July 10-14
-(6,  5, 'annual', '2026-07-10', '2026-07-14',
+-- PENDING: Sara leave July 10-14
+(6,  5, 'maternity', '2026-07-10', '2026-07-14',
  'Medical check-up trip to India', 'pending', NULL, NULL),
 
 -- PENDING: Dipesh sick June 24
@@ -146,11 +221,11 @@ VALUES
  'Doctor appointment', 'pending', NULL, NULL),
 
 -- REJECTED: Amit June 15-16 (already past)
-(8,  8, 'casual', '2026-06-15', '2026-06-16',
+(8,  8, 'bereavement', '2026-06-15', '2026-06-16',
  'Personal work', 'rejected', 1, '2026-06-12 09:00:00'),
 
 -- APPROVED past: Kshitiz May leave (historical)
-(9,  1, 'annual', '2026-05-20', '2026-05-22',
+(9,  1, 'paternity', '2026-05-20', '2026-05-22',
  'Conference in Kathmandu', 'approved', 9, '2026-05-10 11:00:00'),
 
 -- APPROVED past: Priya April sick
@@ -158,14 +233,14 @@ VALUES
  'Food poisoning', 'approved', 1, '2026-04-10 07:30:00'),
 
 -- Historical approved leaves for trend data (March-May)
-(11, 3, 'casual', '2026-05-05', '2026-05-05', 'Personal work', 'approved', 1, '2026-05-03 10:00:00'),
-(12, 4, 'sick',   '2026-05-12', '2026-05-14', 'Flu',           'approved', 9, '2026-05-12 08:00:00'),
-(13, 6, 'annual', '2026-04-20', '2026-04-24', 'Dashain break', 'approved', 1, '2026-04-10 10:00:00'),
-(14, 7, 'casual', '2026-05-28', '2026-05-29', 'Home renovation','approved',9, '2026-05-20 09:00:00'),
-(15, 5, 'sick',   '2026-03-18', '2026-03-18', 'Migraine',      'approved', 1, '2026-03-18 07:00:00'),
-(16, 8, 'annual', '2026-06-02', '2026-06-02', 'Holiday',       'approved', 9, '2026-05-25 11:00:00'),
-(17, 9, 'casual', '2026-06-10', '2026-06-10', 'Bank work',     'approved', 1, '2026-06-08 10:00:00'),
-(18, 2, 'annual', '2026-06-16', '2026-06-17', 'Short break',   'approved', 1, '2026-06-08 14:00:00')
+(11, 3, 'bereavement', '2026-05-05', '2026-05-05', 'Personal work', 'approved', 1, '2026-05-03 10:00:00'),
+(12, 4, 'sick',        '2026-05-12', '2026-05-14', 'Flu',           'approved', 9, '2026-05-12 08:00:00'),
+(13, 6, 'maternity',   '2026-04-20', '2026-04-24', 'Dashain break', 'approved', 1, '2026-04-10 10:00:00'),
+(14, 7, 'bereavement', '2026-05-28', '2026-05-29', 'Home renovation','approved',9, '2026-05-20 09:00:00'),
+(15, 5, 'sick',        '2026-03-18', '2026-03-18', 'Migraine',      'approved', 1, '2026-03-18 07:00:00'),
+(16, 8, 'paternity',   '2026-06-02', '2026-06-02', 'Holiday',       'approved', 9, '2026-05-25 11:00:00'),
+(17, 9, 'bereavement', '2026-06-10', '2026-06-10', 'Bank work',     'approved', 1, '2026-06-08 10:00:00'),
+(18, 2, 'maternity',   '2026-06-16', '2026-06-17', 'Short break',   'approved', 1, '2026-06-08 14:00:00')
 
 ON DUPLICATE KEY UPDATE status = VALUES(status);
 

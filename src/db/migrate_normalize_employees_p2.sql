@@ -1,0 +1,76 @@
+-- Phase 4 of the employees-table redesign: read cutover.
+--
+-- Creates `employees_flat`, a view that reproduces today's exact `employees`
+-- column shape (same names, same effective values) by joining the new
+-- normalized tables (employee_auth, employee_profile, employee_documents,
+-- employee_compensation_history, departments, designations) back onto the
+-- slimmed `employees` row. Employee.js's BASE_SELECT and every other raw
+-- SELECT in that file get repointed to this view in the same deploy as this
+-- migration — see Employee.js for the application-side half of this change.
+--
+-- Also adds the secondary_email unique index, deferred until now specifically
+-- so a duplicate-check pass could run first (confirmed clean prior to this
+-- migration — see Phase 4 verification notes).
+--
+-- Writes: as of this phase, Employee.js stops the Phase-3 dual-write of the
+-- legacy PII/auth/salary columns (name/email/tech_stack/qualifications/
+-- designation_id/department_id/manager_id/status/is_active stay directly on
+-- `employees` — those remain the write target since the view still reads
+-- designation/department current-snapshot values off `employees` directly,
+-- not by re-deriving from job_history on every read).
+
+USE hr_platform;
+
+ALTER TABLE employees
+  ADD CONSTRAINT uq_employees_secondary_email UNIQUE (secondary_email);
+
+CREATE OR REPLACE VIEW employees_flat AS
+SELECT
+  e.id,
+  e.name,
+  e.email,
+  e.secondary_email,
+  p.phone,
+  p.alt_phone,
+  p.discord_username,
+  p.emergency_contact,
+  p.dob,
+  p.bio,
+  p.address,
+  doc_pic.filename       AS profile_picture,
+  doc_cf.filename         AS citizenship_front,
+  doc_cb.filename         AS citizenship_back,
+  des.title               AS designation,
+  e.designation_id,
+  dept.name               AS department,
+  e.department_id,
+  e.manager_id,
+  e.start_date,
+  p.timezone,
+  p.work_hours,
+  e.tech_stack,
+  e.qualifications,
+  a.role,
+  a.password_hash,
+  ch.salary,
+  ch.pay_frequency,
+  e.is_active,
+  e.status,
+  e.termination_date,
+  e.termination_reason,
+  e.created_at,
+  p.leave_policy_accepted,
+  p.leave_policy_accepted_at
+FROM employees e
+JOIN employee_auth a           ON a.employee_id = e.id
+LEFT JOIN employee_profile p    ON p.employee_id = e.id
+LEFT JOIN designations des      ON des.id = e.designation_id
+LEFT JOIN departments dept      ON dept.id = e.department_id
+LEFT JOIN employee_compensation_history ch
+       ON ch.employee_id = e.id AND ch.effective_to IS NULL
+LEFT JOIN employee_documents doc_pic
+       ON doc_pic.employee_id = e.id AND doc_pic.doc_type = 'profile_picture' AND doc_pic.is_current = TRUE
+LEFT JOIN employee_documents doc_cf
+       ON doc_cf.employee_id = e.id AND doc_cf.doc_type = 'citizenship_front' AND doc_cf.is_current = TRUE
+LEFT JOIN employee_documents doc_cb
+       ON doc_cb.employee_id = e.id AND doc_cb.doc_type = 'citizenship_back' AND doc_cb.is_current = TRUE;

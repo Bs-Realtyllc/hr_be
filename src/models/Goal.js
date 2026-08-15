@@ -5,8 +5,8 @@ exports.findWithNames = async ({ employeeId, status, category }) => {
     SELECT g.*, e.name AS employee_name, e.designation, e.department,
            c.name AS created_by_name
     FROM goals g
-    JOIN employees e ON g.employee_id = e.id
-    LEFT JOIN employees c ON g.created_by = c.id
+    JOIN employees_flat e ON g.employee_id = e.id
+    LEFT JOIN employees_flat c ON g.created_by = c.id
     WHERE 1=1`;
   const params = [];
 
@@ -64,7 +64,7 @@ exports.summaryByEmployee = async () => {
            SUM(g.status = 'completed') AS completed_goals,
            SUM(g.status = 'at_risk') AS at_risk_goals,
            AVG(CASE WHEN g.target_value > 0 THEN LEAST(g.current_value / g.target_value, 1) * 100 ELSE NULL END) AS avg_progress
-    FROM employees e
+    FROM employees_flat e
     LEFT JOIN goals g ON g.employee_id = e.id
     WHERE e.is_active = TRUE
     GROUP BY e.id, e.name

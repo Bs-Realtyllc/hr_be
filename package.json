@@ -6,21 +6,25 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "migrate": "node src/db/migrate.js",
-    "create-admin": "node src/db/create-admin.js"
+    "create-admin": "node src/db/create-admin.js",
+    "migrate-employee-data": "node src/db/migrate_employee_data.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
+    "express-rate-limit": "^8.6.2",
     "googleapis": "^173.0.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.1.1",
     "mysql2": "^3.6.0",
     "node-cron": "^4.6.0",
     "nodemailer": "^8.0.8",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

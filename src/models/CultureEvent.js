@@ -4,7 +4,7 @@ exports.findUpcoming = async () => {
   const [rows] = await db.query(
     `SELECT ce.*, e.name AS employee_name, e.profile_picture
      FROM culture_events ce
-     LEFT JOIN employees e ON ce.employee_id = e.id
+     LEFT JOIN employees_flat e ON ce.employee_id = e.id
      WHERE ce.event_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
      ORDER BY ce.event_date ASC`
   );
@@ -15,7 +15,7 @@ exports.findRecent = async () => {
   const [rows] = await db.query(
     `SELECT ce.*, e.name AS employee_name
      FROM culture_events ce
-     LEFT JOIN employees e ON ce.employee_id = e.id
+     LEFT JOIN employees_flat e ON ce.employee_id = e.id
      ORDER BY ce.event_date DESC LIMIT 50`
   );
   return rows;

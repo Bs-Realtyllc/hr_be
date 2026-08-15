@@ -35,7 +35,7 @@ function splitStatements(sql) {
 async function runFile(conn, filePath) {
   const label = path.basename(filePath);
   const statements = splitStatements(fs.readFileSync(filePath, 'utf8'));
-  let applied = 0, skipped = 0;
+  let applied = 0, skipped = 0, failed = 0;
 
   for (const stmt of statements) {
     try {
@@ -45,12 +45,14 @@ async function runFile(conn, filePath) {
       if (SKIPPABLE_CODES.has(err.code)) {
         skipped++;
       } else {
+        failed++;
         console.error(`  [FAIL] ${label}: ${err.message}`);
         console.error(`         statement: ${stmt.slice(0, 100)}${stmt.length > 100 ? '…' : ''}`);
       }
     }
   }
   console.log(`  ${label}: ${applied} applied, ${skipped} already-applied`);
+  return failed === 0;
 }
 
 (async () => {
@@ -74,7 +76,20 @@ async function runFile(conn, filePath) {
   });
 
   console.log('Applying schema.sql…');
+  // Always run schema.sql (it's self-idempotent via CREATE TABLE IF NOT EXISTS)
+  // — not gated behind schema_migrations, to preserve current behavior exactly.
   await runFile(conn, path.join(__dirname, 'schema.sql'));
+
+  // schema_migrations may not exist yet on a pre-tracking database — the file
+  // that creates it (migrate_normalize_employees_p1.sql) runs through the same
+  // untracked path below on its first pass, same as every migration before it.
+  let appliedSet = new Set();
+  try {
+    const [rows] = await conn.query('SELECT filename FROM schema_migrations');
+    appliedSet = new Set(rows.map(r => r.filename));
+  } catch (err) {
+    if (err.code !== 'ER_NO_SUCH_TABLE') throw err;
+  }
 
   const migrationFiles = fs.readdirSync(__dirname)
     .filter(f => f.startsWith('migrate_') && f.endsWith('.sql'))
@@ -82,7 +97,20 @@ async function runFile(conn, filePath) {
 
   console.log(`Applying ${migrationFiles.length} migration file(s)…`);
   for (const file of migrationFiles) {
-    await runFile(conn, path.join(__dirname, file));
+    if (appliedSet.has(file)) {
+      console.log(`  ${file}: already applied, skipping`);
+      continue;
+    }
+    const ok = await runFile(conn, path.join(__dirname, file));
+    if (ok) {
+      // Table may not exist yet on the very first file that creates it — that
+      // file's own INSERT IGNORE seeds its own name, so this becomes a no-op then.
+      try {
+        await conn.query('INSERT IGNORE INTO schema_migrations (filename) VALUES (?)', [file]);
+      } catch (err) {
+        if (err.code !== 'ER_NO_SUCH_TABLE') throw err;
+      }
+    }
   }
 
   console.log('Done.');

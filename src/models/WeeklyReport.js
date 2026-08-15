@@ -4,7 +4,7 @@ const db = require('../db');
 exports.findWithEmployeeNames = async ({ employeeId, weekStartDate, year }) => {
   let q = `SELECT r.*, e.name AS employee_name, e.designation, e.department
            FROM weekly_reports r
-           JOIN employees e ON r.employee_id = e.id
+           JOIN employees_flat e ON r.employee_id = e.id
            WHERE 1=1`;
   const p = [];
 

@@ -2,12 +2,14 @@ require('dotenv').config();
 const path    = require('path');
 const express = require('express');
 const cors    = require('cors');
+const helmet  = require('helmet');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./src/swagger');
 const routes = require('./src/routes');
 const db = require('./src/db');
 const { renewWebhookChannelIfNeeded } = require('./src/services/googleCalendar');
 const weeklyReminder = require('./src/services/weeklyReminder');
+const errorHandler = require('./src/middleware/errorHandler');
 
 // ── Env validation ────────────────────────────────────────────────────────────
 const REQUIRED_ENV = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
@@ -30,9 +32,25 @@ const ENV = {
 // ── App setup ─────────────────────────────────────────────────────────────────
 const app = express();
 
+// Standard security headers (X-Content-Type-Options, X-Frame-Options, HSTS, etc.).
+// CSP is off — this is a JSON API + Swagger docs page, not an HTML app rendering
+// untrusted content, and the default CSP blocks Swagger UI's inline scripts.
+// crossOriginResourcePolicy is relaxed so uploaded files (profile pictures,
+// policy PDFs) can still be loaded by the separate frontend origin below.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
 app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// 1mb covers every legitimate JSON payload in this API (largest are structured
+// objects like tech_stack/category_ratings, never raw file bytes — those go
+// through multer's own per-route limits in policies/profile/reports/weeklyReports
+// routes instead). Explicit rather than relying on express's undocumented 100kb
+// default, and still small enough to blunt oversized-body DoS attempts.
 app.use(express.json({
+  limit: '1mb',
   verify: (req, _res, buf) => { req.rawBody = buf; },
 }));
 
@@ -40,6 +58,10 @@ app.use('/api', routes);
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 app.use('/api/swagger', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api/swagger/index.json', (req, res) => res.json(swaggerSpec));
+
+// Must be registered after all routes/middleware — Express recognizes an error
+// handler by its 4-argument signature and only invokes it via next(err).
+app.use(errorHandler);
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 async function start() {

@@ -1,4 +1,9 @@
+const { z } = require('zod');
+
 const UPDATE_FIELDS = ['name', 'description', 'repo_url', 'docs_url', 'status', 'start_date', 'expected_end_date'];
+
+// Matches the `projects.status` ENUM in schema.sql.
+const STATUSES = ['active', 'archived', 'on_hold'];
 
 function toArr(v) {
   if (!v) return [];
@@ -13,8 +18,20 @@ function toJSON(v) {
   return clean.length ? JSON.stringify(clean) : null;
 }
 
+function throwBadRequest(message) {
+  const err = new Error(message);
+  err.status = 400;
+  throw err;
+}
+
 exports.toCreateInput = (body) => {
   const { name, description, repo_url, docs_url, status, start_date, expected_end_date } = body;
+
+  if (!name || !String(name).trim()) throwBadRequest('name is required');
+  if (status && !STATUSES.includes(status)) {
+    throwBadRequest(`status must be one of: ${STATUSES.join(', ')}`);
+  }
+
   return {
     name,
     description,
@@ -27,6 +44,10 @@ exports.toCreateInput = (body) => {
 };
 
 exports.toUpdateInput = (body) => {
+  if (body.status !== undefined && !STATUSES.includes(body.status)) {
+    throwBadRequest(`status must be one of: ${STATUSES.join(', ')}`);
+  }
+
   const updates = {};
   UPDATE_FIELDS.forEach((f) => {
     if (body[f] === undefined) return;

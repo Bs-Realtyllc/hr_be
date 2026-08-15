@@ -5,9 +5,9 @@ exports.findWithNames = async ({ employeeId, status }) => {
     SELECT o.*, e.name AS employee_name, e.designation,
            p.name AS project_name, r.name AS reviewer_name
     FROM overtime_requests o
-    JOIN employees e ON o.employee_id = e.id
+    JOIN employees_flat e ON o.employee_id = e.id
     LEFT JOIN projects p ON o.project_id = p.id
-    LEFT JOIN employees r ON o.reviewed_by = r.id
+    LEFT JOIN employees_flat r ON o.reviewed_by = r.id
     WHERE 1=1`;
   const params = [];
 
@@ -37,7 +37,7 @@ exports.findWithEmployeeById = async (id) => {
   const [rows] = await db.query(
     `SELECT o.*, e.name AS employee_name, p.name AS project_name
      FROM overtime_requests o
-     JOIN employees e ON o.employee_id = e.id
+     JOIN employees_flat e ON o.employee_id = e.id
      LEFT JOIN projects p ON o.project_id = p.id
      WHERE o.id = ?`,
     [id]

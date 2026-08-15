@@ -1,23 +1,16 @@
 const Meeting = require('../models/Meeting');
 const meetingDto = require('../dtos/meetingDto');
 const gc = require('../services/googleCalendar');
+const asyncHandler = require('../middleware/asyncHandler');
+const AppError = require('../pkg/AppError');
 
-exports.list = async (req, res) => {
-  try {
-    const rows = await Meeting.findUpcomingScheduled();
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+exports.list = asyncHandler(async (req, res) => {
+  const rows = await Meeting.findUpcomingScheduled();
+  res.json(rows);
+});
 
-exports.create = async (req, res) => {
-  let data;
-  try {
-    data = meetingDto.toCreateInput(req.body);
-  } catch (err) {
-    return res.status(err.status || 500).json({ error: err.message });
-  }
+exports.create = asyncHandler(async (req, res) => {
+  const data = meetingDto.toCreateInput(req.body);
 
   let googleEventId = null;
   let meetLink = null;
@@ -35,41 +28,33 @@ exports.create = async (req, res) => {
   } catch (err) {
     const detail = err?.response?.data?.error?.message || err.message;
     console.error('[meetings] Google Calendar error:', detail);
-    return res.status(502).json({ error: `Google Calendar: ${detail}` });
+    throw new AppError(`Google Calendar: ${detail}`, 502);
   }
 
-  try {
-    const id = await Meeting.create({
-      ...data,
-      google_event_id: googleEventId,
-      meet_link: meetLink,
-      created_by: req.user.id,
-    });
-    res.status(201).json({
-      id,
-      title: data.title,
-      start_datetime: data.start_datetime,
-      end_datetime: data.end_datetime,
-      meetLink,
-      googleEventId,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+  const id = await Meeting.create({
+    ...data,
+    google_event_id: googleEventId,
+    meet_link: meetLink,
+    created_by: req.user.id,
+  });
+  res.status(201).json({
+    id,
+    title: data.title,
+    start_datetime: data.start_datetime,
+    end_datetime: data.end_datetime,
+    meetLink,
+    googleEventId,
+  });
+});
 
-exports.remove = async (req, res) => {
+exports.remove = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  try {
-    const meeting = await Meeting.findById(id);
-    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
-    if (meeting.created_by !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-
-    await Meeting.cancel(id);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const meeting = await Meeting.findById(id);
+  if (!meeting) throw new AppError('Meeting not found', 404);
+  if (meeting.created_by !== req.user.id && req.user.role !== 'admin') {
+    throw new AppError('Not authorized', 403);
   }
-};
+
+  await Meeting.cancel(id);
+  res.json({ success: true });
+});

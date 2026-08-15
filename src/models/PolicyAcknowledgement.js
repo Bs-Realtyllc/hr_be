@@ -38,7 +38,7 @@ exports.listForPolicy = async (policyId) => {
   const [rows] = await db.query(
     `SELECT pa.*, e.name AS employee_name, e.email AS employee_email
      FROM policy_acknowledgements pa
-     JOIN employees e ON pa.employee_id = e.id
+     JOIN employees_flat e ON pa.employee_id = e.id
      WHERE pa.policy_id = ?
      ORDER BY pa.submitted_at DESC`,
     [policyId]

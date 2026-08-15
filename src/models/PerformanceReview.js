@@ -5,8 +5,8 @@ exports.findWithNames = async ({ employeeId, status }) => {
     SELECT pr.*, e.name AS employee_name, e.designation, e.department,
            r.name AS reviewer_name
     FROM performance_reviews pr
-    JOIN employees e ON pr.employee_id = e.id
-    LEFT JOIN employees r ON pr.reviewer_id = r.id
+    JOIN employees_flat e ON pr.employee_id = e.id
+    LEFT JOIN employees_flat r ON pr.reviewer_id = r.id
     WHERE 1=1`;
   const params = [];
 

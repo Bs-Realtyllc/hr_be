@@ -28,10 +28,13 @@ if (!name || !email || !password) {
   }
 
   const password_hash = await bcrypt.hash(password, 10);
+  const [result] = await conn.query(
+    `INSERT INTO employees (name, email, is_active) VALUES (?, ?, TRUE)`,
+    [name, email]
+  );
   await conn.query(
-    `INSERT INTO employees (name, email, role, password_hash, is_active)
-     VALUES (?, ?, 'admin', ?, TRUE)`,
-    [name, email, password_hash]
+    `INSERT INTO employee_auth (employee_id, password_hash, role) VALUES (?, ?, 'admin')`,
+    [result.insertId, password_hash]
   );
 
   console.log(`Admin account created: ${email}`);

@@ -35,7 +35,7 @@ exports.findAssignments = async (projectId) => {
   const [rows] = await db.query(
     `SELECT pa.*, e.name, e.designation, e.profile_picture, e.timezone
      FROM project_assignments pa
-     JOIN employees e ON pa.employee_id = e.id
+     JOIN employees_flat e ON pa.employee_id = e.id
      WHERE pa.project_id = ?`,
     [projectId]
   );

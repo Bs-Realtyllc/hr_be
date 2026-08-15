@@ -3,7 +3,7 @@ const db = require('../db');
 exports.findWithNames = async ({ employeeId, date, startDate, endDate }) => {
   let query = `
     SELECT s.*, e.name AS employee_name, e.designation, e.profile_picture
-    FROM standups s JOIN employees e ON s.employee_id = e.id
+    FROM standups s JOIN employees_flat e ON s.employee_id = e.id
     WHERE 1=1`;
   const params = [];
 
@@ -28,7 +28,7 @@ exports.findWithNames = async ({ employeeId, date, startDate, endDate }) => {
 exports.findToday = async (today, employeeId) => {
   let query = `
     SELECT s.*, e.name AS employee_name, e.designation, e.profile_picture
-    FROM standups s JOIN employees e ON s.employee_id = e.id
+    FROM standups s JOIN employees_flat e ON s.employee_id = e.id
     WHERE s.standup_date = ?`;
   const params = [today];
 

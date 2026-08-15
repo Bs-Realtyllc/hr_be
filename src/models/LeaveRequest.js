@@ -5,8 +5,8 @@ exports.findWithNames = async ({ employeeId, status }) => {
     SELECT lr.*, e.name AS employee_name, e.designation,
            r.name AS reviewer_name
     FROM leave_requests lr
-    JOIN employees e ON lr.employee_id = e.id
-    LEFT JOIN employees r ON lr.reviewed_by = r.id
+    JOIN employees_flat e ON lr.employee_id = e.id
+    LEFT JOIN employees_flat r ON lr.reviewed_by = r.id
     WHERE 1=1`;
   const params = [];
 
@@ -43,7 +43,7 @@ exports.findBalanceTotalsForYear = async (year) => {
     `SELECT e.id AS employee_id, e.name AS employee_name,
             COALESCE(SUM(lb.total), 0) AS total_leaves,
             COALESCE(SUM(lb.taken), 0) AS total_taken
-     FROM employees e
+     FROM employees_flat e
      LEFT JOIN leave_balances lb ON lb.employee_id = e.id AND lb.year = ?
      WHERE e.is_active = TRUE
      GROUP BY e.id, e.name
@@ -66,7 +66,7 @@ exports.findOutToday = async (today) => {
   const [rows] = await db.query(
     `SELECT e.name, e.designation, e.profile_picture, lr.leave_type, lr.end_date
      FROM leave_requests lr
-     JOIN employees e ON lr.employee_id = e.id
+     JOIN employees_flat e ON lr.employee_id = e.id
      WHERE lr.status = 'approved' AND ? BETWEEN lr.start_date AND lr.end_date`,
     [today]
   );
@@ -77,7 +77,7 @@ exports.findOutInRange = async (rangeStart, rangeEnd) => {
   const [rows] = await db.query(
     `SELECT e.name, e.designation, lr.leave_type, lr.start_date, lr.end_date
      FROM leave_requests lr
-     JOIN employees e ON lr.employee_id = e.id
+     JOIN employees_flat e ON lr.employee_id = e.id
      WHERE lr.status = 'approved'
        AND lr.start_date <= ? AND lr.end_date >= ?`,
     [rangeEnd, rangeStart]
@@ -103,7 +103,7 @@ exports.findWithEmployeeById = async (id) => {
   const [rows] = await db.query(
     `SELECT lr.*, e.name AS employee_name, e.designation, e.department
      FROM leave_requests lr
-     JOIN employees e ON lr.employee_id = e.id
+     JOIN employees_flat e ON lr.employee_id = e.id
      WHERE lr.id = ?`,
     [id]
   );

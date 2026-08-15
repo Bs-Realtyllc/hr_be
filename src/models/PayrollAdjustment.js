@@ -27,7 +27,7 @@ exports.findAll = async ({ employeeId, year, month }) => {
   let query = `
     SELECT pa.*, e.name AS employee_name, e.designation
     FROM payroll_adjustments pa
-    JOIN employees e ON pa.employee_id = e.id
+    JOIN employees_flat e ON pa.employee_id = e.id
     WHERE 1=1`;
   const params = [];
   if (employeeId) { query += ' AND pa.employee_id = ?'; params.push(employeeId); }

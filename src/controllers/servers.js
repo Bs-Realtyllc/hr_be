@@ -1,43 +1,29 @@
 const Server = require('../models/Server');
 const serverDto = require('../dtos/serverDto');
+const asyncHandler = require('../middleware/asyncHandler');
+const AppError = require('../pkg/AppError');
 
-exports.list = async (req, res) => {
-  try {
-    const { project_id, show_sensitive } = req.query;
-    const rows = await Server.findAll(project_id);
-    const sanitized = serverDto.toResponseList(rows, show_sensitive === 'true');
-    res.json(sanitized);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+exports.list = asyncHandler(async (req, res) => {
+  const { project_id, show_sensitive } = req.query;
+  const rows = await Server.findAll(project_id);
+  const sanitized = serverDto.toResponseList(rows, show_sensitive === 'true');
+  res.json(sanitized);
+});
 
-exports.create = async (req, res) => {
-  try {
-    const data = serverDto.toCreateInput(req.body);
-    const id = await Server.create(data);
-    res.status(201).json({ id });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+exports.create = asyncHandler(async (req, res) => {
+  const data = serverDto.toCreateInput(req.body);
+  const id = await Server.create(data);
+  res.status(201).json({ id });
+});
 
-exports.update = async (req, res) => {
+exports.update = asyncHandler(async (req, res) => {
   const updates = serverDto.toUpdateInput(req.body);
-  if (!Object.keys(updates).length) return res.status(400).json({ error: 'Nothing to update' });
-  try {
-    await Server.update(req.params.id, updates);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+  if (!Object.keys(updates).length) throw new AppError('Nothing to update', 400);
+  await Server.update(req.params.id, updates);
+  res.json({ success: true });
+});
 
-exports.remove = async (req, res) => {
-  try {
-    await Server.remove(req.params.id);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+exports.remove = asyncHandler(async (req, res) => {
+  await Server.remove(req.params.id);
+  res.json({ success: true });
+});

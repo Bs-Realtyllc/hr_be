@@ -4,8 +4,8 @@ const BASE_SELECT = `
   SELECT f.*, s.name AS from_name, s.designation AS from_designation,
          t.name AS to_name, t.designation AS to_designation, p.name AS project_name
   FROM feedback_notes f
-  JOIN employees s ON f.from_employee_id = s.id
-  JOIN employees t ON f.to_employee_id = t.id
+  JOIN employees_flat s ON f.from_employee_id = s.id
+  JOIN employees_flat t ON f.to_employee_id = t.id
   LEFT JOIN projects p ON f.project_id = p.id
 `;
 
@@ -47,7 +47,7 @@ exports.summaryReceivedByEmployee = async () => {
            COUNT(f.id) AS total_received,
            SUM(f.feedback_type = 'praise') AS praise_count,
            SUM(f.feedback_type = 'constructive') AS constructive_count
-    FROM employees e
+    FROM employees_flat e
     LEFT JOIN feedback_notes f ON f.to_employee_id = e.id
     WHERE e.is_active = TRUE
     GROUP BY e.id, e.name

@@ -1,91 +1,69 @@
 const Goal = require('../models/Goal');
 const goalDto = require('../dtos/goalDto');
+const asyncHandler = require('../middleware/asyncHandler');
+const AppError = require('../pkg/AppError');
 
-exports.list = async (req, res) => {
-  try {
-    const { employee_id, status, category } = req.query;
-    const privileged = ['admin', 'lead'].includes(req.user?.role);
-    const filterEmployeeId = privileged ? employee_id : req.user.id;
-    const rows = await Goal.findWithNames({ employeeId: filterEmployeeId, status, category });
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+exports.list = asyncHandler(async (req, res) => {
+  const { employee_id, status, category } = req.query;
+  const privileged = ['admin', 'lead'].includes(req.user?.role);
+  const filterEmployeeId = privileged ? employee_id : req.user.id;
+  const rows = await Goal.findWithNames({ employeeId: filterEmployeeId, status, category });
+  res.json(rows);
+});
+
+exports.summary = asyncHandler(async (req, res) => {
+  const rows = await Goal.summaryByEmployee();
+  res.json(rows);
+});
+
+exports.create = asyncHandler(async (req, res) => {
+  const privileged = ['admin', 'lead'].includes(req.user?.role);
+  const employeeId = privileged ? (req.body.employee_id || req.user.id) : req.user.id;
+
+  if (!privileged && Number(req.body.employee_id) !== req.user.id && req.body.employee_id) {
+    throw new AppError('You can only create goals for yourself', 403);
   }
-};
 
-exports.summary = async (req, res) => {
-  try {
-    const rows = await Goal.summaryByEmployee();
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const data = goalDto.toCreateInput({ ...req.body, employee_id: employeeId }, req.user.id);
+  const id = await Goal.create(data);
+  res.status(201).json({ id });
+});
+
+exports.update = asyncHandler(async (req, res) => {
+  const goal = await Goal.findById(req.params.id);
+  if (!goal) throw new AppError('Not found', 404);
+
+  const privileged = ['admin', 'lead'].includes(req.user?.role);
+  if (!privileged && goal.employee_id !== req.user.id) {
+    throw new AppError('Insufficient permissions', 403);
   }
-};
 
-exports.create = async (req, res) => {
-  try {
-    const privileged = ['admin', 'lead'].includes(req.user?.role);
-    const employeeId = privileged ? (req.body.employee_id || req.user.id) : req.user.id;
+  await Goal.update(req.params.id, goalDto.toUpdateInput(req.body));
+  res.json({ success: true });
+});
 
-    if (!privileged && Number(req.body.employee_id) !== req.user.id && req.body.employee_id) {
-      return res.status(403).json({ error: 'You can only create goals for yourself' });
-    }
+exports.updateProgress = asyncHandler(async (req, res) => {
+  const goal = await Goal.findById(req.params.id);
+  if (!goal) throw new AppError('Not found', 404);
 
-    const data = goalDto.toCreateInput({ ...req.body, employee_id: employeeId }, req.user.id);
-    const id = await Goal.create(data);
-    res.status(201).json({ id });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const privileged = ['admin', 'lead'].includes(req.user?.role);
+  if (!privileged && goal.employee_id !== req.user.id) {
+    throw new AppError('Insufficient permissions', 403);
   }
-};
 
-exports.update = async (req, res) => {
-  try {
-    const goal = await Goal.findById(req.params.id);
-    if (!goal) return res.status(404).json({ error: 'Not found' });
+  await Goal.updateProgress(req.params.id, goalDto.toProgressInput(req.body));
+  res.json({ success: true });
+});
 
-    const privileged = ['admin', 'lead'].includes(req.user?.role);
-    if (!privileged && goal.employee_id !== req.user.id) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
+exports.remove = asyncHandler(async (req, res) => {
+  const goal = await Goal.findById(req.params.id);
+  if (!goal) throw new AppError('Not found', 404);
 
-    await Goal.update(req.params.id, goalDto.toUpdateInput(req.body));
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const privileged = ['admin', 'lead'].includes(req.user?.role);
+  if (!privileged && goal.employee_id !== req.user.id) {
+    throw new AppError('Insufficient permissions', 403);
   }
-};
 
-exports.updateProgress = async (req, res) => {
-  try {
-    const goal = await Goal.findById(req.params.id);
-    if (!goal) return res.status(404).json({ error: 'Not found' });
-
-    const privileged = ['admin', 'lead'].includes(req.user?.role);
-    if (!privileged && goal.employee_id !== req.user.id) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-
-    await Goal.updateProgress(req.params.id, goalDto.toProgressInput(req.body));
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-exports.remove = async (req, res) => {
-  try {
-    const goal = await Goal.findById(req.params.id);
-    if (!goal) return res.status(404).json({ error: 'Not found' });
-
-    const privileged = ['admin', 'lead'].includes(req.user?.role);
-    if (!privileged && goal.employee_id !== req.user.id) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-
-    await Goal.remove(req.params.id);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+  await Goal.remove(req.params.id);
+  res.json({ success: true });
+});

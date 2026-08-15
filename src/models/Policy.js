@@ -33,7 +33,7 @@ exports.listActive = async (category) => {
   const [rows] = await db.query(
     `SELECT p.*, e.name AS uploaded_by_name
      FROM policies p
-     LEFT JOIN employees e ON p.uploaded_by = e.id
+     LEFT JOIN employees_flat e ON p.uploaded_by = e.id
      WHERE ${conditions.join(' AND ')}
      ORDER BY p.is_pinned DESC, p.type, p.version DESC`,
     params

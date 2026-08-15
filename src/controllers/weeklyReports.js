@@ -2,31 +2,29 @@ const path = require('path');
 const fs   = require('fs');
 const WeeklyReport = require('../models/WeeklyReport');
 const weeklyReportDto = require('../dtos/weeklyReportDto');
+const asyncHandler = require('../middleware/asyncHandler');
+const AppError = require('../pkg/AppError');
 
-exports.list = async (req, res) => {
-  try {
-    const { week_start_date, year } = req.query;
-    const privileged = ['admin', 'lead'].includes(req.user?.role);
+exports.list = asyncHandler(async (req, res) => {
+  const { week_start_date, year } = req.query;
+  const privileged = ['admin', 'lead'].includes(req.user?.role);
 
-    // Employees see only their own submissions
-    const employeeId = privileged ? null : req.user.id;
+  // Employees see only their own submissions
+  const employeeId = privileged ? null : req.user.id;
 
-    const rows = await WeeklyReport.findWithEmployeeNames({ employeeId, weekStartDate: week_start_date, year });
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+  const rows = await WeeklyReport.findWithEmployeeNames({ employeeId, weekStartDate: week_start_date, year });
+  res.json(rows);
+});
 
-exports.submit = async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+exports.submit = asyncHandler(async (req, res) => {
+  if (!req.file) throw new AppError('No file uploaded', 400);
 
   let data;
   try {
     data = weeklyReportDto.toCreateInput(req.body, req.file);
   } catch (err) {
     fs.unlink(req.file.path, () => {});
-    return res.status(err.status || 400).json({ error: err.message });
+    throw new AppError(err.message, err.status || 400);
   }
 
   // Rename the file to `<EmployeeName>_<timestamp>.<ext>` within its week folder.
@@ -41,7 +39,7 @@ exports.submit = async (req, res) => {
     data.file_path = finalPath;
   } catch (err) {
     fs.unlink(req.file.path, () => {});
-    return res.status(500).json({ error: `Failed to store file: ${err.message}` });
+    throw new AppError(`Failed to store file: ${err.message}`, 500);
   }
 
   try {
@@ -49,41 +47,33 @@ exports.submit = async (req, res) => {
     res.status(201).json({ id });
   } catch (err) {
     fs.unlink(finalPath, () => {});
-    res.status(500).json({ error: err.message });
+    throw err;
   }
-};
+});
 
-exports.download = async (req, res) => {
-  try {
-    const report = await WeeklyReport.findById(req.params.id);
-    if (!report) return res.status(404).json({ error: 'Not found' });
+exports.download = asyncHandler(async (req, res) => {
+  const report = await WeeklyReport.findById(req.params.id);
+  if (!report) throw new AppError('Not found', 404);
 
-    // Employees can only download their own reports
-    const privileged = ['admin', 'lead'].includes(req.user?.role);
-    if (!privileged && report.employee_id !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    res.download(path.resolve(report.file_path), report.file_name);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  // Employees can only download their own reports
+  const privileged = ['admin', 'lead'].includes(req.user?.role);
+  if (!privileged && report.employee_id !== req.user.id) {
+    throw new AppError('Access denied', 403);
   }
-};
 
-exports.remove = async (req, res) => {
-  try {
-    const report = await WeeklyReport.findById(req.params.id);
-    if (!report) return res.status(404).json({ error: 'Not found' });
+  res.download(path.resolve(report.file_path), report.file_name);
+});
 
-    const privileged = ['admin', 'lead'].includes(req.user?.role);
-    if (!privileged && report.employee_id !== req.user.id) {
-      return res.status(403).json({ error: 'You can only delete your own reports' });
-    }
+exports.remove = asyncHandler(async (req, res) => {
+  const report = await WeeklyReport.findById(req.params.id);
+  if (!report) throw new AppError('Not found', 404);
 
-    fs.unlink(report.file_path, () => {});
-    await WeeklyReport.remove(req.params.id);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const privileged = ['admin', 'lead'].includes(req.user?.role);
+  if (!privileged && report.employee_id !== req.user.id) {
+    throw new AppError('You can only delete your own reports', 403);
   }
-};
+
+  fs.unlink(report.file_path, () => {});
+  await WeeklyReport.remove(req.params.id);
+  res.json({ success: true });
+});

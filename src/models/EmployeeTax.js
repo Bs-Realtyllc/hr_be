@@ -5,7 +5,7 @@ exports.findAllWithProfile = async (id) => {
     SELECT e.id, e.name, e.designation, e.department, e.role, e.salary, e.pay_frequency,
            t.tax_id, t.country, t.filing_status, t.tax_regime,
            t.exemptions, t.additional_withholding, t.notes, t.updated_at
-    FROM employees e
+    FROM employees_flat e
     LEFT JOIN employee_tax_profiles t ON t.employee_id = e.id
     WHERE e.is_active = TRUE ${id ? 'AND e.id = ?' : ''}
     ORDER BY e.name`;
