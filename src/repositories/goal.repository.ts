@@ -1,13 +1,13 @@
 import { eq, and, sql, getTableColumns } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { goals, employeesFlat } from '../models';
+import { goals, employees, designations, departments } from '../models';
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
 
-const creator = alias(employeesFlat, 'goal_creator');
+const creator = alias(employees, 'goal_creator');
 
 export async function findWithNames({
   employeeId,
@@ -26,13 +26,15 @@ export async function findWithNames({
   return db
     .select({
       ...getTableColumns(goals),
-      employee_name: employeesFlat.name,
-      designation: employeesFlat.designation,
-      department: employeesFlat.department,
+      employee_name: employees.name,
+      designation: designations.title,
+      department: departments.name,
       created_by_name: creator.name,
     })
     .from(goals)
-    .innerJoin(employeesFlat, eq(goals.employee_id, employeesFlat.id))
+    .innerJoin(employees, eq(goals.employee_id, employees.id))
+    .leftJoin(designations, eq(employees.designation_id, designations.id))
+    .leftJoin(departments, eq(employees.department_id, departments.id))
     .leftJoin(creator, eq(goals.created_by, creator.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(
@@ -101,9 +103,9 @@ export async function summaryByEmployee() {
            SUM(g.status = 'completed') AS completed_goals,
            SUM(g.status = 'at_risk') AS at_risk_goals,
            AVG(CASE WHEN g.target_value > 0 THEN LEAST(g.current_value / g.target_value, 1) * 100 ELSE NULL END) AS avg_progress
-    FROM employees_flat e
+    FROM employees e
     LEFT JOIN goals g ON g.employee_id = e.id
-    WHERE e.is_active = TRUE
+    WHERE e.status NOT IN ('onboarding', 'terminated')
     GROUP BY e.id, e.name
     HAVING total_goals > 0
     ORDER BY e.name

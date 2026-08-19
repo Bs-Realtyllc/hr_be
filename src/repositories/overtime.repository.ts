@@ -1,14 +1,15 @@
 import { eq, and, desc, getTableColumns } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { overtimeRequests, employeesFlat, projects } from '../models';
+import { overtimeRequests, employees, designations, projects } from '../models';
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
 
-const requester = alias(employeesFlat, 'ot_employee');
-const reviewer = alias(employeesFlat, 'ot_reviewer');
+const requester = alias(employees, 'ot_employee');
+const reviewer = alias(employees, 'ot_reviewer');
+const requesterDesignation = alias(designations, 'ot_employee_desig');
 
 export async function findWithNames({ employeeId, status }: { employeeId?: number | string; status?: string }) {
   const conditions = [];
@@ -19,12 +20,13 @@ export async function findWithNames({ employeeId, status }: { employeeId?: numbe
     .select({
       ...getTableColumns(overtimeRequests),
       employee_name: requester.name,
-      designation: requester.designation,
+      designation: requesterDesignation.title,
       project_name: projects.name,
       reviewer_name: reviewer.name,
     })
     .from(overtimeRequests)
     .innerJoin(requester, eq(overtimeRequests.employee_id, requester.id))
+    .leftJoin(requesterDesignation, eq(requester.designation_id, requesterDesignation.id))
     .leftJoin(projects, eq(overtimeRequests.project_id, projects.id))
     .leftJoin(reviewer, eq(overtimeRequests.reviewed_by, reviewer.id))
     .where(conditions.length ? and(...conditions) : undefined)

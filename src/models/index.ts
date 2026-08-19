@@ -1,12 +1,9 @@
 export { employees } from './Employee';
-export { employeeAuth } from './EmployeeAuth';
-export { employeeProfile } from './EmployeeProfile';
-export { employeeJobHistory } from './EmployeeJobHistory';
+export { employeeOnboardingProfile } from './EmployeeOnboardingProfile';
 export { employeeCompensationHistory } from './EmployeeCompensationHistory';
 export { employeeDocuments } from './EmployeeDocument';
 export { departments } from './Department';
 export { designations } from './Designation';
-export { employeesFlat } from './EmployeeFlat';
 export { passwordResetTokens } from './PasswordResetToken';
 export { leaveRequests } from './LeaveRequest';
 export { leaveBalances } from './LeaveBalance';

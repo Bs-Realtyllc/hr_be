@@ -17,10 +17,6 @@ export async function updateProfile(userId: number, updates: ProfileUpdateInput,
   if (dobFromBody) await cultureEventService.upsertBirthdayEvent(userId, dobFromBody);
 }
 
-export async function acceptLeavePolicy(userId: number) {
-  await employeeRepo.acceptLeavePolicy(userId);
-}
-
 export async function uploadPhoto(userId: number, filename: string) {
   const oldPicture = await employeeRepo.findProfilePictureById(userId);
   if (oldPicture) deleteUpload('profile', oldPicture);

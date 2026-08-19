@@ -1,6 +1,6 @@
 import { eq, and, asc, desc, sql, getTableColumns } from 'drizzle-orm';
 import { db } from '../config/database';
-import { cultureEvents, employeesFlat } from '../models';
+import { cultureEvents, employees, employeeDocuments } from '../models';
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
@@ -10,11 +10,12 @@ export async function findUpcoming() {
   return db
     .select({
       ...getTableColumns(cultureEvents),
-      employee_name: employeesFlat.name,
-      profile_picture: employeesFlat.profile_picture,
+      employee_name: employees.name,
+      profile_picture: employeeDocuments.filename,
     })
     .from(cultureEvents)
-    .leftJoin(employeesFlat, eq(cultureEvents.employee_id, employeesFlat.id))
+    .leftJoin(employees, eq(cultureEvents.employee_id, employees.id))
+    .leftJoin(employeeDocuments, and(eq(employeeDocuments.emp_id, employees.id), eq(employeeDocuments.name, 'profile_picture')))
     .where(sql`${cultureEvents.event_date} BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)`)
     .orderBy(asc(cultureEvents.event_date));
 }
@@ -23,10 +24,10 @@ export async function findRecent() {
   return db
     .select({
       ...getTableColumns(cultureEvents),
-      employee_name: employeesFlat.name,
+      employee_name: employees.name,
     })
     .from(cultureEvents)
-    .leftJoin(employeesFlat, eq(cultureEvents.employee_id, employeesFlat.id))
+    .leftJoin(employees, eq(cultureEvents.employee_id, employees.id))
     .orderBy(desc(cultureEvents.event_date))
     .limit(50);
 }

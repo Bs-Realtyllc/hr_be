@@ -1,6 +1,6 @@
 import { eq, and, gte, sql, asc, getTableColumns } from 'drizzle-orm';
 import { db } from '../config/database';
-import { meetings, employeesFlat } from '../models';
+import { meetings, employees } from '../models';
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
@@ -10,10 +10,10 @@ export async function findUpcomingScheduled() {
   return db
     .select({
       ...getTableColumns(meetings),
-      creator_name: employeesFlat.name,
+      creator_name: employees.name,
     })
     .from(meetings)
-    .leftJoin(employeesFlat, eq(meetings.created_by, employeesFlat.id))
+    .leftJoin(employees, eq(meetings.created_by, employees.id))
     .where(and(eq(meetings.status, 'scheduled'), sql`${meetings.start_datetime} >= DATE_SUB(NOW(), INTERVAL 7 DAY)`))
     .orderBy(asc(meetings.start_datetime));
 }

@@ -1,6 +1,6 @@
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { db } from '../config/database';
-import { projects, projectAssignments, milestones, projectServices, employeesFlat } from '../models';
+import { projects, projectAssignments, milestones, projectServices, employees, designations, employeeDocuments } from '../models';
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
@@ -51,13 +51,14 @@ export async function findAssignments(projectId: number | string) {
       employee_id: projectAssignments.employee_id,
       role: projectAssignments.role,
       assigned_at: projectAssignments.assigned_at,
-      name: employeesFlat.name,
-      designation: employeesFlat.designation,
-      profile_picture: employeesFlat.profile_picture,
-      timezone: employeesFlat.timezone,
+      name: employees.name,
+      designation: designations.title,
+      profile_picture: employeeDocuments.filename,
     })
     .from(projectAssignments)
-    .innerJoin(employeesFlat, eq(projectAssignments.employee_id, employeesFlat.id))
+    .innerJoin(employees, eq(projectAssignments.employee_id, employees.id))
+    .leftJoin(designations, eq(employees.designation_id, designations.id))
+    .leftJoin(employeeDocuments, and(eq(employeeDocuments.emp_id, employees.id), eq(employeeDocuments.name, 'profile_picture')))
     .where(eq(projectAssignments.project_id, Number(projectId)));
 }
 

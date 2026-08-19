@@ -23,13 +23,16 @@ export const resetPassword = asyncHandler(async (req: any, res: Response) => {
 
 export const getTaxes = asyncHandler(async (req: any, res: Response) => {
   const privileged = ['admin', 'lead'].includes(req.user?.role);
-  const rows = await payrollService.getTaxes(privileged, req.user.id);
+  const now = new Date();
+  const month = Number(req.query.month) || now.getMonth() + 1;
+  const year = Number(req.query.year) || now.getFullYear();
+  const rows = await payrollService.getTaxes(privileged, req.user.id, month, year);
   res.json(rows);
 });
 
 export const updateTaxProfile = asyncHandler(async (req: any, res: Response) => {
   const input = payrollDto.toTaxProfileInput(req.body);
-  await payrollService.updateTaxProfile(req.params.id, input, req.user?.id ?? null);
+  await payrollService.updateTaxProfile(req.params.id, input);
   res.json({ message: 'Tax profile updated' });
 });
 

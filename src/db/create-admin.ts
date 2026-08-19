@@ -26,12 +26,9 @@ if (!name || !email || !password) {
   }
 
   const password_hash = await bcrypt.hash(password, 10);
-  const [result]: any = await conn.query(`INSERT INTO employees (name, email, is_active) VALUES (?, ?, TRUE)`, [
+  await conn.query(`INSERT INTO employees (name, email, role, password_hash, status) VALUES (?, ?, 'admin', ?, 'active')`, [
     name,
     email,
-  ]);
-  await conn.query(`INSERT INTO employee_auth (employee_id, password_hash, role) VALUES (?, ?, 'admin')`, [
-    result.insertId,
     password_hash,
   ]);
 
