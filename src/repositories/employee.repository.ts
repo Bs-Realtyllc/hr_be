@@ -586,3 +586,25 @@ export async function recordDocumentUpload(
     is_current: true,
   });
 }
+
+export async function findCompensationHistory(employeeId: number | string) {
+  const actor = alias(employees, 'actor');
+  return db
+    .select({
+      id: employeeCompensationHistory.id,
+      employee_id: employeeCompensationHistory.employee_id,
+      salary: employeeCompensationHistory.salary,
+      pay_frequency: employeeCompensationHistory.pay_frequency,
+      effective_from: employeeCompensationHistory.effective_from,
+      effective_to: employeeCompensationHistory.effective_to,
+      change_reason: employeeCompensationHistory.change_reason,
+      changed_by: employeeCompensationHistory.changed_by,
+      changed_by_name: actor.name,
+      created_at: employeeCompensationHistory.created_at,
+    })
+    .from(employeeCompensationHistory)
+    .leftJoin(actor, eq(employeeCompensationHistory.changed_by, actor.id))
+    .where(eq(employeeCompensationHistory.employee_id, Number(employeeId)))
+    .orderBy(sql`${employeeCompensationHistory.effective_from} DESC`, sql`${employeeCompensationHistory.id} DESC`);
+}
+

@@ -52,3 +52,15 @@ export const payrollSummary = asyncHandler(async (req: Request, res: Response) =
   const summary = await employeeService.payrollSummary(req.params.id);
   res.json(summary);
 });
+
+export const getTaxProfile = asyncHandler(async (req: any, res: Response) => {
+  const taxProfile = await employeeService.getTaxProfile(req.params.id, req.user.id, req.user.role);
+  if (!taxProfile) throw new AppError('Tax profile not found', 404);
+  res.json(taxProfile);
+});
+
+export const getCompensationHistory = asyncHandler(async (req: any, res: Response) => {
+  const history = await employeeService.getCompensationHistory(req.params.id, req.user.id, req.user.role);
+  res.json(history);
+});
+

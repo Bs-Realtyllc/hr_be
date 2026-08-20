@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import * as employeeRepo from '../repositories/employee.repository';
 import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
+import * as employeeTaxRepo from '../repositories/employeeTax.repository';
+import { withTaxEstimate } from './payroll.service';
 import type { EmployeeCreateInput, EmployeeUpdateInput } from '../dtos/employee.dto';
 import AppError from '../pkg/AppError';
 import {
@@ -190,3 +192,28 @@ export async function payrollSummary(id: string) {
     adjustments: adjustments.map((a: any) => ({ title: a.title, type: a.type, amount: Number(a.amount) })),
   };
 }
+
+export async function getTaxProfile(id: string, userId: number, role: string) {
+  const isSelf = Number(userId) === Number(id);
+  const isPrivileged = ['admin', 'lead'].includes(role);
+  if (!isSelf && !isPrivileged) {
+    throw new AppError('Access denied: Tax profile information is restricted', 403);
+  }
+
+  const rows = await employeeTaxRepo.findAllWithProfile(id);
+  if (!rows || rows.length === 0) {
+    return null;
+  }
+  return withTaxEstimate(rows[0]);
+}
+
+export async function getCompensationHistory(id: string, userId: number, role: string) {
+  const isSelf = Number(userId) === Number(id);
+  const isPrivileged = ['admin', 'lead'].includes(role);
+  if (!isSelf && !isPrivileged) {
+    throw new AppError('Access denied: Compensation history is restricted', 403);
+  }
+
+  return employeeRepo.findCompensationHistory(id);
+}
+
