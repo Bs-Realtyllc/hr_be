@@ -91,6 +91,24 @@ export async function findAuthByEmail(email: string) {
   return rows[0] || null;
 }
 
+export async function findAuthById(id: number) {
+  const rows = await db
+    .select({
+      id: employeesFlat.id,
+      name: employeesFlat.name,
+      email: employeesFlat.email,
+      role: employeesFlat.role,
+      designation: employeesFlat.designation,
+      department: employeesFlat.department,
+      password_hash: employeesFlat.password_hash,
+    })
+    .from(employeesFlat)
+    .where(and(eq(employeesFlat.id, id), eq(employeesFlat.is_active, true)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+
 export async function findActiveBasicByEmail(email: string) {
   const rows = await db
     .select({ id: employeesFlat.id, name: employeesFlat.name })
