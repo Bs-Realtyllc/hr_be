@@ -7,7 +7,11 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ error: 'No token provided' });
   }
   try {
-    (req as any).user = jwt.verify(header.slice(7), process.env.JWT_SECRET as string);
+    const decoded: any = jwt.verify(header.slice(7), process.env.JWT_SECRET as string);
+    if (decoded) {
+      decoded.employeeId = decoded.employeeId ?? decoded.id;
+    }
+    (req as any).user = decoded;
     next();
   } catch {
     res.status(401).json({ error: 'Invalid or expired token' });

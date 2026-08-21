@@ -4,7 +4,18 @@ import * as employeeDto from '../dtos/employee.dto';
 import asyncHandler from '../middleware/asyncHandler';
 import AppError from '../pkg/AppError';
 
-export const list = asyncHandler(async (req: Request, res: Response) => {
+export const list = asyncHandler(async (req: any, res: Response) => {
+  const role = req.user?.role;
+  const isPrivileged = ['admin', 'lead'].includes(role);
+  if (!isPrivileged) {
+    // Row-level scoping: non-admins only receive their own employee record
+    const empId = req.user?.employeeId ?? req.user?.id;
+    if (!empId) {
+      return res.json([]);
+    }
+    const singleEmp = await employeeService.get(String(empId));
+    return res.json(singleEmp ? employeeDto.toResponseList([singleEmp]) : []);
+  }
   const employees = await employeeService.list();
   res.json(employeeDto.toResponseList(employees));
 });
@@ -14,8 +25,17 @@ export const listOnboarding = asyncHandler(async (req: Request, res: Response) =
   res.json(employeeDto.toResponseList(employees));
 });
 
-export const get = asyncHandler(async (req: Request, res: Response) => {
-  const employee = await employeeService.get(req.params.id);
+export const get = asyncHandler(async (req: any, res: Response) => {
+  const role = req.user?.role;
+  const isPrivileged = ['admin', 'lead'].includes(role);
+  let targetId = req.params.id;
+
+  if (!isPrivileged) {
+    // Row-level scoping: force query to use requester's own employeeId
+    targetId = String(req.user?.employeeId ?? req.user?.id);
+  }
+
+  const employee = await employeeService.get(targetId);
   if (!employee) throw new AppError('Not found', 404);
   res.json(employeeDto.toResponse(employee));
 });
@@ -48,19 +68,45 @@ export const reject = asyncHandler(async (req: any, res: Response) => {
   res.json({ success: true });
 });
 
-export const payrollSummary = asyncHandler(async (req: Request, res: Response) => {
-  const summary = await employeeService.payrollSummary(req.params.id);
+export const payrollSummary = asyncHandler(async (req: any, res: Response) => {
+  const role = req.user?.role;
+  const isPrivileged = ['admin', 'lead'].includes(role);
+  let targetId = req.params.id;
+
+  if (!isPrivileged) {
+    targetId = String(req.user?.employeeId ?? req.user?.id);
+  }
+
+  const summary = await employeeService.payrollSummary(targetId);
   res.json(summary);
 });
 
 export const getTaxProfile = asyncHandler(async (req: any, res: Response) => {
-  const taxProfile = await employeeService.getTaxProfile(req.params.id, req.user.id, req.user.role);
+  const role = req.user?.role;
+  const isPrivileged = ['admin', 'lead'].includes(role);
+  let targetId = req.params.id;
+
+  if (!isPrivileged) {
+    // Row-level scoping: force requester's own employeeId
+    targetId = String(req.user?.employeeId ?? req.user?.id);
+  }
+
+  const taxProfile = await employeeService.getTaxProfile(targetId, req.user?.id, req.user?.role);
   if (!taxProfile) throw new AppError('Tax profile not found', 404);
   res.json(taxProfile);
 });
 
 export const getCompensationHistory = asyncHandler(async (req: any, res: Response) => {
-  const history = await employeeService.getCompensationHistory(req.params.id, req.user.id, req.user.role);
+  const role = req.user?.role;
+  const isPrivileged = ['admin', 'lead'].includes(role);
+  let targetId = req.params.id;
+
+  if (!isPrivileged) {
+    // Row-level scoping: force requester's own employeeId
+    targetId = String(req.user?.employeeId ?? req.user?.id);
+  }
+
+  const history = await employeeService.getCompensationHistory(targetId, req.user?.id, req.user?.role);
   res.json(history);
 });
 

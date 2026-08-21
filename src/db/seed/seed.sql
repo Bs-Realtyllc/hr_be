@@ -56,7 +56,7 @@ SET designation_id = (SELECT id FROM designations WHERE title = 'Engineering Lea
 WHERE id = 1;
 
 INSERT INTO employee_auth (employee_id, password_hash, role) VALUES
-  (1, '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'admin')
+  (1, '$2a$10$BkdcKJl4vcUx.bleQdox6OVzJ3ndIbwsaNreoeTuv.ohNI1lidHN2', 'admin')
 ON DUPLICATE KEY UPDATE
   password_hash = VALUES(password_hash),
   role           = VALUES(role);
@@ -107,15 +107,15 @@ ON DUPLICATE KEY UPDATE
   is_active      = VALUES(is_active);
 
 INSERT INTO employee_auth (employee_id, password_hash, role) VALUES
-  (2,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'lead'),
-  (3,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
-  (4,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
-  (5,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
-  (6,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'lead'),
-  (7,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
-  (8,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'lead'),
-  (9,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'admin'),
-  (10, '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee')
+  (2,  '$2a$10$BkdcKJl4vcUx.bleQdox6OVzJ3ndIbwsaNreoeTuv.ohNI1lidHN2', 'lead'),
+  (3,  '$2a$10$BkdcKJl4vcUx.bleQdox6OVzJ3ndIbwsaNreoeTuv.ohNI1lidHN2', 'employee'),
+  (4,  '$2a$10$BkdcKJl4vcUx.bleQdox6OVzJ3ndIbwsaNreoeTuv.ohNI1lidHN2', 'employee'),
+  (5,  '$2a$10$BkdcKJl4vcUx.bleQdox6OVzJ3ndIbwsaNreoeTuv.ohNI1lidHN2', 'employee'),
+  (6,  '$2a$10$BkdcKJl4vcUx.bleQdox6OVzJ3ndIbwsaNreoeTuv.ohNI1lidHN2', 'lead'),
+  (7,  '$2a$10$BkdcKJl4vcUx.bleQdox6OVzJ3ndIbwsaNreoeTuv.ohNI1lidHN2', 'employee'),
+  (8,  '$2a$10$BkdcKJl4vcUx.bleQdox6OVzJ3ndIbwsaNreoeTuv.ohNI1lidHN2', 'lead'),
+  (9,  '$2a$10$BkdcKJl4vcUx.bleQdox6OVzJ3ndIbwsaNreoeTuv.ohNI1lidHN2', 'admin'),
+  (10, '$2a$10$BkdcKJl4vcUx.bleQdox6OVzJ3ndIbwsaNreoeTuv.ohNI1lidHN2', 'employee')
 ON DUPLICATE KEY UPDATE
   password_hash = VALUES(password_hash),
   role           = VALUES(role);

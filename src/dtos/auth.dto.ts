@@ -62,6 +62,7 @@ export function toResetPasswordInput(body: unknown): ResetPasswordInput {
 
 export interface UserSummary {
   id: number;
+  employeeId?: number;
   name: string;
   email: string;
   role: 'admin' | 'lead' | 'employee' | 'intern' | null;
@@ -71,7 +72,10 @@ export interface UserSummary {
 
 export function toLoginResponse(employee: UserSummary & { password_hash: string | null }): UserSummary {
   const { password_hash, ...user } = employee;
-  return user;
+  return {
+    ...user,
+    employeeId: user.id,
+  };
 }
 
 export interface VerifyOtpInput {
