@@ -90,10 +90,10 @@ async function runFile(conn: Connection, filePath: string): Promise<boolean> {
 
   console.log(`Applying ${migrationFiles.length} migration file(s)…`);
   for (const file of migrationFiles) {
-    if (appliedSet.has(file)) {
-      console.log(`  ${file}: already applied, skipping`);
-      continue;
-    }
+    // if (appliedSet.has(file)) {
+    //   console.log(`  ${file}: already applied, skipping`);
+    //   continue;
+    // }
     const ok = await runFile(conn, path.join(migrationsDir, file));
     if (ok) {
       try {

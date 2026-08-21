@@ -2,28 +2,33 @@ CREATE DATABASE IF NOT EXISTS hr_platform;
 USE hr_platform;
 
 CREATE TABLE IF NOT EXISTS employees (
-  id INT PRIMARY KEY AUTO_INCREMENT,
+id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(100) NOT NULL,
+  gender ENUM('male', 'female', 'other', 'prefer_not_to_say') NULL,
   email VARCHAR(150) UNIQUE NOT NULL,
   phone VARCHAR(20),
-  discord_username VARCHAR(100) NULL UNIQUE,
   emergency_contact VARCHAR(150),
   profile_picture VARCHAR(255),
   designation VARCHAR(100),
   department VARCHAR(100),
   manager_id INT,
   start_date DATE,
+  dob DATE NULL,
+  github_url VARCHAR(255) NULL,
+  address TEXT NULL,
+  discord_username VARCHAR(100) NULL UNIQUE,
+  panNo VARCHAR(50) NULL UNIQUE,
   timezone VARCHAR(50) DEFAULT 'UTC',
   work_hours VARCHAR(50) DEFAULT '9 AM - 5 PM',
   tech_stack JSON,
-  role ENUM('admin', 'lead', 'employee') DEFAULT 'employee',
+  role ENUM('admin', 'lead', 'employee', 'intern') NOT NULL DEFAULT 'employee',
   password_hash VARCHAR(255) NULL,
   salary DECIMAL(10,2) NULL,
   pay_frequency ENUM('monthly','biweekly','weekly') DEFAULT 'monthly',
   is_active BOOLEAN DEFAULT TRUE,
+  status ENUM('onboarding','active','on_leave','probation','terminated') NOT NULL DEFAULT 'active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (manager_id) REFERENCES employees(id) ON DELETE SET NULL
-);
+  FOREIGN KEY (manager_id) REFERENCES employees(id) ON DELETE SET NULL);
 
 CREATE TABLE IF NOT EXISTS leave_balances (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -222,6 +227,22 @@ CREATE TABLE IF NOT EXISTS payroll_adjustments (
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+);
+
+
+CREATE TABLE IF NOT EXISTS forms_layout (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL UNIQUE,
+  data JSON NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS holidays (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(150) NOT NULL,
+  holiday_date DATE NOT NULL UNIQUE,
+  year YEAR NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
 );
 
 -- Seed: default leave balances trigger after employee insert

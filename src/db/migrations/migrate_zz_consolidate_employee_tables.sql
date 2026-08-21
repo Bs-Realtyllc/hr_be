@@ -11,61 +11,73 @@
 USE hr_platform;
 
 -- ── Step 1: additive columns on employees ───────────────────────────────────
-ALTER TABLE employees
-  ADD COLUMN dob DATE NULL AFTER start_date,
-  ADD COLUMN gender ENUM('male','female','other','prefer_not_to_say') NULL AFTER dob,
-  ADD COLUMN github_url VARCHAR(255) NULL AFTER gender,
-  ADD COLUMN address TEXT NULL AFTER github_url,
-  ADD COLUMN discord_username VARCHAR(100) NULL AFTER address,
-  ADD COLUMN panNo VARCHAR(50) NULL AFTER discord_username,
-  ADD COLUMN role ENUM('admin','lead','employee','intern') NOT NULL DEFAULT 'employee' AFTER panNo,
-  ADD COLUMN password_hash VARCHAR(255) NULL AFTER role,
-  ADD UNIQUE KEY uq_employees_discord_username (discord_username),
-  ADD UNIQUE KEY uq_employees_panNo (panNo);
+-- ALTER TABLE employees
+--   ADD COLUMN dob DATE NULL AFTER start_date,
+--   ADD COLUMN gender ENUM('male','female','other','prefer_not_to_say') NULL AFTER dob,
+--   ADD COLUMN github_url VARCHAR(255) NULL AFTER gender,
+--   ADD COLUMN address TEXT NULL AFTER github_url,
+--   ADD COLUMN discord_username VARCHAR(100) NULL AFTER address,
+--   ADD COLUMN panNo VARCHAR(50) NULL AFTER discord_username,
+--   ADD COLUMN role ENUM('admin','lead','employee','intern') NOT NULL DEFAULT 'employee' AFTER panNo,
+--   ADD COLUMN password_hash VARCHAR(255) NULL AFTER role,
+--   ADD UNIQUE KEY uq_employees_discord_username (discord_username),
+--   ADD UNIQUE KEY uq_employees_panNo (panNo);
 
 -- ── Step 2: backfill from employee_profile ──────────────────────────────────
-UPDATE employees e
-JOIN employee_profile p ON p.employee_id = e.id
-SET e.dob = p.dob,
-    e.gender = p.gender,
-    e.github_url = p.github_url,
-    e.address = p.address,
-    e.discord_username = p.discord_username;
+-- UPDATE employees e
+-- JOIN employee_profile p ON p.employee_id = e.id
+-- SET e.dob = p.dob,
+--     e.gender = p.gender,
+--     e.github_url = p.github_url,
+--     e.address = p.address,
+--     e.discord_username = p.discord_username;
 
 -- ── Step 3: backfill from employee_auth ─────────────────────────────────────
-UPDATE employees e
-JOIN employee_auth a ON a.employee_id = e.id
-SET e.role = a.role,
-    e.password_hash = a.password_hash;
+-- UPDATE employees e
+-- JOIN employee_auth a ON a.employee_id = e.id
+-- SET e.role = a.role,
+--     e.password_hash = a.password_hash;
 
 -- ── Step 4: backfill panNo from the old employee_tax_profiles.tax_id ────────
 -- (must run before Step 9 drops/recreates employee_tax_profiles)
-UPDATE employees e
-JOIN employee_tax_profiles t ON t.employee_id = e.id
-SET e.panNo = t.tax_id
-WHERE t.tax_id IS NOT NULL AND t.tax_id <> '';
+-- UPDATE employees e
+-- JOIN employee_tax_profiles t ON t.employee_id = e.id
+-- SET e.panNo = t.tax_id
+-- WHERE t.tax_id IS NOT NULL AND t.tax_id <> '';
 
 -- ── Step 5: new onboarding-intake table (split out of employee_profile) ─────
 CREATE TABLE IF NOT EXISTS employee_onboarding_profile (
-  employee_id          INT PRIMARY KEY,
-  education_level      VARCHAR(100) NULL,
-  institution_name     VARCHAR(150) NULL,
-  field_of_study       VARCHAR(150) NULL,
-  graduation_date      DATE NULL,
+  -- employee_id          INT PRIMARY KEY,
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(100) NOT NULL,
+  gender ENUM('male', 'female', 'other', 'prefer_not_to_say') NOT NULL,
+  dob DATE NULL,
+  email VARCHAR(150) UNIQUE NOT NULL,
+  phone VARCHAR(20),
+  current_address VARCHAR(60) NULL,
+  permanent_address VARCHAR(60) NULL,
+  emergency_contact VARCHAR(150),
+  education_level VARCHAR(50) NULL,
+  institution_name VARCHAR(50) NULL,
+  field_of_study VARCHAR(50) NULL,
+  graduation_date DATE NULL,
   previous_experience  TEXT NULL,
   areas_of_interest    TEXT NULL,
   linkedin_url         VARCHAR(255) NULL,
+  github_url         VARCHAR(255) NULL,
   portfolio_url        VARCHAR(255) NULL,
-  FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+  role ENUM('intern', 'employee') NOT NULL,
+  additional_info TEXT NULL,
+  tech_stack JSON
 );
 
-INSERT IGNORE INTO employee_onboarding_profile
-  (employee_id, education_level, institution_name, field_of_study, graduation_date,
-   previous_experience, areas_of_interest, linkedin_url, portfolio_url)
-SELECT
-  employee_id, education_level, institution_name, field_of_study, graduation_date,
-  previous_experience, areas_of_interest, linkedin_url, portfolio_url
-FROM employee_profile;
+-- INSERT IGNORE INTO employee_onboarding_profile
+--   (employee_id, education_level, institution_name, field_of_study, graduation_date,
+--    previous_experience, areas_of_interest, linkedin_url, portfolio_url)
+-- SELECT
+--   employee_id, education_level, institution_name, field_of_study, graduation_date,
+--   previous_experience, areas_of_interest, linkedin_url, portfolio_url
+-- FROM employee_profile;
 
 -- ── Step 6: drop the compatibility view ──────────────────────────────────────
 DROP VIEW IF EXISTS employees_flat;

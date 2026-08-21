@@ -1,15 +1,27 @@
-import { mysqlTable, int, varchar, text, date } from 'drizzle-orm/mysql-core';
+import { mysqlTable, int, varchar, text, date, json, mysqlEnum } from 'drizzle-orm/mysql-core';
 
 export const employeeOnboardingProfile = mysqlTable('employee_onboarding_profile', {
-  employee_id: int('employee_id').primaryKey(),
-  education_level: varchar('education_level', { length: 100 }),
-  institution_name: varchar('institution_name', { length: 150 }),
-  field_of_study: varchar('field_of_study', { length: 150 }),
+  id: int('id').primaryKey().autoincrement(),
+  name: varchar('name', { length: 100 }).notNull(),
+  gender: mysqlEnum('gender', ['male', 'female', 'other', 'prefer_not_to_say']).notNull(),
+  dob: date('dob', { mode: 'string' }),
+  email: varchar('email', { length: 150 }).notNull().unique(),
+  phone: varchar('phone', { length: 20 }),
+  current_address: varchar('current_address', { length: 60 }),
+  permanent_address: varchar('permanent_address', { length: 60 }),
+  emergency_contact: varchar('emergency_contact', { length: 150 }),
+  education_level: varchar('education_level', { length: 50 }),
+  institution_name: varchar('institution_name', { length: 50 }),
+  field_of_study: varchar('field_of_study', { length: 50 }),
   graduation_date: date('graduation_date', { mode: 'string' }),
   previous_experience: text('previous_experience'),
   areas_of_interest: text('areas_of_interest'),
   linkedin_url: varchar('linkedin_url', { length: 255 }),
+  github_url: varchar('github_url', { length: 255 }),
   portfolio_url: varchar('portfolio_url', { length: 255 }),
+  role: mysqlEnum('role', ['intern', 'employee']).notNull(),
+  additional_info: text('additional_info'),
+  tech_stack: json('tech_stack'),
 });
 
 export type EmployeeOnboardingProfile = typeof employeeOnboardingProfile.$inferSelect;
