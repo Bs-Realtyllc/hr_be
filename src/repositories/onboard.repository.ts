@@ -15,17 +15,31 @@ export async function getOnboardProfile(type: "intern" | "employee" | "all") {
   return result;
 }
 
-export async function saveOnboardProfile(data: Record<string, any>) {
-  // const {name, dob,gender, email, current_address, permanent_address, education_level, institution_name, field_of_study, graduation_date, previous_experience, areas_of_intrest, linkedin_url, github_url, portfolio_url, role, additional_info, phone, emergency_conatct, tech_stack} = data;
-  try {
-    return await db
-      .insert(employeeOnboardingProfile)
-      .values(data as typeof employeeOnboardingProfile.$inferInsert);
-  } catch (err) {
-    throw new AppError(err.cause.sqlMessage, 400);
-  }
+export async function getOnboardProfileById(id: number) {
+  const [profile] = await db
+    .select()
+    .from(employeeOnboardingProfile)
+    .where(eq(employeeOnboardingProfile.id, id)); // filtered by id
+
+  return profile;
 }
 
+export async function saveOnboardProfile(
+  data: Record<string, any>,
+  filename: string,
+) {
+  try {
+    return await db.insert(employeeOnboardingProfile).values({
+      ...data,
+      nda_path: filename,
+    } as typeof employeeOnboardingProfile.$inferInsert);
+  } catch (err) {
+    throw new AppError(
+      err?.cause?.sqlMessage ?? err.message ?? "Failed to save profile",
+      400,
+    );
+  }
+}
 export async function approveOnboardProfile(id: number) {
   return db.transaction(async (tx) => {
     const [profile] = await tx

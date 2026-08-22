@@ -68,7 +68,8 @@ CREATE TABLE IF NOT EXISTS employee_onboarding_profile (
   portfolio_url        VARCHAR(255) NULL,
   role ENUM('intern', 'employee') NOT NULL,
   additional_info TEXT NULL,
-  tech_stack JSON
+  tech_stack JSON,
+  nda_path         VARCHAR(255) NULL
 );
 
 -- INSERT IGNORE INTO employee_onboarding_profile
@@ -126,7 +127,7 @@ ALTER TABLE employees
   DROP FOREIGN KEY fk_employees_created_by,
   DROP FOREIGN KEY fk_employees_updated_by;
 
--- ── Step 12: drop the columns with no place in the new shape ────────────────
+-- ── Step 12: drop the columns with no place in the new shape
 ALTER TABLE employees
   DROP INDEX idx_employees_active_status,
   DROP COLUMN is_active,

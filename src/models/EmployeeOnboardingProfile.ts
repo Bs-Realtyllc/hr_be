@@ -22,6 +22,7 @@ export const employeeOnboardingProfile = mysqlTable('employee_onboarding_profile
   role: mysqlEnum('role', ['intern', 'employee']).notNull(),
   additional_info: text('additional_info'),
   tech_stack: json('tech_stack'),
+  nda_path: varchar('nda_path', { length: 255 })
 });
 
 export type EmployeeOnboardingProfile = typeof employeeOnboardingProfile.$inferSelect;
