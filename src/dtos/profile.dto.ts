@@ -1,29 +1,16 @@
 import { z } from 'zod';
 import AppError from '../pkg/AppError';
 
-const SELF_SERVICE_FIELDS = ['phone', 'alt_phone', 'emergency_contact', 'dob', 'bio', 'address', 'timezone', 'work_hours'] as const;
+const SELF_SERVICE_FIELDS = ['dob', 'address'] as const;
 
 const fieldSchemas = {
-  phone: z.string(),
-  alt_phone: z.string(),
-  emergency_contact: z.string(),
   dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'dob must be a date in YYYY-MM-DD format'),
-  bio: z.string(),
   address: z.string(),
-  timezone: z.string(),
-  work_hours: z.string(),
 } as const;
 
 export interface ProfileUpdateInput {
-  phone?: string | null;
-  alt_phone?: string | null;
-  emergency_contact?: string | null;
   dob?: string | null;
-  bio?: string | null;
   address?: string | null;
-  timezone?: string | null;
-  work_hours?: string | null;
-  qualifications?: string;
 }
 
 export function toUpdateInput(body: unknown): ProfileUpdateInput {
@@ -41,8 +28,5 @@ export function toUpdateInput(body: unknown): ProfileUpdateInput {
       (updates as any)[f] = value;
     }
   });
-  if (b.qualifications !== undefined) {
-    updates.qualifications = JSON.stringify(b.qualifications);
-  }
   return updates;
 }

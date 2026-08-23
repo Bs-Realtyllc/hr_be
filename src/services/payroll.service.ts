@@ -3,29 +3,28 @@ import * as employeeRepo from '../repositories/employee.repository';
 import * as leaveRepo from '../repositories/leave.repository';
 import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
 import * as employeeTaxRepo from '../repositories/employeeTax.repository';
+import AppError from '../pkg/AppError';
 import { estimateAnnualTax, toAnnualSalary } from '../pkg/taxCalculator';
 import { toMonthlySalary, calculateYearEndLeaveBonus } from '../pkg/payrollCalculator';
 
 export function withTaxEstimate(r: any) {
   const annualSalary = toAnnualSalary(r.salary, r.pay_frequency);
-  const exemptions = Number(r.exemptions) || 0;
-  const additionalWithholding = Number(r.additional_withholding) || 0;
-  const filingStatus = r.filing_status || 'single';
-  const taxableIncome = Math.max(annualSalary - exemptions, 0);
-  const estimatedAnnualTax = estimateAnnualTax(taxableIncome, filingStatus) + additionalWithholding;
+  const monthlySalary = toMonthlySalary(r.salary, r.pay_frequency);
+  const estimatedAnnualTax = estimateAnnualTax(annualSalary);
+  const estimatedMonthlyTax = Math.round(estimatedAnnualTax / 12);
+
+  const amount = r.amount != null ? Number(r.amount) : Math.round(monthlySalary);
+  const taxAmount = r.tax_amount != null ? Number(r.tax_amount) : estimatedMonthlyTax;
+  const taxPerc = r.tax_perc != null ? Number(r.tax_perc) : annualSalary > 0 ? Number(((estimatedAnnualTax / annualSalary) * 100).toFixed(1)) : 0;
 
   return {
     ...r,
-    exemptions,
-    additional_withholding: additionalWithholding,
-    filing_status: filingStatus,
-    tax_regime: r.tax_regime || 'new',
-    country: r.country || 'Nepal',
     annual_salary: Math.round(annualSalary),
-    taxable_income: Math.round(taxableIncome),
+    amount,
+    tax_amount: taxAmount,
+    tax_perc: taxPerc,
     estimated_annual_tax: estimatedAnnualTax,
-    estimated_monthly_tax: Math.round(estimatedAnnualTax / 12),
-    effective_rate: annualSalary > 0 ? Number(((estimatedAnnualTax / annualSalary) * 100).toFixed(1)) : 0,
+    estimated_monthly_tax: estimatedMonthlyTax,
   };
 }
 
@@ -42,13 +41,30 @@ export async function resetPassword(id: string, password: string) {
   await employeeRepo.updatePasswordHash(id, hash);
 }
 
-export async function getTaxes(privileged: boolean, userId: number) {
-  const rows = await employeeTaxRepo.findAllWithProfile(privileged ? null : userId);
+export async function getTaxes(privileged: boolean, userId: number, month: number, year: number) {
+  const rows = await employeeTaxRepo.findAllWithProfile(privileged ? null : userId, month, year);
   return rows.map(withTaxEstimate);
 }
 
-export async function updateTaxProfile(id: string, data: any, actorId: number | null) {
-  await employeeTaxRepo.upsertProfile(id, data, actorId);
+export async function updateTaxProfile(
+  id: string,
+  data: { month: number; year: number; amount: number | null; tax_amount: number | null; tax_perc: number | null }
+) {
+  const panNo = await employeeTaxRepo.findPanNoById(id);
+  if (!panNo) {
+    throw new AppError('This employee has no panNo on file — set one before recording a tax profile', 400);
+  }
+
+  let { amount, tax_amount, tax_perc } = data;
+  if (amount == null || tax_amount == null || tax_perc == null) {
+    const base = await employeeRepo.findPayrollBaseById(id);
+    const computed = withTaxEstimate(base || {});
+    amount = amount ?? computed.amount;
+    tax_amount = tax_amount ?? computed.tax_amount;
+    tax_perc = tax_perc ?? computed.tax_perc;
+  }
+
+  await employeeTaxRepo.upsertProfile(panNo, data.month, data.year, { amount, tax_amount, tax_perc });
 }
 
 export async function getAdjustments(
@@ -139,7 +155,7 @@ export async function runYearEndBonus(year: number) {
 
 export async function buildFinancialReport(filterEmployeeId: string | null, year: number, month: number) {
   const [taxRows, totals] = await Promise.all([
-    employeeTaxRepo.findAllWithProfile(filterEmployeeId),
+    employeeTaxRepo.findAllWithProfile(filterEmployeeId, month, year),
     payrollAdjustmentRepo.summaryForPeriod(year, month),
   ]);
   const totalsByEmployee = Object.fromEntries(totals.map((t: any) => [t.employee_id, t]));
@@ -151,7 +167,7 @@ export async function buildFinancialReport(filterEmployeeId: string | null, year
     const baseSalary = toMonthlySalary(r.salary, r.pay_frequency);
     const overtimePay = Number(t.overtime_pay);
     const deductedAmount = Math.abs(Number(t.leave_deduction));
-    const taxAmount = r.estimated_monthly_tax;
+    const taxAmount = r.tax_amount;
     const totalPayable = baseSalary + overtimePay - deductedAmount - taxAmount;
 
     return {

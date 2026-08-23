@@ -1,7 +1,7 @@
 import { eq, and, desc, getTableColumns } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import { db } from '../config/database';
-import { policyAcknowledgements, policies, employeesFlat } from '../models';
+import { policyAcknowledgements, policies, employees } from '../models';
 
 export async function upsertSubmission({ policyId, employeeId, signedFilePath }: any) {
   await db.execute(sql`
@@ -43,11 +43,11 @@ export async function listForPolicy(policyId: number | string) {
   return db
     .select({
       ...getTableColumns(policyAcknowledgements),
-      employee_name: employeesFlat.name,
-      employee_email: employeesFlat.email,
+      employee_name: employees.name,
+      employee_email: employees.email,
     })
     .from(policyAcknowledgements)
-    .innerJoin(employeesFlat, eq(policyAcknowledgements.employee_id, employeesFlat.id))
+    .innerJoin(employees, eq(policyAcknowledgements.employee_id, employees.id))
     .where(eq(policyAcknowledgements.policy_id, Number(policyId)))
     .orderBy(desc(policyAcknowledgements.submitted_at));
 }

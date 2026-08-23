@@ -31,7 +31,6 @@ function imageUpload(folder: string) {
 
 router.get('/', authenticate, ctrl.getProfile);
 router.put('/', authenticate, ctrl.updateProfile);
-router.put('/accept-leave-policy', authenticate, ctrl.acceptLeavePolicy);
 router.post('/photo', authenticate, imageUpload('profile').single('photo'), ctrl.uploadPhoto);
 router.post('/citizenship/:side', authenticate, imageUpload('docs').single('doc'), ctrl.uploadCitizenship);
 

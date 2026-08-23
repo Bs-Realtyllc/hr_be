@@ -3,8 +3,6 @@ import AppError from '../pkg/AppError';
 import { bindAndValidate } from '../pkg/validation';
 
 const PAY_FREQUENCIES = ['monthly', 'biweekly', 'weekly'] as const;
-const FILING_STATUSES = ['single', 'married', 'head_of_household'] as const;
-const TAX_REGIMES = ['old', 'new'] as const;
 
 const salarySchema = z.object({
   salary: z.coerce.number().nonnegative().nullable(),
@@ -33,43 +31,38 @@ export function validatePasswordReset(password: unknown): string {
 }
 
 const taxProfileSchema = z.object({
-  tax_id: z.string().trim().nullable(),
-  country: z.string().trim().min(1),
-  filing_status: z.enum(FILING_STATUSES),
-  tax_regime: z.enum(TAX_REGIMES),
-  exemptions: z.coerce.number().nonnegative(),
-  additional_withholding: z.coerce.number().nonnegative(),
-  notes: z.string().trim().nullable(),
+  month: z.coerce.number().int().min(1).max(12),
+  year: z.coerce.number().int().min(2000).max(2100),
+  amount: z.coerce.number().nonnegative().nullable(),
+  tax_amount: z.coerce.number().nonnegative().nullable(),
+  tax_perc: z.coerce.number().nonnegative().nullable(),
 });
 
 export interface TaxProfileInput {
-  tax_id: string | null;
-  country: string;
-  filing_status: (typeof FILING_STATUSES)[number];
-  tax_regime: (typeof TAX_REGIMES)[number];
-  exemptions: number;
-  additional_withholding: number;
-  notes: string | null;
+  month: number;
+  year: number;
+  amount: number | null;
+  tax_amount: number | null;
+  tax_perc: number | null;
 }
 
 export function toTaxProfileInput(body: unknown): TaxProfileInput {
   const b = body as Record<string, any>;
+  if (b?.month == null || b?.year == null) {
+    throw new AppError('month and year are required', 400);
+  }
   const parsed = bindAndValidate(taxProfileSchema, {
-    tax_id: b?.tax_id || null,
-    country: b?.country || 'Nepal',
-    filing_status: b?.filing_status || 'single',
-    tax_regime: b?.tax_regime || 'new',
-    exemptions: b?.exemptions ?? 0,
-    additional_withholding: b?.additional_withholding ?? 0,
-    notes: b?.notes || null,
+    month: b.month,
+    year: b.year,
+    amount: b?.amount ?? null,
+    tax_amount: b?.tax_amount ?? null,
+    tax_perc: b?.tax_perc ?? null,
   });
   return {
-    tax_id: parsed.tax_id ?? null,
-    country: parsed.country,
-    filing_status: parsed.filing_status,
-    tax_regime: parsed.tax_regime,
-    exemptions: parsed.exemptions,
-    additional_withholding: parsed.additional_withholding,
-    notes: parsed.notes ?? null,
+    month: parsed.month,
+    year: parsed.year,
+    amount: parsed.amount ?? null,
+    tax_amount: parsed.tax_amount ?? null,
+    tax_perc: parsed.tax_perc ?? null,
   };
 }

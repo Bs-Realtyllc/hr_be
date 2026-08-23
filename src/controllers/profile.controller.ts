@@ -15,11 +15,6 @@ export const updateProfile = asyncHandler(async (req: any, res: Response) => {
   res.json({ success: true });
 });
 
-export const acceptLeavePolicy = asyncHandler(async (req: any, res: Response) => {
-  await profileService.acceptLeavePolicy(req.user.id);
-  res.json({ success: true });
-});
-
 export const uploadPhoto = asyncHandler(async (req: any, res: Response) => {
   if (!req.file) throw new AppError('No file uploaded', 400);
   try {

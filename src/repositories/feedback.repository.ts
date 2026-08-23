@@ -1,14 +1,16 @@
 import { eq, and, sql, desc, getTableColumns } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { feedbackNotes, employeesFlat, projects } from '../models';
+import { feedbackNotes, employees, designations, projects } from '../models';
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
 
-const sender = alias(employeesFlat, 'fb_from');
-const recipient = alias(employeesFlat, 'fb_to');
+const sender = alias(employees, 'fb_from');
+const recipient = alias(employees, 'fb_to');
+const senderDesignation = alias(designations, 'fb_from_desig');
+const recipientDesignation = alias(designations, 'fb_to_desig');
 
 export async function findFeed({
   scope,
@@ -29,14 +31,16 @@ export async function findFeed({
     .select({
       ...getTableColumns(feedbackNotes),
       from_name: sender.name,
-      from_designation: sender.designation,
+      from_designation: senderDesignation.title,
       to_name: recipient.name,
-      to_designation: recipient.designation,
+      to_designation: recipientDesignation.title,
       project_name: projects.name,
     })
     .from(feedbackNotes)
     .innerJoin(sender, eq(feedbackNotes.from_employee_id, sender.id))
+    .leftJoin(senderDesignation, eq(sender.designation_id, senderDesignation.id))
     .innerJoin(recipient, eq(feedbackNotes.to_employee_id, recipient.id))
+    .leftJoin(recipientDesignation, eq(recipient.designation_id, recipientDesignation.id))
     .leftJoin(projects, eq(feedbackNotes.project_id, projects.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(feedbackNotes.created_at))
@@ -71,9 +75,9 @@ export async function summaryReceivedByEmployee() {
            COUNT(f.id) AS total_received,
            SUM(f.feedback_type = 'praise') AS praise_count,
            SUM(f.feedback_type = 'constructive') AS constructive_count
-    FROM employees_flat e
+    FROM employees e
     LEFT JOIN feedback_notes f ON f.to_employee_id = e.id
-    WHERE e.is_active = TRUE
+    WHERE e.status NOT IN ('onboarding', 'terminated')
     GROUP BY e.id, e.name
     HAVING total_received > 0
     ORDER BY total_received DESC

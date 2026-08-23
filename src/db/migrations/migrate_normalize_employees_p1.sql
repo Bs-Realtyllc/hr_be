@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS employee_documents (
 -- query keeps working unmodified. designation_id/department_id will become the
 -- "current snapshot" pointers once Phase 3/4 wire up the lookup tables.
 ALTER TABLE employees
-  ADD COLUMN status ENUM('onboarding','active','on_leave','probation','terminated') NOT NULL DEFAULT 'active' AFTER is_active,
+  -- ADD COLUMN status ENUM('onboarding','active','on_leave','probation','terminated') NOT NULL DEFAULT 'active' AFTER is_active,
   ADD COLUMN termination_date DATE NULL AFTER status,
   ADD COLUMN termination_reason VARCHAR(255) NULL AFTER termination_date,
   ADD COLUMN designation_id INT NULL AFTER designation,

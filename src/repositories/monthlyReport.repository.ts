@@ -1,6 +1,6 @@
 import { eq, and, gt, gte, lte, or, sql, desc, getTableColumns } from 'drizzle-orm';
 import { db } from '../config/database';
-import { monthlyReports, employeesFlat } from '../models';
+import { monthlyReports, employees, designations, departments } from '../models';
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
@@ -41,12 +41,14 @@ export async function findWithEmployeeNames({
   return db
     .select({
       ...getTableColumns(monthlyReports),
-      employee_name: employeesFlat.name,
-      designation: employeesFlat.designation,
-      department: employeesFlat.department,
+      employee_name: employees.name,
+      designation: designations.title,
+      department: departments.name,
     })
     .from(monthlyReports)
-    .innerJoin(employeesFlat, eq(monthlyReports.employee_id, employeesFlat.id))
+    .innerJoin(employees, eq(monthlyReports.employee_id, employees.id))
+    .leftJoin(designations, eq(employees.designation_id, designations.id))
+    .leftJoin(departments, eq(employees.department_id, departments.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(monthlyReports.year), desc(monthlyReports.month), desc(monthlyReports.submitted_at));
 }

@@ -8,7 +8,7 @@ async function scalarCount(query: any): Promise<number> {
 }
 
 export async function countActiveEmployees() {
-  return scalarCount(sql`SELECT COUNT(*) as total_active FROM ${employees} WHERE is_active = TRUE`);
+  return scalarCount(sql`SELECT COUNT(*) as total_active FROM ${employees} WHERE status NOT IN ('onboarding', 'terminated')`);
 }
 
 export async function countOnLeaveToday(today: string) {
@@ -22,7 +22,7 @@ export async function countOnLeaveToday(today: string) {
 export async function countNewHiresLast30Days() {
   return scalarCount(sql`
     SELECT COUNT(*) as new_hires FROM ${employees}
-    WHERE is_active = TRUE AND start_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+    WHERE status NOT IN ('onboarding', 'terminated') AND start_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
   `);
 }
 

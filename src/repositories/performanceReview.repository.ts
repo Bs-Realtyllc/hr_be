@@ -1,13 +1,13 @@
 import { eq, and, asc, desc, inArray, getTableColumns } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { performanceReviews, employeesFlat } from '../models';
+import { performanceReviews, employees, designations, departments } from '../models';
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
 
-const reviewer = alias(employeesFlat, 'pr_reviewer');
+const reviewer = alias(employees, 'pr_reviewer');
 
 export async function findWithNames({ employeeId, status }: { employeeId?: number | string; status?: string }) {
   const conditions = [];
@@ -17,13 +17,15 @@ export async function findWithNames({ employeeId, status }: { employeeId?: numbe
   return db
     .select({
       ...getTableColumns(performanceReviews),
-      employee_name: employeesFlat.name,
-      designation: employeesFlat.designation,
-      department: employeesFlat.department,
+      employee_name: employees.name,
+      designation: designations.title,
+      department: departments.name,
       reviewer_name: reviewer.name,
     })
     .from(performanceReviews)
-    .innerJoin(employeesFlat, eq(performanceReviews.employee_id, employeesFlat.id))
+    .innerJoin(employees, eq(performanceReviews.employee_id, employees.id))
+    .leftJoin(designations, eq(employees.designation_id, designations.id))
+    .leftJoin(departments, eq(employees.department_id, departments.id))
     .leftJoin(reviewer, eq(performanceReviews.reviewer_id, reviewer.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(performanceReviews.review_period), desc(performanceReviews.created_at));

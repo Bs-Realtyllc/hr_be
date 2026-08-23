@@ -19,58 +19,58 @@
 -- designation/department current-snapshot values off `employees` directly,
 -- not by re-deriving from job_history on every read).
 
-USE hr_platform;
+-- USE hr_platform;
 
-ALTER TABLE employees
-  ADD CONSTRAINT uq_employees_secondary_email UNIQUE (secondary_email);
+-- ALTER TABLE employees
+--   ADD CONSTRAINT uq_employees_secondary_email UNIQUE (secondary_email);
 
-CREATE OR REPLACE VIEW employees_flat AS
-SELECT
-  e.id,
-  e.name,
-  e.email,
-  e.secondary_email,
-  p.phone,
-  p.alt_phone,
-  p.discord_username,
-  p.emergency_contact,
-  p.dob,
-  p.bio,
-  p.address,
-  doc_pic.filename       AS profile_picture,
-  doc_cf.filename         AS citizenship_front,
-  doc_cb.filename         AS citizenship_back,
-  des.title               AS designation,
-  e.designation_id,
-  dept.name               AS department,
-  e.department_id,
-  e.manager_id,
-  e.start_date,
-  p.timezone,
-  p.work_hours,
-  e.tech_stack,
-  e.qualifications,
-  a.role,
-  a.password_hash,
-  ch.salary,
-  ch.pay_frequency,
-  e.is_active,
-  e.status,
-  e.termination_date,
-  e.termination_reason,
-  e.created_at,
-  p.leave_policy_accepted,
-  p.leave_policy_accepted_at
-FROM employees e
-JOIN employee_auth a           ON a.employee_id = e.id
-LEFT JOIN employee_profile p    ON p.employee_id = e.id
-LEFT JOIN designations des      ON des.id = e.designation_id
-LEFT JOIN departments dept      ON dept.id = e.department_id
-LEFT JOIN employee_compensation_history ch
-       ON ch.employee_id = e.id AND ch.effective_to IS NULL
-LEFT JOIN employee_documents doc_pic
-       ON doc_pic.employee_id = e.id AND doc_pic.doc_type = 'profile_picture' AND doc_pic.is_current = TRUE
-LEFT JOIN employee_documents doc_cf
-       ON doc_cf.employee_id = e.id AND doc_cf.doc_type = 'citizenship_front' AND doc_cf.is_current = TRUE
-LEFT JOIN employee_documents doc_cb
-       ON doc_cb.employee_id = e.id AND doc_cb.doc_type = 'citizenship_back' AND doc_cb.is_current = TRUE;
+-- CREATE OR REPLACE VIEW employees_flat AS
+-- SELECT
+--   e.id,
+--   e.name,
+--   e.email,
+--   e.secondary_email,
+--   p.phone,
+--   p.alt_phone,
+--   p.discord_username,
+--   p.emergency_contact,
+--   p.dob,
+--   p.bio,
+--   p.address,
+--   doc_pic.filename       AS profile_picture,
+--   doc_cf.filename         AS citizenship_front,
+--   doc_cb.filename         AS citizenship_back,
+--   des.title               AS designation,
+--   e.designation_id,
+--   dept.name               AS department,
+--   e.department_id,
+--   e.manager_id,
+--   e.start_date,
+--   p.timezone,
+--   p.work_hours,
+--   e.tech_stack,
+--   e.qualifications,
+--   a.role,
+--   a.password_hash,
+--   ch.salary,
+--   ch.pay_frequency,
+--   e.is_active,
+--   e.status,
+--   e.termination_date,
+--   e.termination_reason,
+--   e.created_at,
+--   p.leave_policy_accepted,
+--   p.leave_policy_accepted_at
+-- FROM employees e
+-- JOIN employee_auth a           ON a.employee_id = e.id
+-- LEFT JOIN employee_profile p    ON p.employee_id = e.id
+-- LEFT JOIN designations des      ON des.id = e.designation_id
+-- LEFT JOIN departments dept      ON dept.id = e.department_id
+-- LEFT JOIN employee_compensation_history ch
+--        ON ch.employee_id = e.id AND ch.effective_to IS NULL
+-- LEFT JOIN employee_documents doc_pic
+--        ON doc_pic.employee_id = e.id AND doc_pic.doc_type = 'profile_picture' AND doc_pic.is_current = TRUE
+-- LEFT JOIN employee_documents doc_cf
+--        ON doc_cf.employee_id = e.id AND doc_cf.doc_type = 'citizenship_front' AND doc_cf.is_current = TRUE
+-- LEFT JOIN employee_documents doc_cb
+--        ON doc_cb.employee_id = e.id AND doc_cb.doc_type = 'citizenship_back' AND doc_cb.is_current = TRUE;

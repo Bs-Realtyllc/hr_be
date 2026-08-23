@@ -1,13 +1,15 @@
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { standups, employeesFlat } from '../models';
+import { standups, employees, designations, employeeDocuments } from '../models';
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
 
-const author = alias(employeesFlat, 'standup_author');
+const author = alias(employees, 'standup_author');
+const authorDesignation = alias(designations, 'standup_author_desig');
+const authorDoc = alias(employeeDocuments, 'standup_author_doc');
 
 export async function findWithNames({
   employeeId,
@@ -39,11 +41,13 @@ export async function findWithNames({
       standup_date: standups.standup_date,
       created_at: standups.created_at,
       employee_name: author.name,
-      designation: author.designation,
-      profile_picture: author.profile_picture,
+      designation: authorDesignation.title,
+      profile_picture: authorDoc.filename,
     })
     .from(standups)
     .innerJoin(author, eq(standups.employee_id, author.id))
+    .leftJoin(authorDesignation, eq(author.designation_id, authorDesignation.id))
+    .leftJoin(authorDoc, and(eq(authorDoc.emp_id, author.id), eq(authorDoc.name, 'profile_picture')))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(standups.standup_date), desc(standups.created_at))
     .limit(200);
@@ -63,11 +67,13 @@ export async function findToday(today: string, employeeId?: number | string) {
       standup_date: standups.standup_date,
       created_at: standups.created_at,
       employee_name: author.name,
-      designation: author.designation,
-      profile_picture: author.profile_picture,
+      designation: authorDesignation.title,
+      profile_picture: authorDoc.filename,
     })
     .from(standups)
     .innerJoin(author, eq(standups.employee_id, author.id))
+    .leftJoin(authorDesignation, eq(author.designation_id, authorDesignation.id))
+    .leftJoin(authorDoc, and(eq(authorDoc.emp_id, author.id), eq(authorDoc.name, 'profile_picture')))
     .where(and(...conditions))
     .orderBy(desc(standups.created_at));
 }

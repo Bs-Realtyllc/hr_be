@@ -1,6 +1,6 @@
 import { eq, and, sql, desc, getTableColumns } from 'drizzle-orm';
 import { db } from '../config/database';
-import { payrollAdjustments, employeesFlat } from '../models';
+import { payrollAdjustments, employees, designations } from '../models';
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
@@ -63,11 +63,12 @@ export async function findAll({
   return db
     .select({
       ...getTableColumns(payrollAdjustments),
-      employee_name: employeesFlat.name,
-      designation: employeesFlat.designation,
+      employee_name: employees.name,
+      designation: designations.title,
     })
     .from(payrollAdjustments)
-    .innerJoin(employeesFlat, eq(payrollAdjustments.employee_id, employeesFlat.id))
+    .innerJoin(employees, eq(payrollAdjustments.employee_id, employees.id))
+    .leftJoin(designations, eq(employees.designation_id, designations.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(payrollAdjustments.created_at));
 }

@@ -1,4 +1,4 @@
-import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerJsdoc from "swagger-jsdoc";
 
 const options = {
   definition: {
@@ -71,6 +71,14 @@ const options = {
         name: "Webhooks",
         description: "Generic inbound webhook endpoint for external services",
       },
+      {
+        name: "FormLayout",
+        description: "Dynamic onboarding form field configuration",
+      },
+      {
+        name: "Onboard",
+        description: "Public onboarding applications and contract review",
+      },
     ],
     components: {
       securitySchemes: {
@@ -127,7 +135,13 @@ const options = {
             is_active: { type: "boolean" },
             status: {
               type: "string",
-              enum: ["onboarding", "active", "on_leave", "probation", "terminated"],
+              enum: [
+                "onboarding",
+                "active",
+                "on_leave",
+                "probation",
+                "terminated",
+              ],
             },
             gender: {
               type: "string",
@@ -990,6 +1004,52 @@ const options = {
               description: "Left unchanged if omitted/blank on update",
             },
             notes: { type: "string" },
+          },
+        },
+        FormLayoutField: {
+          type: "object",
+          properties: {
+            key: { type: "string", example: "email" },
+            type: { type: "string", example: "text" },
+            label: { type: "string", example: "Email Address" },
+            section: { type: "string", example: "personal" },
+            required: { type: "boolean" },
+          },
+        },
+        FormLayoutResponse: {
+          type: "object",
+          description: "Fields grouped by section key",
+          additionalProperties: {
+            type: "array",
+            items: { $ref: "#/components/schemas/FormLayoutField" },
+          },
+        },
+        OnboardProfile: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            name: { type: "string" },
+            dob: { type: "string", format: "date", nullable: true },
+            gender: { type: "string", nullable: true },
+            email: { type: "string", format: "email" },
+            current_address: { type: "string", nullable: true },
+            education_level: { type: "string", nullable: true },
+            institution_name: { type: "string", nullable: true },
+            field_of_study: { type: "string", nullable: true },
+            graduation_date: { type: "string", format: "date", nullable: true },
+            previous_experience: { type: "string", nullable: true },
+            areas_of_interest: { type: "string", nullable: true },
+            linkedin_url: { type: "string", nullable: true },
+            github_url: { type: "string", nullable: true },
+            portfolio_url: { type: "string", nullable: true },
+            role: { type: "string", enum: ["intern", "employee"] },
+            additional_info: { type: "string", nullable: true },
+            nda_path: {
+              type: "string",
+              nullable: true,
+              description: "Stored filename of the uploaded signed contract",
+            },
+            status: { type: "string", nullable: true },
           },
         },
 
@@ -4368,12 +4428,240 @@ const options = {
         get: {
           tags: ["Webhooks"],
           summary: "Endpoint for n8n workflow to call on month end.",
-          description:
-            "Endpoint for n8n workflow to call on month end.",
+          description: "Endpoint for n8n workflow to call on month end.",
           responses: {
             200: { description: "sucessfully send data to n8n webhook" },
             502: { description: "n8n webhook returned an error" },
             503: { description: "Error in sending request to n8n workflow" },
+          },
+        },
+      },
+      "/api/form-layout": {
+        get: {
+          tags: ["FormLayout"],
+          summary: "Get the onboarding form layout",
+          parameters: [
+            {
+              name: "type",
+              in: "query",
+              schema: { type: "string", enum: ["intern", "employee"] },
+              description: "Which onboarding form layout to fetch",
+            },
+          ],
+          responses: {
+            200: {
+              description: "Form layout grouped by section",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/FormLayoutResponse" },
+                },
+              },
+            },
+          },
+        },
+        post: {
+          tags: ["FormLayout"],
+          summary: "Set the onboarding form layout",
+          description: "Admin/lead only.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/FormLayoutResponse" },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Layout saved",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Success" },
+                },
+              },
+            },
+            403: {
+              description: "Insufficient permissions",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/api/onboard": {
+        get: {
+          tags: ["Onboard"],
+          summary: "List onboarding profiles",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "type",
+              in: "query",
+              schema: { type: "string", enum: ["all", "intern", "employee"] },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Array of onboarding profiles",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/OnboardProfile" },
+                  },
+                },
+              },
+            },
+          },
+        },
+        post: {
+          tags: ["Onboard"],
+          summary: "Submit an onboarding application with signed contract",
+          description:
+            "Public endpoint. Multipart upload — accepts .pdf/.doc/.docx up to 10 MB.",
+          requestBody: {
+            required: true,
+            content: {
+              "multipart/form-data": {
+                schema: {
+                  type: "object",
+                  required: ["payload", "contract"],
+                  properties: {
+                    payload: {
+                      type: "string",
+                      description: "JSON-stringified onboarding form fields",
+                    },
+                    contract: { type: "string", format: "binary" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description: "Onboarding data added successfully",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/MessageResponse" },
+                },
+              },
+            },
+            400: {
+              description: "Missing contract or validation error",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/onboard/{id}/approve": {
+        patch: {
+          tags: ["Onboard"],
+          summary: "Approve an onboarding profile",
+          description: "Lead/admin only.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Approved",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Success" },
+                },
+              },
+            },
+            403: {
+              description: "Insufficient permissions",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: { description: "Not found" },
+          },
+        },
+      },
+      "/api/onboard/{id}": {
+        delete: {
+          tags: ["Onboard"],
+          summary: "Disapprove/remove an onboarding profile",
+          description: "Lead/admin only.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Removed",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Success" },
+                },
+              },
+            },
+            403: {
+              description: "Insufficient permissions",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: { description: "Not found" },
+          },
+        },
+      },
+      "/api/onboard/{id}/contract": {
+        get: {
+          tags: ["Onboard"],
+          summary: "View the uploaded contract file for an onboarding profile",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Contract file stream",
+              content: {
+                "application/pdf": {
+                  schema: { type: "string", format: "binary" },
+                },
+              },
+            },
+            404: {
+              description: "Contract not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
           },
         },
       },

@@ -1,14 +1,17 @@
 import { eq, and, sql, desc, getTableColumns } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { leaveRequests, leaveBalances, employeesFlat } from '../models';
+import { leaveRequests, leaveBalances, employees, designations, departments, employeeDocuments } from '../models';
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
 
-const requester = alias(employeesFlat, 'lr_employee');
-const reviewer = alias(employeesFlat, 'lr_reviewer');
+const requester = alias(employees, 'lr_employee');
+const reviewer = alias(employees, 'lr_reviewer');
+const requesterDesignation = alias(designations, 'lr_employee_desig');
+const requesterDepartment = alias(departments, 'lr_employee_dept');
+const requesterDoc = alias(employeeDocuments, 'lr_employee_doc');
 
 export async function findAllLeaveRequests() {
   return db.select().from(leaveRequests);
@@ -23,11 +26,12 @@ export async function findWithNames({ employeeId, status }: { employeeId?: numbe
     .select({
       ...getTableColumns(leaveRequests),
       employee_name: requester.name,
-      designation: requester.designation,
+      designation: requesterDesignation.title,
       reviewer_name: reviewer.name,
     })
     .from(leaveRequests)
     .innerJoin(requester, eq(leaveRequests.employee_id, requester.id))
+    .leftJoin(requesterDesignation, eq(requester.designation_id, requesterDesignation.id))
     .leftJoin(reviewer, eq(leaveRequests.reviewed_by, reviewer.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(leaveRequests.created_at));
@@ -62,9 +66,9 @@ export async function findBalanceTotalsForYear(year: number) {
     SELECT e.id AS employee_id, e.name AS employee_name,
            COALESCE(SUM(lb.total), 0) AS total_leaves,
            COALESCE(SUM(lb.taken), 0) AS total_taken
-    FROM employees_flat e
+    FROM employees e
     LEFT JOIN leave_balances lb ON lb.employee_id = e.id AND lb.year = ${year}
-    WHERE e.is_active = TRUE
+    WHERE e.status NOT IN ('onboarding', 'terminated')
     GROUP BY e.id, e.name
     ORDER BY e.name
   `);
@@ -88,13 +92,15 @@ export async function findOutToday(today: string) {
   return db
     .select({
       name: requester.name,
-      designation: requester.designation,
-      profile_picture: requester.profile_picture,
+      designation: requesterDesignation.title,
+      profile_picture: requesterDoc.filename,
       leave_type: leaveRequests.leave_type,
       end_date: leaveRequests.end_date,
     })
     .from(leaveRequests)
     .innerJoin(requester, eq(leaveRequests.employee_id, requester.id))
+    .leftJoin(requesterDesignation, eq(requester.designation_id, requesterDesignation.id))
+    .leftJoin(requesterDoc, and(eq(requesterDoc.emp_id, requester.id), eq(requesterDoc.name, 'profile_picture')))
     .where(and(eq(leaveRequests.status, 'approved'), sql`${today} BETWEEN ${leaveRequests.start_date} AND ${leaveRequests.end_date}`));
 }
 
@@ -102,13 +108,14 @@ export async function findOutInRange(rangeStart: string, rangeEnd: string) {
   return db
     .select({
       name: requester.name,
-      designation: requester.designation,
+      designation: requesterDesignation.title,
       leave_type: leaveRequests.leave_type,
       start_date: leaveRequests.start_date,
       end_date: leaveRequests.end_date,
     })
     .from(leaveRequests)
     .innerJoin(requester, eq(leaveRequests.employee_id, requester.id))
+    .leftJoin(requesterDesignation, eq(requester.designation_id, requesterDesignation.id))
     .where(
       and(
         eq(leaveRequests.status, 'approved'),
@@ -145,11 +152,13 @@ export async function findWithEmployeeById(id: number | string) {
     .select({
       ...getTableColumns(leaveRequests),
       employee_name: requester.name,
-      designation: requester.designation,
-      department: requester.department,
+      designation: requesterDesignation.title,
+      department: requesterDepartment.name,
     })
     .from(leaveRequests)
     .innerJoin(requester, eq(leaveRequests.employee_id, requester.id))
+    .leftJoin(requesterDesignation, eq(requester.designation_id, requesterDesignation.id))
+    .leftJoin(requesterDepartment, eq(requester.department_id, requesterDepartment.id))
     .where(eq(leaveRequests.id, Number(id)))
     .limit(1);
   return rows[0] || null;

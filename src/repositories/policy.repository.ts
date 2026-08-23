@@ -1,6 +1,6 @@
 import { eq, and, desc, asc, getTableColumns } from 'drizzle-orm';
 import { db } from '../config/database';
-import { policies, employeesFlat } from '../models';
+import { policies, employees } from '../models';
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
@@ -41,10 +41,10 @@ export async function listActive(category?: string) {
   return db
     .select({
       ...getTableColumns(policies),
-      uploaded_by_name: employeesFlat.name,
+      uploaded_by_name: employees.name,
     })
     .from(policies)
-    .leftJoin(employeesFlat, eq(policies.uploaded_by, employeesFlat.id))
+    .leftJoin(employees, eq(policies.uploaded_by, employees.id))
     .where(and(...conditions))
     .orderBy(desc(policies.is_pinned), asc(policies.type), desc(policies.version));
 }
