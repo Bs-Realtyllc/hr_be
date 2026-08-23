@@ -22,6 +22,8 @@ import goalRoutes from './goal.routes';
 import performanceRoutes from './performance.routes';
 import feedbackRoutes from './feedback.routes';
 import policyRoutes from './policy.routes';
+import formLayoutRoutes from './formLayout.routes'
+import onboardRoutes from './onboard.routes'
 
 const modules: Array<{ path: string; router: Router }> = [
   { path: '/auth', router: authRoutes },
@@ -47,6 +49,9 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/performance', router: performanceRoutes },
   { path: '/feedback', router: feedbackRoutes },
   { path: '/policies', router: policyRoutes },
+  { path: '/form-layout', router: formLayoutRoutes},
+  { path: '/onboard', router: onboardRoutes}
+
 ];
 
 const router = Router();

@@ -4,84 +4,84 @@
 
 USE hr_platform;
 
-ALTER TABLE employee_profile
-  ADD COLUMN gender ENUM('male','female','other','prefer_not_to_say') NULL AFTER dob,
-  ADD COLUMN permanent_address TEXT NULL AFTER address,
-  ADD COLUMN education_level VARCHAR(100) NULL,
-  ADD COLUMN institution_name VARCHAR(150) NULL,
-  ADD COLUMN field_of_study VARCHAR(150) NULL,
-  ADD COLUMN graduation_date DATE NULL,
-  ADD COLUMN previous_experience TEXT NULL,
-  ADD COLUMN areas_of_interest TEXT NULL,
-  ADD COLUMN linkedin_url VARCHAR(255) NULL,
-  ADD COLUMN github_url VARCHAR(255) NULL,
-  ADD COLUMN portfolio_url VARCHAR(255) NULL,
-  ADD COLUMN emergency_contact_name VARCHAR(150) NULL;
+-- ALTER TABLE employee_profile
+--   ADD COLUMN gender ENUM('male','female','other','prefer_not_to_say') NULL AFTER dob,
+--   ADD COLUMN permanent_address TEXT NULL AFTER address,
+--   ADD COLUMN education_level VARCHAR(100) NULL,
+--   ADD COLUMN institution_name VARCHAR(150) NULL,
+--   ADD COLUMN field_of_study VARCHAR(150) NULL,
+--   ADD COLUMN graduation_date DATE NULL,
+--   ADD COLUMN previous_experience TEXT NULL,
+--   ADD COLUMN areas_of_interest TEXT NULL,
+--   ADD COLUMN linkedin_url VARCHAR(255) NULL,
+--   ADD COLUMN github_url VARCHAR(255) NULL,
+--   ADD COLUMN portfolio_url VARCHAR(255) NULL,
+--   ADD COLUMN emergency_contact_name VARCHAR(150) NULL;
 
-ALTER TABLE employee_auth
-  MODIFY COLUMN role ENUM('admin','lead','employee','intern') NOT NULL DEFAULT 'employee';
+-- ALTER TABLE employee_auth
+--   MODIFY COLUMN role ENUM('admin','lead','employee','intern') NOT NULL DEFAULT 'employee';
 
 -- Re-issue of the employees_flat view (migrate_normalize_employees_p2.sql) with the
 -- new employee_profile columns spliced into the SELECT list; every join/filter is unchanged.
-CREATE OR REPLACE VIEW employees_flat AS
-SELECT
-  e.id,
-  e.name,
-  e.email,
-  e.secondary_email,
-  p.phone,
-  p.alt_phone,
-  p.discord_username,
-  p.emergency_contact,
-  p.emergency_contact_name,
-  p.dob,
-  p.gender,
-  p.bio,
-  p.address,
-  p.permanent_address,
-  p.education_level,
-  p.institution_name,
-  p.field_of_study,
-  p.graduation_date,
-  p.previous_experience,
-  p.areas_of_interest,
-  p.linkedin_url,
-  p.github_url,
-  p.portfolio_url,
-  doc_pic.filename       AS profile_picture,
-  doc_cf.filename         AS citizenship_front,
-  doc_cb.filename         AS citizenship_back,
-  des.title               AS designation,
-  e.designation_id,
-  dept.name               AS department,
-  e.department_id,
-  e.manager_id,
-  e.start_date,
-  p.timezone,
-  p.work_hours,
-  e.tech_stack,
-  e.qualifications,
-  a.role,
-  a.password_hash,
-  ch.salary,
-  ch.pay_frequency,
-  e.is_active,
-  e.status,
-  e.termination_date,
-  e.termination_reason,
-  e.created_at,
-  p.leave_policy_accepted,
-  p.leave_policy_accepted_at
-FROM employees e
-JOIN employee_auth a           ON a.employee_id = e.id
-LEFT JOIN employee_profile p    ON p.employee_id = e.id
-LEFT JOIN designations des      ON des.id = e.designation_id
-LEFT JOIN departments dept      ON dept.id = e.department_id
-LEFT JOIN employee_compensation_history ch
-       ON ch.employee_id = e.id AND ch.effective_to IS NULL
-LEFT JOIN employee_documents doc_pic
-       ON doc_pic.employee_id = e.id AND doc_pic.doc_type = 'profile_picture' AND doc_pic.is_current = TRUE
-LEFT JOIN employee_documents doc_cf
-       ON doc_cf.employee_id = e.id AND doc_cf.doc_type = 'citizenship_front' AND doc_cf.is_current = TRUE
-LEFT JOIN employee_documents doc_cb
-       ON doc_cb.employee_id = e.id AND doc_cb.doc_type = 'citizenship_back' AND doc_cb.is_current = TRUE;
+-- CREATE OR REPLACE VIEW employees_flat AS
+-- SELECT
+--   e.id,
+--   e.name,
+--   e.email,
+--   e.secondary_email,
+--   p.phone,
+--   p.alt_phone,
+--   p.discord_username,
+--   p.emergency_contact,
+--   p.emergency_contact_name,
+--   p.dob,
+--   p.gender,
+--   p.bio,
+--   p.address,
+--   p.permanent_address,
+--   p.education_level,
+--   p.institution_name,
+--   p.field_of_study,
+--   p.graduation_date,
+--   p.previous_experience,
+--   p.areas_of_interest,
+--   p.linkedin_url,
+--   p.github_url,
+--   p.portfolio_url,
+--   doc_pic.filename       AS profile_picture,
+--   doc_cf.filename         AS citizenship_front,
+--   doc_cb.filename         AS citizenship_back,
+--   des.title               AS designation,
+--   e.designation_id,
+--   dept.name               AS department,
+--   e.department_id,
+--   e.manager_id,
+--   e.start_date,
+--   p.timezone,
+--   p.work_hours,
+--   e.tech_stack,
+--   e.qualifications,
+--   a.role,
+--   a.password_hash,
+--   ch.salary,
+--   ch.pay_frequency,
+--   e.is_active,
+--   e.status,
+--   e.termination_date,
+--   e.termination_reason,
+--   e.created_at,
+--   p.leave_policy_accepted,
+--   p.leave_policy_accepted_at
+-- FROM employees e
+-- JOIN employee_auth a           ON a.employee_id = e.id
+-- LEFT JOIN employee_profile p    ON p.employee_id = e.id
+-- LEFT JOIN designations des      ON des.id = e.designation_id
+-- LEFT JOIN departments dept      ON dept.id = e.department_id
+-- LEFT JOIN employee_compensation_history ch
+--        ON ch.employee_id = e.id AND ch.effective_to IS NULL
+-- LEFT JOIN employee_documents doc_pic
+--        ON doc_pic.employee_id = e.id AND doc_pic.doc_type = 'profile_picture' AND doc_pic.is_current = TRUE
+-- LEFT JOIN employee_documents doc_cf
+--        ON doc_cf.employee_id = e.id AND doc_cf.doc_type = 'citizenship_front' AND doc_cf.is_current = TRUE
+-- LEFT JOIN employee_documents doc_cb
+--        ON doc_cb.employee_id = e.id AND doc_cb.doc_type = 'citizenship_back' AND doc_cb.is_current = TRUE;
