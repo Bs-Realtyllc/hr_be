@@ -2,7 +2,7 @@ import { z } from 'zod';
 import AppError from '../pkg/AppError';
 import { bindAndValidate } from '../pkg/validation';
 
-const ALLOWED_DOMAINS = ['bsrealtyllc.com', 'gitgi.com'];
+const ALLOWED_DOMAINS = ['bsrealtyllc.com', 'gitgi.com', 'gmail.com'];
 
 export interface LoginInput {
   email: string;
@@ -73,3 +73,18 @@ export function toLoginResponse(employee: UserSummary & { password_hash: string 
   const { password_hash, ...user } = employee;
   return user;
 }
+
+export interface VerifyOtpInput {
+  code: string;
+  tempToken: string;
+}
+
+const verifyOtpSchema = z.object({
+  code: z.string().length(6, 'OTP must be exactly 6 digits'),
+  tempToken: z.string().min(1, 'Temporary token is required'),
+});
+
+export function toVerifyOtpInput(body: unknown): VerifyOtpInput {
+  return bindAndValidate(verifyOtpSchema, body, 'OTP and temporary token are required');
+}
+

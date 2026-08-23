@@ -5,9 +5,16 @@ import asyncHandler from '../middleware/asyncHandler';
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const input = authDto.toLoginInput(req.body);
-  const result = await authService.login(input);
+  const result = await authService.login(input, req.ip);
   res.json(result);
 });
+
+export const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
+  const input = authDto.toVerifyOtpInput(req.body);
+  const result = await authService.verifyOtp({ ...input, ip: req.ip || 'unknown' });
+  res.json(result);
+});
+
 
 export const changePassword = asyncHandler(async (req: any, res: Response) => {
   const input = authDto.toChangePasswordInput(req.body);
