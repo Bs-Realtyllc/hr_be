@@ -7,7 +7,10 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY index.ts ./
 COPY src ./src
-RUN npm run build
+RUN npm run build \
+ && cp src/db/*.sql dist/src/db/ \
+ && mkdir -p dist/src/db/migrations \
+ && cp src/db/migrations/*.sql dist/src/db/migrations/
 
 
 FROM node:20-alpine
