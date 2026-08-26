@@ -55,17 +55,17 @@ SET designation_id = (SELECT id FROM designations WHERE title = 'Engineering Lea
     tech_stack     = '["Node.js","React","MySQL","Docker"]'
 WHERE id = 1;
 
-INSERT INTO employee_auth (employee_id, password_hash, role) VALUES
-  (1, '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'admin')
-ON DUPLICATE KEY UPDATE
-  password_hash = VALUES(password_hash),
-  role           = VALUES(role);
+-- INSERT INTO employee_auth (employee_id, password_hash, role) VALUES
+--   (1, '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'admin')
+-- ON DUPLICATE KEY UPDATE
+--   password_hash = VALUES(password_hash),
+--   role           = VALUES(role);
 
-INSERT INTO employee_profile (employee_id, timezone, work_hours) VALUES
-  (1, 'Asia/Kathmandu', '9 AM - 6 PM')
-ON DUPLICATE KEY UPDATE
-  timezone   = VALUES(timezone),
-  work_hours = VALUES(work_hours);
+-- INSERT INTO employee_profile (employee_id, timezone, work_hours) VALUES
+--   (1, 'Asia/Kathmandu', '9 AM - 6 PM')
+-- ON DUPLICATE KEY UPDATE
+--   timezone   = VALUES(timezone),
+--   work_hours = VALUES(work_hours);
 
 INSERT INTO employees
   (id, name, email, manager_id, start_date, tech_stack, designation_id, department_id, is_active)
@@ -106,33 +106,33 @@ ON DUPLICATE KEY UPDATE
   department_id  = VALUES(department_id),
   is_active      = VALUES(is_active);
 
-INSERT INTO employee_auth (employee_id, password_hash, role) VALUES
-  (2,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'lead'),
-  (3,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
-  (4,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
-  (5,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
-  (6,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'lead'),
-  (7,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
-  (8,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'lead'),
-  (9,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'admin'),
-  (10, '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee')
-ON DUPLICATE KEY UPDATE
-  password_hash = VALUES(password_hash),
-  role           = VALUES(role);
+-- INSERT INTO employee_auth (employee_id, password_hash, role) VALUES
+--   (2,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'lead'),
+--   (3,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
+--   (4,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
+--   (5,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
+--   (6,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'lead'),
+--   (7,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee'),
+--   (8,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'lead'),
+--   (9,  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'admin'),
+--   (10, '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uSC5L.B4e', 'employee')
+-- ON DUPLICATE KEY UPDATE
+--   password_hash = VALUES(password_hash),
+--   role           = VALUES(role);
 
-INSERT INTO employee_profile (employee_id, timezone, work_hours) VALUES
-  (2,  'Asia/Kathmandu', '9 AM - 6 PM'),
-  (3,  'Asia/Kathmandu', '9 AM - 6 PM'),
-  (4,  'Asia/Kathmandu', '9 AM - 6 PM'),
-  (5,  'Asia/Kathmandu', '9 AM - 6 PM'),
-  (6,  'Asia/Kathmandu', '10 AM - 7 PM'),
-  (7,  'Asia/Kathmandu', '10 AM - 7 PM'),
-  (8,  'Asia/Kathmandu', '9 AM - 6 PM'),
-  (9,  'Asia/Kathmandu', '9 AM - 5 PM'),
-  (10, 'Asia/Kathmandu', '9 AM - 5 PM')
-ON DUPLICATE KEY UPDATE
-  timezone   = VALUES(timezone),
-  work_hours = VALUES(work_hours);
+-- INSERT INTO employee_profile (employee_id, timezone, work_hours) VALUES
+--   (2,  'Asia/Kathmandu', '9 AM - 6 PM'),
+--   (3,  'Asia/Kathmandu', '9 AM - 6 PM'),
+--   (4,  'Asia/Kathmandu', '9 AM - 6 PM'),
+--   (5,  'Asia/Kathmandu', '9 AM - 6 PM'),
+--   (6,  'Asia/Kathmandu', '10 AM - 7 PM'),
+--   (7,  'Asia/Kathmandu', '10 AM - 7 PM'),
+--   (8,  'Asia/Kathmandu', '9 AM - 6 PM'),
+--   (9,  'Asia/Kathmandu', '9 AM - 5 PM'),
+--   (10, 'Asia/Kathmandu', '9 AM - 5 PM')
+-- ON DUPLICATE KEY UPDATE
+--   timezone   = VALUES(timezone),
+--   work_hours = VALUES(work_hours);
 
 INSERT INTO employee_compensation_history (employee_id, salary, pay_frequency, effective_from, change_reason) VALUES
   (1,  4500.00, 'monthly', '2023-01-15', 'seed'),
@@ -485,6 +485,68 @@ VALUES
 
 ON DUPLICATE KEY UPDATE title = VALUES(title);
 
+
+-- ─────────────────────────────────────────────────────────────
+-- 9. PAYROLL ADJUSTMENTS
+-- ─────────────────────────────────────────────────────────────
+
+INSERT INTO payroll_adjustments
+  (employee_id, type, title, amount, year, month, reference_type, reference_id, notes)
+VALUES
+  (3, 'overtime_pay',    'Overtime - Sprint Deadline',       150.00, 2026, 7, 'overtime_request', 1, 'Extra hours logged for release crunch'),
+  (4, 'overtime_pay',    'Overtime - Weekend Deployment',    200.00, 2026, 8, 'overtime_request', 2, 'Approved weekend deployment support'),
+  (6, 'leave_deduction', 'Unpaid Leave Deduction',           -80.00, 2026, 7, 'leave_request',    1, 'Exceeded allotted leave days'),
+  (7, 'leave_deduction', 'Unpaid Leave Deduction',           -50.00, 2026, 8, 'leave_request',    2, 'Half-day unpaid leave adjustment'),
+  (5, 'leave_bonus',     'Unused Leave Encashment',          120.00, 2026, 6, 'leave_request',    3, 'Year-end unused leave payout'),
+  (8, 'leave_bonus',     'Unused Leave Encashment',           90.00, 2026, 6, 'leave_request',    4, 'Year-end unused leave payout'),
+  (9, 'overtime_pay',    'Overtime - Month-End Payroll Run', 175.00, 2026, 8, 'overtime_request', 3, 'Manual OT approval by manager'),
+  (10, 'leave_deduction','Unpaid Leave Deduction',           -40.00, 2026, 8, 'leave_request',    5, 'Single unplanned leave day');
+
+-- ─────────────────────────────────────────────────────────────
+-- 10. PERFORMANCE REVIEWS
+-- ─────────────────────────────────────────────────────────────
+INSERT INTO performance_reviews
+  (employee_id, reviewer_id, review_period, overall_rating, category_ratings, strengths, improvements, manager_comments, employee_comments, status, submitted_at, acknowledged_at)
+VALUES
+  (3, 1, '2026-H1', 4.2,
+    JSON_OBJECT('communication', 4, 'technical_skills', 5, 'teamwork', 4, 'punctuality', 4),
+    'Strong frontend skills, delivers clean and maintainable code.',
+    'Could improve on documentation and estimation accuracy.',
+    'Rohan has been a reliable contributor this half, especially on the UI revamp.',
+    'Thank you for the feedback, will focus more on documentation.',
+    'acknowledged', '2026-07-05 10:00:00', '2026-07-06 09:30:00'),
+
+  (4, 1, '2026-H1', 3.8,
+    JSON_OBJECT('communication', 4, 'technical_skills', 4, 'teamwork', 4, 'punctuality', 3),
+    'Good backend problem-solving and API design.',
+    'Needs to improve deadline adherence.',
+    'Ankit delivers solid work but occasionally misses sprint deadlines.',
+    NULL,
+    'submitted', '2026-07-04 15:20:00', NULL),
+
+  (5, 1, '2026-H1', 4.5,
+    JSON_OBJECT('communication', 5, 'technical_skills', 5, 'teamwork', 4, 'punctuality', 4),
+    'Excellent DevOps ownership, proactive in improving CI/CD pipelines.',
+    'Could mentor juniors more actively.',
+    'Sara has significantly improved deployment reliability this half.',
+    'Glad the infra improvements are being recognized.',
+    'acknowledged', '2026-07-03 11:00:00', '2026-07-04 08:15:00'),
+
+  (7, 6, '2026-H1', 3.9,
+    JSON_OBJECT('communication', 4, 'technical_skills', 4, 'teamwork', 4, 'punctuality', 3),
+    'Creative motion design work, good collaboration with product team.',
+    'Time management on multiple concurrent projects.',
+    'Bikash brings strong creative input to every project.',
+    NULL,
+    'submitted', '2026-07-02 14:00:00', NULL),
+
+  (10, 9, '2026-H1', 4.0,
+    JSON_OBJECT('communication', 4, 'technical_skills', 3, 'teamwork', 5, 'punctuality', 4),
+    'Very dependable, excellent vendor coordination.',
+    'Could develop more process automation skills.',
+    'Dipesh consistently keeps vendor relationships smooth and issues resolved quickly.',
+    NULL,
+    'draft', NULL, NULL);
 
 -- ─────────────────────────────────────────────────────────────
 --  VERIFY

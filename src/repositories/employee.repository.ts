@@ -5,7 +5,6 @@ import {
   employees,
   employeeCompensationHistory,
   employeeDocuments,
-  employeeOnboardingProfile,
   departments,
   designations,
 } from '../models';
@@ -136,16 +135,16 @@ export async function findAuthByEmail(email: string) {
 export async function findAuthById(id: number) {
   const rows = await db
     .select({
-      id: employeesFlat.id,
-      name: employeesFlat.name,
-      email: employeesFlat.email,
-      role: employeesFlat.role,
-      designation: employeesFlat.designation,
-      department: employeesFlat.department,
-      password_hash: employeesFlat.password_hash,
+      id: employees.id,
+      name: employees.name,
+      email: employees.email,
+      role: employees.role,
+      designation: employees.designation,
+      department: employees.department,
+      password_hash: employees.password_hash,
     })
-    .from(employeesFlat)
-    .where(and(eq(employeesFlat.id, id), eq(employeesFlat.is_active, true)))
+    .from(employees)
+    .where(and(eq(employees.id, id), eq(employees.is_active, true)))
     .limit(1);
   return rows[0] || null;
 }
