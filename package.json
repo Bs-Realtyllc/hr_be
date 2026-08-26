@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp src/db/*.sql dist/src/db/ && mkdir -p dist/src/db/migrations && cp src/db/migrations/*.sql dist/src/db/migrations/",
     "start": "node dist/index.js",
     "dev": "tsx watch index.ts",
     "migrate": "node dist/src/db/migrate.js",
