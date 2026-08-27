@@ -139,12 +139,14 @@ export async function findAuthById(id: number) {
       name: employees.name,
       email: employees.email,
       role: employees.role,
-      designation: employees.designation,
-      department: employees.department,
+      designation: designations.title,
+      department: departments.name,
       password_hash: employees.password_hash,
     })
     .from(employees)
-    .where(and(eq(employees.id, id), eq(employees.is_active, true)))
+    .leftJoin(designations, eq(employees.designation_id, designations.id))
+    .leftJoin(departments, eq(employees.department_id, departments.id))
+    .where(and(eq(employees.id, id), ACTIVE_ROSTER))
     .limit(1);
   return rows[0] || null;
 }
