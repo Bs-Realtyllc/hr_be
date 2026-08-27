@@ -138,13 +138,29 @@ CREATE TABLE IF NOT EXISTS employee_documents (
 -- is_active is kept as-is (not dropped) so every existing `WHERE is_active = TRUE`
 -- query keeps working unmodified. designation_id/department_id will become the
 -- "current snapshot" pointers once Phase 3/4 wire up the lookup tables.
+-- Split into independent statements (rather than one multi-clause ALTER) so
+-- each column/constraint is idempotent via migrate.js's ER_DUP_FIELDNAME
+-- skip-logic on its own — schema.sql now also creates `status` inline for
+-- fresh installs, so this file must tolerate it already existing.
 ALTER TABLE employees
-  -- ADD COLUMN status ENUM('onboarding','active','on_leave','probation','terminated') NOT NULL DEFAULT 'active' AFTER is_active,
-  ADD COLUMN termination_date DATE NULL AFTER status,
-  ADD COLUMN termination_reason VARCHAR(255) NULL AFTER termination_date,
-  ADD COLUMN designation_id INT NULL AFTER designation,
-  ADD COLUMN department_id INT NULL AFTER department,
-  ADD CONSTRAINT fk_employees_designation FOREIGN KEY (designation_id) REFERENCES designations(id) ON DELETE SET NULL,
+  ADD COLUMN status ENUM('onboarding','active','on_leave','probation','terminated') NOT NULL DEFAULT 'active' AFTER is_active;
+
+ALTER TABLE employees
+  ADD COLUMN termination_date DATE NULL AFTER status;
+
+ALTER TABLE employees
+  ADD COLUMN termination_reason VARCHAR(255) NULL AFTER termination_date;
+
+ALTER TABLE employees
+  ADD COLUMN designation_id INT NULL AFTER designation;
+
+ALTER TABLE employees
+  ADD COLUMN department_id INT NULL AFTER department;
+
+ALTER TABLE employees
+  ADD CONSTRAINT fk_employees_designation FOREIGN KEY (designation_id) REFERENCES designations(id) ON DELETE SET NULL;
+
+ALTER TABLE employees
   ADD CONSTRAINT fk_employees_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL;
 
 -- Backfill status from the existing is_active boolean so the two stay consistent
