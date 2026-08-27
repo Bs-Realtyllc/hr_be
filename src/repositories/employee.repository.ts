@@ -5,7 +5,6 @@ import {
   employees,
   employeeCompensationHistory,
   employeeDocuments,
-  employeeOnboardingProfile,
   departments,
   designations,
 } from '../models';

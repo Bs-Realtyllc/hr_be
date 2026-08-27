@@ -9,6 +9,7 @@ interface AuthUser {
 
 export async function list(user: AuthUser, employeeIdFilter?: string, status?: string) {
   const privileged = ['admin', 'lead'].includes(user.role);
+  // console.log(user, employeeIdFilter, status)
   const filterEmployeeId = privileged ? employeeIdFilter : user.id;
   return performanceRepo.findWithNames({ employeeId: filterEmployeeId, status });
 }
