@@ -6,8 +6,8 @@
     "build": "tsc && cp src/db/*.sql dist/src/db/ && mkdir -p dist/src/db/migrations && cp src/db/migrations/*.sql dist/src/db/migrations/",
     "start": "node dist/index.js",
     "dev": "tsx watch index.ts",
-    "migrate": "tsx src/db/migrate.ts",
-    "create-admin": "tsx src/db/create-admin.ts"
+    "migrate": "node dist/src/db/migrate.js",
+    "create-admin": "node dist/src/db/create-admin.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
