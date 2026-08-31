@@ -1,10 +1,13 @@
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 
 // Define storage engine and destination directory
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/nda'); // Make sure the 'uploads/' directory exists
+    const dir = path.join(process.cwd(), 'uploads/nda');
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     // Generate a unique filename: timestamp + original extension
