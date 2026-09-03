@@ -41,6 +41,8 @@ INSERT IGNORE INTO designations (title, department_id) VALUES
   ('HR Manager',              (SELECT id FROM departments WHERE name = 'Operations')),
   ('Operations Lead',         (SELECT id FROM departments WHERE name = 'Operations'));
 
+  
+
 -- ─────────────────────────────────────────────────────────────
 -- 1. EMPLOYEES
 --    password_hash = bcrypt("Demo@1234") for all demo accounts
@@ -70,6 +72,8 @@ WHERE id = 1;
 INSERT INTO employees
   (id, name, email, manager_id, start_date, tech_stack, designation_id, department_id, is_active)
 VALUES
+(1,  'Manager Sharma',     'MANAGER@bsrealtyllc.com',   null, '2023-03-01', '["Node.js","PostgreSQL","Redis","AWS"]',
+ (SELECT id FROM designations WHERE title = 'Senior Backend Engineer'), (SELECT id FROM departments WHERE name = 'Engineering'), TRUE),
 -- Engineering — Backend
 (2,  'Priya Sharma',     'priya@bsrealtyllc.com',   1, '2023-03-01', '["Node.js","PostgreSQL","Redis","AWS"]',
  (SELECT id FROM designations WHERE title = 'Senior Backend Engineer'), (SELECT id FROM departments WHERE name = 'Engineering'), TRUE),
