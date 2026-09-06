@@ -32,4 +32,4 @@ EXPOSE 6002
 ENV NODE_ENV=production
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/index.js"]
+CMD ["sh", "-c", "node dist/src/db/migrate.js && node dist/index.js"]
