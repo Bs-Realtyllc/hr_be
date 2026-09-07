@@ -36,13 +36,16 @@ export async function findEmployeeByDiscordName(discordName: string) {
   return null;
 }
 
-export async function saveStandup(employeeId: number, yesterday: string, today: string, blockers?: string) {
+export async function saveStandup(employeeId: number, workedOn: string, completed: string, inProgress?: string, nextUp?:string, blockers?:string, links?:string) {
   const date = new Date().toISOString().split('T')[0];
   await standupRepo.upsert({
     employee_id: employeeId,
-    yesterday,
-    today,
+    workedOn,
+    completed,
+    inProgress,
+    nextUp,
     blockers: blockers || 'None',
+    links,
     standup_date: date,
   });
 }

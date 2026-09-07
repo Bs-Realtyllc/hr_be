@@ -94,11 +94,11 @@ export const handleInternalStandup = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { discordName, yesterday, today, blockers } = req.body;
-  console.log(`[discord-internal] discordName="${discordName}" yesterday="${yesterday?.slice(0, 40)}..." today="${today?.slice(0, 40)}..."`);
+  const { discordName, workedOn, completed, inProgress, nextUp, blockers, links } = req.body;
+  console.log(`[discord-internal] discordName="${discordName}" workedOn="${workedOn?.slice(0, 40)}..." completed="${completed?.slice(0, 40)}..."`);
 
-  if (!discordName || !yesterday || !today) {
-    return res.status(400).json({ error: 'Missing required fields: discordName, yesterday, today' });
+  if (!discordName || !workedOn || !completed) {
+    return res.status(400).json({ error: 'Missing required fields: discordName, workdeOn, completed' });
   }
 
   try {
@@ -108,7 +108,7 @@ export const handleInternalStandup = async (req: Request, res: Response) => {
       return res.status(404).json({ error: `No employee found matching "${discordName}". Set the discord_username field on their employee profile.` });
     }
 
-    await saveStandup(employee.id, yesterday, today, blockers);
+    await saveStandup(employee.id, workedOn, completed, inProgress, nextUp, blockers, links);
     console.log(`[discord-internal] ✔ Standup saved — ${employee.name} (id ${employee.id})`);
     return res.json({ success: true, employee: employee.name });
   } catch (err: any) {
