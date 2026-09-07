@@ -15,6 +15,7 @@ const FIELD_DESTINATIONS: Record<string, string> = {
 // Define storage engine and destination directory
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+<<<<<<< HEAD
     const relativeDest = FIELD_DESTINATIONS[file.fieldname];
     if (!relativeDest) {
       cb(new Error(`Unexpected file field: ${file.fieldname}`), "");
@@ -23,6 +24,15 @@ const storage = multer.diskStorage({
     const dir = path.join(process.cwd(), relativeDest);
     fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
+=======
+    const dest = FIELD_DESTINATIONS[file.fieldname];
+    if (!dest) {
+      cb(new Error(`Unexpected file field: ${file.fieldname}`), "");
+      return;
+    }
+    fs.mkdirSync(dest, { recursive: true });
+    cb(null, dest); 
+>>>>>>> d5808aa (additional documents in onboarding)
   },
   filename: (req, file, cb) => {
     // Generate a unique filename: timestamp + original extension
@@ -38,6 +48,7 @@ const fileFilter = (
   file: Express.Multer.File,
   cb: multer.FileFilterCallback,
 ) => {
+<<<<<<< HEAD
   const allowedTypes = [
     "image/jpeg",
     "image/png",
@@ -45,11 +56,18 @@ const fileFilter = (
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ];
+=======
+  const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+>>>>>>> d5808aa (additional documents in onboarding)
 
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
+<<<<<<< HEAD
     cb(new Error("Invalid file type. Only JPEG, PNG, PDF, DOC, and DOCX are allowed."));
+=======
+    cb(new Error("Invalid file type. Only JPEG, PNG, and PDF are allowed."));
+>>>>>>> d5808aa (additional documents in onboarding)
   }
 };
 
