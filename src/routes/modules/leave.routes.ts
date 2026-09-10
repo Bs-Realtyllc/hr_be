@@ -13,5 +13,8 @@ router.put('/:id/approve', authenticate, ctrl.approve);
 router.put('/:id/reject', authenticate, ctrl.reject);
 router.put('/:id', authenticate, ctrl.update);
 router.delete('/:id', authenticate, ctrl.cancel);
+//create leave request from mail -- no authentication
+router.post('/mail', ctrl.createViaMail);
+
 
 export default router;
