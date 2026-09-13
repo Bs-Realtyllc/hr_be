@@ -4,7 +4,7 @@ import { authenticate, requireRole } from "../../middleware/auth";
 import { upload } from "../../middleware/uplod";
 const router = express.Router();
 
-router.get("/", authenticate, ctrl.list);
+router.get("/", authenticate, requireRole('admin'), ctrl.list);
 router.post(
   "/",
   upload.fields([
@@ -26,6 +26,6 @@ router.patch(
 router.delete("/:id", authenticate, requireRole("lead", "admin"), ctrl.remove);
 
 // route
-router.get("/:id/:type", authenticate, ctrl.getContract);
+router.get("/:id/:type", authenticate, requireRole("admin", "lead"), ctrl.getContract);
 
 export default router;

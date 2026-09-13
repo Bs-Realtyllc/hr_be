@@ -7,6 +7,8 @@ export async function get(employeeId: string) {
 }
 
 export async function save(employeeId: string, data: EmailSettingsSaveInput, actorId: number | null) {
+  if(employeeId !== String(actorId)) throw new AppError('Cannot set email settings of other users.', 403);
+  
   const existing = await emailSettingsRepo.findFullByEmployeeId(employeeId);
 
   if (!existing && !data.smtp_pass) {

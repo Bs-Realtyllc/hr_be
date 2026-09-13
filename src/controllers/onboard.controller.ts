@@ -7,7 +7,7 @@ import fs from "fs/promises";
 //list data in employee_onboarding_profile;
 export const list = asyncHandler(async (req: Request, res: Response) => {
   type inputType = "intern" | "employee" | "all";
-  const type = req.query.type as inputType;
+  const type = (req.query.type as inputType) ?? "all";
   const response = await onboardService.get(type);
   //   console.log(response)
   res.status(200).json(response);
@@ -61,9 +61,9 @@ export const add = asyncHandler(async (req: Request, res: Response) => {
 
 //approve user from employee_onboarding_profile and move tha data to employees table;
 export const approve = asyncHandler(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  const response = await onboardService.approve(id);
-  res.status(200).json(response);
+  const onboardId = Number(req.params.id);
+  const id = await onboardService.approve(onboardId);
+  res.status(200).json({id});
 });
 
 //reject user from employee_onboarding_profile and delete tha data;
@@ -75,9 +75,10 @@ export const remove = asyncHandler(async (req: Request, res: Response) => {
 
 // controller
 
-export const getContract = asyncHandler(async (req: Request, res: Response) => {
-  // console.log(req.params.id, req.params.type)
+export const getContract = asyncHandler(async (req: any, res: Response) => {
+  // console.log(req.user)
   const { filePath, filename } = await onboardService.getContractFilePath(
+    req.user,
     Number(req.params.id),
     req.params.type as "photo" | "nda" | "citizenship" | "pan" | "certificate",
   );

@@ -18,7 +18,8 @@ export async function list(user: AuthUser, employeeIdFilter?: string, status?: s
   return leaveRepo.findWithNames({ employeeId: filterEmployeeId, status });
 }
 
-export async function balances(employeeId: string) {
+export async function balances(employeeId: string, actorId:string) {
+  if(employeeId !== actorId) throw new AppError('Cannot view leave balance of other users', 403)
   const year = new Date().getFullYear();
   return leaveRepo.findBalances(employeeId, year);
 }

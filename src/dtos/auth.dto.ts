@@ -2,7 +2,7 @@ import { z } from 'zod';
 import AppError from '../pkg/AppError';
 import { bindAndValidate } from '../pkg/validation';
 
-const ALLOWED_DOMAINS = ['bsrealtyllc.com', 'gitgi.com', 'gmail.com'];
+const ALLOWED_DOMAINS = ['bsrealtyllc.com', 'gitgi.com', 'gmail.com', 'student.ioepc.edu.np'];
 
 export interface LoginInput {
   email: string;
