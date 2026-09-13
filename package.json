@@ -7,7 +7,8 @@
     "start": "node dist/index.js",
     "dev": "tsx watch index.ts",
     "migrate": "node dist/src/db/migrate.js",
-    "create-admin": "node dist/src/db/create-admin.js"
+    "create-admin": "node dist/src/db/create-admin.js",
+    "generate:openapi": "npm run build && node scripts/generate-openapi.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
