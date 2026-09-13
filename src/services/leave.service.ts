@@ -3,7 +3,7 @@ import * as employeeRepo from '../repositories/employee.repository';
 import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
 import * as emailSettingsRepo from '../repositories/emailSettings.repository';
 import AppError from '../pkg/AppError';
-import type { LeaveCreateInput, LeaveUpdateInput } from '../dtos/leave.dto';
+import type { LeaveCreateInput, LeaveUpdateInput, LeaveCreateInputViaMail } from '../dtos/leave.dto';
 import { toMonthlySalary, calculateLeaveDeduction } from '../pkg/payrollCalculator';
 import { buildLeaveEmailSubject, buildLeaveEmailHtml } from './leaveEmailTemplate';
 
@@ -219,4 +219,16 @@ function daysTakenByEmployee(ranges: any[], rangeStart: Date, rangeEnd: Date) {
     map[r.employee_id] = (map[r.employee_id] || 0) + Math.max(days, 0);
   }
   return map;
+}
+
+export async function createViaMail(data:LeaveCreateInputViaMail) {
+  const {id} =await employeeRepo.findByEmail(data.from)
+  if(!id){
+    throw new AppError(`Employee with the mail ${data.from} not found`, 404)
+  }
+  // console.log(id)
+  const newData = {...data, employee_id: id}
+  const leaveId = await leaveRepo.create(newData, id);
+  return leaveId
+
 }
