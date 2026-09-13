@@ -12,8 +12,9 @@ import { db } from './src/config/database';
 import { renewWebhookChannelIfNeeded } from './src/services/googleCalendar';
 import * as weeklyReminder from './src/services/weeklyReminder';
 import errorHandler from './src/middleware/errorHandler';
+import { authenticate, requireRole } from './src/middleware/auth';
 
-const REQUIRED_ENV = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+const REQUIRED_ENV = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'JWT_SECRET'];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length) {
   console.error(`✘ Missing required env vars: ${missing.join(', ')}`);
@@ -40,7 +41,7 @@ app.use(helmet({
 }));
 
 app.use(cors({ origin: process.env.FRONTEND_URL }));
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/uploads',authenticate, requireRole('admin') ,express.static(path.join(process.cwd(), 'uploads')));
 app.use(express.json({
   limit: '1mb',
   verify: (req: any, _res, buf) => { req.rawBody = buf; },
