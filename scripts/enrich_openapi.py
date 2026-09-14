@@ -9,7 +9,7 @@ docs/api/descriptions.yaml as the persistent source of truth for them:
 
 - An operation already present in descriptions.yaml keeps its entry as-is
   (a human wrote or approved it) — no LLM call, no cost, every run.
-- An operation with no entry yet gets a draft from Claude, which is then
+- An operation with no entry yet gets a draft from the configured LLM, which is then
   saved into descriptions.yaml so it becomes the persisted, human-editable
   version going forward.
 
@@ -22,7 +22,7 @@ Usage:
     python scripts/enrich_openapi.py docs/api/openapi.json
 
 Requires: LLM_API_KEY / LLM_BASE_URL / LLM_MODEL in the environment (see
-scripts/llm_client.py), plus the `openai` and `pyyaml` pip packages.
+scripts/llm_client.py), plus the `requests` and `pyyaml` pip packages.
 """
 
 import json
@@ -48,7 +48,7 @@ def draft_description(client, path: str, method: str, op: dict) -> dict:
 
     Only this operation's own schema fragment is sent — not the rest of
     the spec — which keeps this cheap regardless of total endpoint count,
-    and small enough that a free-tier model handles it comfortably.
+    and small enough for a small self-hosted model to handle comfortably.
     """
     prompt = f"""You are writing end-user-facing API docs.
 
