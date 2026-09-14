@@ -1,0 +1,496 @@
+DELETE /api/employees/{id}:
+  description: This endpoint allows you to deactivate an employee by setting their
+    `is_active` to false. It takes an integer `id` as a path parameter to identify
+    the employee to be deactivated.
+  summary: Soft-delete employee by ID
+DELETE /api/feedback/{id}:
+  description: This API endpoint allows authorized users to delete a specific feedback
+    note identified by its ID. It requires a valid ID in the path parameter and appropriate
+    permissions to proceed.
+  summary: Delete Feedback Note
+DELETE /api/goals/{id}:
+  description: This API allows the deletion of a specific goal identified by its ID.
+    It requires the caller to be authenticated and have the appropriate permissions.
+  summary: Delete a goal
+DELETE /api/google/disconnect:
+  description: Removes all Google Calendar integration, including push notifications
+    and tokens. Requires authentication.
+  summary: Disconnect Google Calendar
+DELETE /api/google/meetings/{id}:
+  description: This API endpoint allows users to cancel a meeting by specifying the
+    meeting's unique ID. It requires the user to be authorized and only allows the
+    meeting creator or an admin to perform this action, soft-deleting the meeting
+    by setting its status to 'cancelled'.
+  summary: Cancel Meeting
+DELETE /api/leaves/{id}:
+  description: Endorses the cancellation of a pending leave request by the user with
+    the specified ID. Ensure the user is the owner and the status is still 'pending'
+    to proceed.
+  summary: Cancel Pending Leave Request
+DELETE /api/onboard/{id}:
+  description: This API endpoint allows administrators to delete a specific onboarding
+    profile by its ID, requiring administrative privileges.
+  summary: Remove Onboarding Profile
+DELETE /api/performance/{id}:
+  description: Deletes a draft review. Ensure the review status is 'draft' and you
+    have the appropriate permissions to delete it.
+  summary: Delete Draft Performance Review
+DELETE /api/projects/{id}/assignments/{empId}:
+  description: This endpoint allows a frontend engineer to remove an employee's assignment
+    from a specific project by specifying the project ID and employee ID in the request
+    path.
+  summary: Remove project assignment
+DELETE /api/projects/{id}/services/{serviceKey}:
+  description: Unlinks a specified service from a project identified by the provided
+    ID and service key. Useful for maintaining project dependencies and resource management.
+  summary: Unlink service from project
+DELETE /api/reports/{id}:
+  description: This API allows non-privileged users to delete their own reports. It
+    also ensures that the report file is removed from the disk. The API expects the
+    report's ID to be provided in the path.
+  summary: Delete a report (non-privileged users only)
+DELETE /api/servers/{id}:
+  description: This API endpoint allows deleting a server record by providing the
+    server's ID in the URL. It is suitable for developers who need to remove server
+    entries from their application's database.
+  summary: Delete server by ID
+GET /api/dashboard/leave-trend:
+  description: This endpoint provides an array of daily counts for leave request submissions
+    over the last 30 days. It can be used by frontend engineers to fetch and display
+    the leave submission trend data on a dashboard.
+  summary: Get leave request submission trend
+GET /api/dashboard/standup-trend:
+  description: This endpoint returns an array of daily counts for standup submissions
+    over the last 30 days. It can be used by frontend engineers to fetch and display
+    the submission trend on a dashboard.
+  summary: Get daily standup submission counts
+GET /api/dashboard/stats:
+  description: This endpoint provides aggregated data including headcount, leave,
+    and project statistics. It is secured with bearer authentication.
+  summary: Get aggregated dashboard stats
+GET /api/email-settings/{employeeId}:
+  description: This API allows you to retrieve the SMTP settings for a specific employee
+    by providing their unique ID. Useful for applications that need to access email
+    configuration details for different users.
+  summary: Get Employee Email Settings
+GET /api/employees:
+  description: Use this endpoint to retrieve a list of all active employees. The response
+    is an array of employee objects, each following the schema defined for Employee.
+  summary: List Active Employees
+GET /api/employees/onboarding:
+  description: Returns an array of employees who are created with is_active set to
+    false, indicating they are awaiting approval. This endpoint is only accessible
+    to users with administrative privileges.
+  summary: List pending onboarding employees
+GET /api/employees/{id}:
+  description: Use this endpoint to retrieve details of an employee by their unique
+    ID. Specify the employee's ID in the URL to fetch their information.
+  summary: Get employee by ID
+GET /api/employees/{id}/payroll-summary:
+  description: This endpoint provides a payroll summary for a specific employee, including
+    details like working days, approved leave days, and expected pay. It's useful
+    for frontend engineers looking to fetch and display payroll information for their
+    applications.
+  summary: Get employee payroll summary
+GET /api/events:
+  description: This endpoint returns an array of the latest culture events. A frontend
+    engineer can integrate this by sending a GET request to /api/events and handling
+    the JSON response containing an array of CultureEvent objects.
+  summary: List recent culture events
+GET /api/events/upcoming:
+  description: This endpoint provides an array of upcoming events that are happening
+    within the next 30 days. It's useful for frontend engineers looking to display
+    live event schedules on their applications.
+  summary: Upcoming Events (30 days)
+GET /api/feedback:
+  description: This endpoint allows retrieval of feedback notes based on the specified
+    scope (public, received, sent) and type (praise, constructive, peer, manager).
+  summary: List feedback notes by scope and type
+GET /api/feedback/summary:
+  description: This endpoint retrieves an array of per-employee summaries of feedback
+    received counts, useful for visualizing feedback distribution across employees.
+  summary: Get employee feedback counts
+GET /api/form-layout:
+  description: This API endpoint allows you to fetch the onboarding form layout for
+    either 'intern' or 'employee' types. You can specify the type in the query parameter
+    to get the corresponding form layout.
+  summary: Get form layout by type
+GET /api/goals:
+  description: Retrieve a list of goals for a specific employee or filter by status
+    and category. Admins/leads can filter by employee_id for comprehensive view.
+  summary: List Employee Goals
+GET /api/goals/summary:
+  description: This endpoint provides an array of summaries, each containing goal
+    completion statistics for a specific employee. It requires bearer authentication
+    for authorization.
+  summary: Get employee goal completion stats
+GET /api/google/auth-url:
+  description: This endpoint returns the OAuth consent URL for Google Calendar, useful
+    for setting up OAuth consent screens. Requires admin privileges and returns a
+    JSON object with the URL.
+  summary: Fetch Google OAuth Consent URL
+GET /api/google/callback:
+  description: This endpoint exchanges an auth code provided by Google in the query
+    parameters for access tokens. After receiving the tokens, it redirects the frontend
+    to the calendar page. Developers should use the code provided by Google to authenticate
+    and integrate this endpoint into their application.
+  summary: Exchange auth code for tokens and redirect to frontend calendar page
+GET /api/google/meetings:
+  description: This endpoint lists up to 7 days worth of scheduled meetings. Developers
+    can use this to integrate real-time meeting updates into their applications.
+  summary: List Recent Meetings
+GET /api/google/status:
+  description: Use this endpoint to verify if the application is connected to your
+    Google Calendar account and whether any data synchronization is in progress.
+  summary: Check Google Calendar connection status
+GET /api/health:
+  description: This endpoint provides a quick way to verify if the server is up and
+    running. It returns a JSON object containing the status of the server and the
+    current timestamp.
+  summary: Health Status Check
+GET /api/leaves:
+  description: Retrieve a list of leave requests for a specific employee or filter
+    by request status.
+  summary: List Employee Leaves
+GET /api/leaves/balances/{employeeId}:
+  description: You can use this endpoint to fetch the current year's leave balances
+    for a specific employee. Simply provide the employee's ID in the path parameter
+    to retrieve the data.
+  summary: Get employee leave balances
+GET /api/leaves/out/today:
+  description: Use this endpoint to retrieve an array of objects containing employee
+    details such as name, designation, profile picture (optional), leave type, and
+    end date who are on approved leave today.
+  summary: Get employees on approved leave today
+GET /api/leaves/out/week:
+  description: This endpoint returns an array of objects containing employee details
+    such as name, designation, leave type, and the dates they are on leave. It's useful
+    for frontend engineers to fetch and display leave information in real-time.
+  summary: Employees on leave this week
+GET /api/onboard:
+  description: This endpoint allows you to retrieve an array of onboarding profiles,
+    specifying the type (all, intern, employee) you are interested in. Use this to
+    filter and access different types of onboarding profiles.
+  summary: List onboarding profiles by type
+GET /api/onboard/{id}/contract:
+  description: This endpoint allows you to download the contract file associated with
+    a specific onboarding profile by its ID. You need to provide the profile ID in
+    the request URL to access the contract file securely.
+  summary: View onboarding profile contract
+GET /api/payroll:
+  description: Retrieve a list of payroll records for active employees. Admins/leads
+    can view all records, others only their own.
+  summary: List Payroll Data
+GET /api/payroll/taxes:
+  description: Returns an array of tax records for employees, useful for payroll management.
+    Users can filter based on their role to see only their own records.
+  summary: List Employee Taxes
+GET /api/performance:
+  description: This endpoint allows fetching performance reviews for a specific employee
+    or filtering by review status. It supports querying by employee ID and review
+    status.
+  summary: List Employee Reviews
+GET /api/performance/trend/{employeeId}:
+  description: This endpoint allows you to retrieve the rating history of an employee
+    identified by their ID. It's useful for developers who need to fetch and display
+    an employee's performance trends over time.
+  summary: Get employee rating history by ID
+GET /api/profile:
+  description: This endpoint retrieves the profile information of the currently logged-in
+    employee. It requires a valid authentication token for authorization.
+  summary: Get Logged-In Employee Profile
+GET /api/projects:
+  description: This endpoint allows you to retrieve a list of projects, filtering
+    by their status (active, archived, on_hold).
+  summary: List projects by status
+GET /api/projects/by-employee/{empId}:
+  description: This endpoint allows you to retrieve an array of projects that an employee
+    (identified by empId) is assigned to, including their roles and milestones. It
+    requires the empId parameter in the path to be provided, and returns the projects
+    in JSON format.
+  summary: Get employee projects by ID
+GET /api/projects/{id}/assignments:
+  description: This endpoint retrieves a list of team assignments for a specific project
+    identified by its ID. It requires the project ID in the path parameter, which
+    should be an integer.
+  summary: Get project assignments
+GET /api/projects/{id}/milestones:
+  description: This endpoint allows you to fetch a list of milestones associated with
+    a specific project identified by its ID. You need to provide the project ID in
+    the URL path to retrieve the milestones.
+  summary: Get project milestones by ID
+GET /api/projects/{id}/services:
+  description: This endpoint lists all service keys associated with a specific project
+    identified by the provided ID. It is useful for frontend engineers to retrieve
+    and display service information for further user interactions or backend integrations.
+  summary: Get services for a project
+GET /api/reports:
+  description: Retrieve a list of monthly reports for a specified month and year,
+    suitable for API consumers unfamiliar with the API structure.
+  summary: List Monthly Reports
+GET /api/reports/{id}/download:
+  description: This endpoint allows users to download their own report files by providing
+    the report ID in the URL. The response will be a binary stream of the file.
+  summary: Download Report File
+GET /api/servers:
+  description: This endpoint lists servers within a specified project. You can filter
+    the results by setting the `project_id` query parameter. Additionally, you can
+    toggle the visibility of sensitive fields using the `show_sensitive` parameter
+    (requires admin or lead role).
+  summary: List servers by project
+GET /api/service-credentials/{employeeId}:
+  description: This endpoint retrieves an array of stored service credentials associated
+    with a specific employee, ensuring secure password handling as no actual passwords
+    are returned.
+  summary: List employee's service credentials
+GET /api/standups:
+  description: This endpoint allows fetching a list of standups for a specific date
+    or by an employee's ID. Employees can see their own standups, while admins/leads
+    can view all standups and filter by employee ID.
+  summary: List standups by date or employee_id
+GET /api/standups/today:
+  description: This endpoint provides a list of standups submitted by the user today.
+    Access is restricted to authenticated users unless the user is an administrator
+    or lead, in which case they can view all standups.
+  summary: Today's Standups List
+GET /api/webhooks/{service}:
+  description: This endpoint is used to verify a webhook challenge and mode sent by
+    the service provider. It echoes back the hub.challenge if the verify_token matches
+    the expected value for the service, ensuring the connection is secure and functional.
+  summary: Verify webhook challenge and mode
+GET /month-end-report:
+  description: This endpoint allows your application to trigger a month-end report
+    generation through an n8n workflow. It returns a success message or indicates
+    errors in communication with the n8n workflow.
+  summary: Get month-end report
+PATCH /api/onboard/{id}/approve:
+  description: This API allows approvers to approve an onboarding profile. It requires
+    the user to have the appropriate permissions and is only accessible via a PATCH
+    request with a specified profile ID in the path.
+  summary: Approve Onboarding Profile
+POST /api/auth/forgot-password:
+  description: Sends a generic message indicating your request has been received,
+    regardless of the email's existence to avoid enumeration.
+  summary: Request password reset email
+POST /api/auth/login:
+  description: This API endpoint allows users to log in using their company email
+    and password. It returns a JWT valid for 7 days and is restricted to email domains
+    of allowed organizations.
+  summary: Login with Email and Password
+POST /api/auth/reset-password:
+  description: Use this endpoint to reset your password by providing a valid password
+    reset token. Ensure you include a new password in the request body for the operation
+    to succeed.
+  summary: Reset password with token
+POST /api/discord/standup:
+  description: This API endpoint handles standup commands in Discord, verifying the
+    request signature for security. It requires a valid JSON payload with a Discord
+    interaction payload, and returns an acknowledgment or response based on the command
+    executed.
+  summary: Discord Standup Command API
+POST /api/discord/standup-submit:
+  description: This endpoint allows the submission of standup records for a specific
+    Discord user. It requires the use of a shared internal token for authentication
+    and expects the inclusion of the user's Discord name, the previous day's status,
+    the current day's status, and any blockers encountered.
+  summary: Submit Discord Standup Records
+POST /api/employees:
+  description: Use this endpoint to create a new employee record. It also automatically
+    seeds default leave balances for the current year.
+  summary: Create Employee
+POST /api/events:
+  description: Use this endpoint to create a new culture event. Include the event's
+    title, type (e.g., birthday, anniversary), date, and an optional description to
+    add context.
+  summary: Create an event
+POST /api/feedback:
+  description: Use this endpoint to send a feedback note to another employee, ensuring
+    the message is valid and not directed at oneself.
+  summary: Create Feedback Note
+POST /api/form-layout:
+  description: Changes the layout of onboarding forms. Requires admin or lead permissions
+    to execute.
+  summary: Set Form Layout
+POST /api/goals:
+  description: Use this API to create a personal goal. Ensure your request includes
+    valid goal details and is made with the correct permissions.
+  summary: Create Goal
+POST /api/google/meetings:
+  description: Use this endpoint to create a meeting that also automatically adds
+    a corresponding event to the user's Google Calendar, providing a unique Meet link
+    for the session.
+  summary: Create a Google Meeting
+POST /api/google/sync:
+  description: This endpoint allows you to manually sync upcoming events from your
+    Google Calendar into meetings. It requires a valid Bearer token for authentication.
+  summary: Sync upcoming Google Calendar events
+POST /api/google/webhook:
+  description: This endpoint is triggered by Google to acknowledge push notifications
+    for Google Calendar. It does not require authentication and responds with 200
+    immediately without any payload.
+  summary: Google Calendar Push Notification Receiver
+POST /api/leaves:
+  description: This endpoint allows submitting a leave request for an employee. It
+    requires JSON data with employee_id, leave_type, start_date, and end_date, along
+    with optional reason, notification email, and carbon copy/bcc fields.
+  summary: Submit Leave Request
+POST /api/onboard:
+  description: This endpoint allows users to submit their onboarding application with
+    a signed contract. The request includes a JSON payload and the signed contract
+    as a binary file in the request body.
+  summary: Submit Onboarding Application
+POST /api/performance:
+  description: Creates a draft performance review for an employee. Requires admin
+    or lead permissions and a unique review period per employee.
+  summary: Create Performance Review
+POST /api/profile/citizenship/{side}:
+  description: This API allows users to upload a document image (front or back) related
+    to their citizenship. It supports multipart/form-data for file upload and accepts
+    .jpg/.jpeg/.png/.webp file types up to 5MB. The endpoint requires a 'side' parameter
+    specifying whether to upload the front or back of the document, and deletes the
+    previous file if an upload with the same 'side' is provided.
+  summary: Upload Citizenship Document Image
+POST /api/profile/photo:
+  description: Use this endpoint to upload or replace your profile photo. It accepts
+    JPEG, PNG, and WEBP files up to 5 MB in size. The previous photo will be deleted.
+  summary: Upload Profile Photo
+POST /api/projects:
+  description: Use this endpoint to create a new project by providing a project name,
+    description, repository URL(s), documentation URL(s), status, and dates. The response
+    includes the newly created project details.
+  summary: Create Project
+POST /api/projects/{id}/assignments:
+  description: Assigns an employee to a project with a specified role (lead, backend,
+    frontend, ui_ux, qa, devops). This API allows updating the role of an existing
+    employee assignment.
+  summary: Assign Project Employee
+POST /api/projects/{id}/milestones:
+  description: This endpoint allows adding a new milestone to a specific project identified
+    by the provided ID. The request should include the milestone's title, due date,
+    and status, with valid status options being 'pending', 'in_progress', or 'completed'.
+  summary: Add milestone to a project
+POST /api/projects/{id}/services:
+  description: This endpoint links a project to a specified service by providing the
+    service_key. It is idempotent and returns a success message upon successful linking.
+  summary: Link project with service
+POST /api/reports:
+  description: Use this API to submit a monthly report file. The API requires a multipart
+    form containing the report file, employee ID, report title, month, and year. Ensure
+    all required fields are provided, including the report file, otherwise, you may
+    receive a 400 error.
+  summary: Create Monthly Report
+POST /api/servers:
+  description: Use this endpoint to register a new server with details such as name,
+    environment, IP address, and notes. Ensure to provide the necessary parameters
+    in the request body as specified for a successful creation.
+  summary: Register Server
+POST /api/service-credentials/{employeeId}:
+  description: This endpoint allows you to create or update a service credential for
+    an employee. The employee's ID is specified in the path, and the service name
+    and password are provided in the request body. If no service name is provided,
+    a 400 error is returned.
+  summary: Create or update employee service credentials
+POST /api/standups:
+  description: This endpoint allows users to submit daily standup updates. The request
+    includes the employee's ID, the previous day's and current day's status, any blockers,
+    and the standup date. The system creates a new standup entry or updates an existing
+    one, and if configured, mirrors the standup to Discord.
+  summary: Create Standup
+POST /api/webhooks/{service}:
+  description: This endpoint receives a payload from an external service and always
+    responds with a 200 status to acknowledge receipt, even handling Slack-style POST
+    verification for authentication purposes.
+  summary: Receive external service event payload
+PUT /api/auth/password:
+  description: This endpoint allows users to change their password if they are already
+    logged in. The request body should include the new password details.
+  summary: Change User Password
+PUT /api/email-settings/{employeeId}:
+  description: This API allows updating the SMTP settings for a specific employee.
+    It requires the employeeId in the path and the SMTP settings in the request body.
+    The API checks for required fields and handles password updates according to the
+    specification.
+  summary: Update SMTP settings for an employee
+PUT /api/employees/{id}:
+  description: This endpoint allows updating the details of an employee identified
+    by their unique ID. It requires the employee's ID in the URL and a JSON body with
+    the new employee details to be sent.
+  summary: Update Employee Details
+PUT /api/employees/{id}/approve:
+  description: Approve a pending employee application by setting is_active to true
+    and status to 'active'. Requires admin privileges and sends an email with a one-time
+    password to the employee's company email. Fails if the employee is not in the
+    'onboarding' status.
+  summary: Approve Employee Application
+PUT /api/employees/{id}/reject:
+  description: Permanently deletes an employee record if they are in 'onboarding'
+    status. Requires admin permissions and an employee ID. Sends a rejection notice
+    via email if the 'send_mail' parameter is true.
+  summary: Reject Employee Pending Applicant
+PUT /api/goals/{id}:
+  description: This endpoint allows updating the details of a specific goal. It requires
+    the goal's ID and valid JSON data for the goal's input. Ensure you have the necessary
+    permissions to update the goal.
+  summary: Update Goal Details
+PUT /api/goals/{id}/progress:
+  description: Use this endpoint to update the progress and status of a specific goal.
+    Provide the goal ID and the new progress value in the request body.
+  summary: Update Goal Progress
+PUT /api/leaves/{id}:
+  description: Modify a pending leave request by the employee who initiated it. Ensure
+    the status is still "pending" to avoid unauthorized edits.
+  summary: Edit Leave Request
+PUT /api/leaves/{id}/approve:
+  description: This API endpoint allows administrators or leads to approve a leave
+    request by providing the leave ID and the approver's ID. It ensures the request
+    is only processed by those with appropriate permissions and that the leave dates
+    have not passed.
+  summary: Approve Leave Request
+PUT /api/leaves/{id}/reject:
+  description: Rejects a leave request by the specified ID. Requires the admin or
+    lead to be authorized and the request to be within the allowed rejection window.
+  summary: Reject Leave Request
+PUT /api/payroll/{id}/reset-password:
+  description: Admins can reset a specific employee's password via this endpoint.
+    The request should include a password reset input in JSON format and specify the
+    employee's unique ID in the path.
+  summary: Admin resets employee password
+PUT /api/payroll/{id}/salary:
+  description: Updates an employee's salary and pay frequency. Requires admin permissions
+    and valid salary update input in JSON format.
+  summary: Update Employee Salary
+PUT /api/payroll/{id}/tax-profile:
+  description: This endpoint allows admins to update or create an employee's tax profile.
+    It requires the employee's ID and a JSON payload for the tax profile details.
+    Admins must authenticate with Bearer Auth to use this endpoint.
+  summary: Update employee tax profile
+PUT /api/performance/{id}:
+  description: Use this endpoint to update a performance review draft. Ensure the
+    review's status is 'draft' and authenticate with a valid token to make changes.
+  summary: Edit Performance Draft Review
+PUT /api/performance/{id}/acknowledge:
+  description: Acknowledge a submitted review by the reviewed employee to mark it
+    as acknowledged. Ensure the review's status is 'submitted' for acknowledgment.
+  summary: Acknowledge Submitted Review
+PUT /api/performance/{id}/submit:
+  description: Used to submit a draft review for an employee. Requires admin or lead
+    permissions and should be called only once per review draft.
+  summary: Submit Employee Review Draft
+PUT /api/profile:
+  description: This endpoint allows updating the editable fields of a user's profile.
+    It ensures that setting a date of birth also creates a birthday cultural event
+    for the user.
+  summary: Update Profile Fields
+PUT /api/projects/{id}:
+  description: Use this endpoint to modify an existing project by providing updated
+    project details in the request body. The project ID is specified in the URL path.
+  summary: Update Project
+PUT /api/projects/{id}/milestones/{mid}:
+  description: Modify the details of a specific project milestone by providing its
+    ID and updating fields like title, due date, and status. Ensure all provided fields
+    are valid and of the correct type to avoid errors.
+  summary: Update project milestone
+PUT /api/servers/{id}:
+  description: This API endpoint allows updating the details of a server identified
+    by its ID. It requires providing a server object in the request body in JSON format.
+  summary: Update Server Details
