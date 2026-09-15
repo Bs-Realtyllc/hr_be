@@ -7,17 +7,30 @@ const dateString = z
 
 const createBodySchema = z.object({
   employee_id: z.coerce.number().int().positive(),
-  yesterday: z.string().trim().min(1, "yesterday is required"),
-  today: z.string().trim().min(1, "today is required"),
-  blockers: optionalNullable(z.string().trim()),
+  workedOn: z.string().trim().min(1, "Please specify what you've worked on"),
+  completed: z.string().trim().min(1, "Please specify the tasks you've completed"),
+  inProgress: z.string().trim().min(1, "Please specify the tasks remained to work on"),
+  nextUp: z.string().trim().min(1, "Please specify what you'll work on"),
+  blockers: z.string().trim().min(1, "Please specify blockers (none -- if no blockers)"),
+  links: z.string().trim().min(1, "Please specify any links or refrances (none -- if no refrences)"),
+
+  // yesterday: z.string().trim().min(1, "yesterday is required"),
+  // today: z.string().trim().min(1, "today is required"),
+  // blockers: optionalNullable(z.string().trim()),
   standup_date: optionalNullable(dateString),
 });
 
 export interface StandupCreateInput {
   employee_id: number;
-  yesterday: string;
-  today: string;
-  blockers?: string | null;
+  workedOn: string | null;
+  inProgress: string|null;
+  completed: string|null;
+  nextUp: string|null;
+  links: string|null;
+  blockers: string | null;
+  // yesterday: string;
+  // today: string;
+  // blockers?: string | null;
   standup_date?: string | null;
 }
 
