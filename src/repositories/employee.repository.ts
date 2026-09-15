@@ -270,7 +270,7 @@ export async function create(data: EmployeeCreateInput, actorId: number | null =
     });
     const employeeId = insertedId(result);
 
-    await upsertOnboardingProfile(employeeId, data, tx);
+    // await upsertOnboardingProfile(employeeId, data, tx);
 
     return employeeId;
   });
