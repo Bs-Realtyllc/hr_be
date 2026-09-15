@@ -14,6 +14,9 @@ const projectFields = {
   status: z.enum(STATUSES),
   start_date: dateString,
   expected_end_date: dateString,
+  roadmap_key: z.string().trim().max(50),
+  roadmap_label: z.string().trim().max(100),
+  public_link: z.string().trim().url(),
 };
 
 const createBodySchema = z.object({
@@ -24,6 +27,9 @@ const createBodySchema = z.object({
   status: optionalNullable(projectFields.status),
   start_date: optionalNullable(projectFields.start_date),
   expected_end_date: optionalNullable(projectFields.expected_end_date),
+  roadmap_key: optionalNullable(projectFields.roadmap_key),
+  roadmap_label: optionalNullable(projectFields.roadmap_label),
+  public_link: optionalNullable(projectFields.public_link),
 });
 
 const updateBodySchema = z.object({
@@ -34,8 +40,11 @@ const updateBodySchema = z.object({
   status: optionalNullable(projectFields.status),
   start_date: optionalNullable(projectFields.start_date),
   expected_end_date: optionalNullable(projectFields.expected_end_date),
+  roadmap_key: optionalNullable(projectFields.roadmap_key),
+  roadmap_label: optionalNullable(projectFields.roadmap_label),
+  public_link: optionalNullable(projectFields.public_link),
 });
-const UPDATE_FIELD_NAMES = Object.keys(updateBodySchema.shape) as (keyof ProjectUpdateInput)[];
+const UPDATE_FIELD_NAMES = Object.keys(updateBodySchema.shape) as (keyof ProjectUpdateInput & string)[];
 
 export interface ProjectCreateInput {
   name: string;
@@ -45,6 +54,9 @@ export interface ProjectCreateInput {
   status: (typeof STATUSES)[number];
   start_date: string | null;
   expected_end_date: string | null;
+  roadmap_key: string | null;
+  roadmap_label: string | null;
+  public_link: string | null;
 }
 
 export interface ProjectUpdateInput {
@@ -55,6 +67,9 @@ export interface ProjectUpdateInput {
   status?: (typeof STATUSES)[number];
   start_date?: string | null;
   expected_end_date?: string | null;
+  roadmap_key?: string | null;
+  roadmap_label?: string | null;
+  public_link?: string | null;
 }
 
 export interface ProjectResponse {
@@ -64,6 +79,9 @@ export interface ProjectResponse {
   repo_url: string[];
   docs_url: string[];
   status: string | null;
+  roadmap_key: string | null;
+  roadmap_label: string | null;
+  public_link: string | null;
   start_date: string | null;
   expected_end_date: string | null;
   created_at: Date;
@@ -99,6 +117,9 @@ export function toCreateInput(body: unknown): ProjectCreateInput {
     status: parsed.status || 'active',
     start_date: parsed.start_date || null,
     expected_end_date: parsed.expected_end_date || null,
+    roadmap_key: parsed.roadmap_key ?? null,
+    roadmap_label: parsed.roadmap_label ?? null,
+    public_link: parsed.public_link ?? null,
   };
 }
 
@@ -126,6 +147,9 @@ export function toResponse(project: Record<string, any> | null): ProjectResponse
     repo_url: toArr(project.repo_url),
     docs_url: toArr(project.docs_url),
     status: project.status,
+    roadmap_key: project.roadmap_key ?? null,
+    roadmap_label: project.roadmap_label ?? null,
+    public_link: project.public_link ?? null,
     start_date: project.start_date,
     expected_end_date: project.expected_end_date,
     created_at: project.created_at,

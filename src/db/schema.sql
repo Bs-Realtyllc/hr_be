@@ -119,6 +119,34 @@ CREATE TABLE
   );
 
 CREATE TABLE
+  IF NOT EXISTS project_services (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    project_id INT NOT NULL,
+    service_key VARCHAR(50) NOT NULL,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_project_service (project_id, service_key),
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+  );
+
+CREATE TABLE
+  IF NOT EXISTS service_credentials (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    employee_id INT NOT NULL,
+    service_name VARCHAR(100) NOT NULL,
+    username VARCHAR(255),
+    password VARCHAR(255),
+    notes TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INT,
+    updated_by INT,
+    UNIQUE KEY unique_employee_service (employee_id, service_name),
+    FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES employees (id) ON DELETE SET NULL,
+    FOREIGN KEY (updated_by) REFERENCES employees (id) ON DELETE SET NULL
+  );
+
+CREATE TABLE
   IF NOT EXISTS servers (
     id INT PRIMARY KEY AUTO_INCREMENT,
     project_id INT,
