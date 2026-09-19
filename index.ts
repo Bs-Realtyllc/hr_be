@@ -40,14 +40,7 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, Postman)
-    if (!origin) return callback(null, true);
-    if (origin === process.env.FRONTEND_URL) return callback(null, true);
-    callback(new Error('Not allowed by CORS'));
-  },
-}));
+app.use(cors());
 app.use('/uploads',authenticate, requireRole('admin') ,express.static(path.join(process.cwd(), 'uploads')));
 app.use(express.json({
   limit: '1mb',
