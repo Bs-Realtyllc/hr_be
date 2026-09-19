@@ -32,9 +32,12 @@ export async function create(data: StandupCreateInput, actorId: number | null) {
       headers: { 'Content-Type': 'application/json', 'X-Internal-Token': botToken },
       body: JSON.stringify({
         employeeName: employee?.name || `Employee #${data.employee_id}`,
-        yesterday: data.yesterday,
-        today: data.today,
+        workedOn: data.workedOn,
+        completed: data.completed,
+        nextUp: data.nextUp,
+        inProgress: data.inProgress,
         blockers: data.blockers,
+        links: data.links,
       }),
     }).catch((err: any) => console.error('[discord-bot] HR → Discord sync failed:', err.message));
   }

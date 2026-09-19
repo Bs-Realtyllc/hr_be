@@ -2,6 +2,7 @@ import * as onboardRepo from "../repositories/onboard.repository";
 import AppError from "../pkg/AppError";
 import path from "path";
 import fs from "fs";
+import * as employeeRepo from '../repositories/employee.repository'
 
 interface OnboardFilenames {
   contract: string;
@@ -35,8 +36,12 @@ export async function create(
   return onboardRepo.saveOnboardProfile(parsedData, filenames);
 }
 
-export async function approve(id: number) {
-  return onboardRepo.approveOnboardProfile(id);
+export async function approve(onboardId: number) {
+  const id  = await onboardRepo.approveOnboardProfile(onboardId);
+
+  const year = new Date().getFullYear();
+  await employeeRepo.seedLeaveBalances(id, year);
+  return id;
 }
 
 export async function remove(id: number) {
@@ -44,9 +49,12 @@ export async function remove(id: number) {
 }
 
 export async function getContractFilePath(
+  actor: any,
   id: number,
   type: "photo" | "nda" | "citizenship" | "pan" | "certificate",
 ) {
+  // if(actor.role !== 'intern') throw new AppError(`${actor.role} cannot access the file`)
+  
   const map = [
     { name: "nda", typePath: "nda_path" , directory: NDA_DIR},
     { name: "photo", typePath: "photo_path" , directory: PHOTO_DIR},

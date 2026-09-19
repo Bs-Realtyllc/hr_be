@@ -79,7 +79,7 @@ export async function approveOnboardProfile(id: number) {
       throw new AppError("Onboarding profile not found.", 404);
     }
 
-    await tx.insert(employees).values({
+    const [insertResult] = await tx.insert(employees).values({
       name: profile.name,
       gender: profile.gender,
       dob: profile.dob,
@@ -93,11 +93,13 @@ export async function approveOnboardProfile(id: number) {
       status: "onboarding", // employee starts in onboarding status, not active
     });
 
+    const newEmployeeId = insertResult.insertId;
+
     await tx
       .delete(employeeOnboardingProfile)
       .where(eq(employeeOnboardingProfile.id, id));
 
-    return profile;
+    return newEmployeeId;
   });
 }
 

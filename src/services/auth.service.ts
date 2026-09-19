@@ -107,7 +107,7 @@ export async function login({ email, password }: LoginInput, ip: string = 'unkno
   console.log(`[audit] ${emp!.name} (${email}) logged in successfully (IP: ${ip})`);
 
   const user = authDto.toLoginResponse(emp!);
-  const token = jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: '7d' });
+  const token = jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: '2d' });
   return { token, user };
 }
 

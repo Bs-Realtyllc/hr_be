@@ -10,8 +10,8 @@ export const list = asyncHandler(async (req: any, res: Response) => {
   res.json(leaveDto.toResponseList(rows));
 });
 
-export const balances = asyncHandler(async (req: Request, res: Response) => {
-  const rows = await leaveService.balances(req.params.employeeId);
+export const balances = asyncHandler(async (req: any, res: Response) => {
+  const rows = await leaveService.balances(req.params.employeeId, String(req.user.id));
   res.json(rows);
 });
 

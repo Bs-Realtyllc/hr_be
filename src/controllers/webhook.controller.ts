@@ -90,6 +90,12 @@ async function dispatchEvent(service: string, eventType: string, payload: any) {
 
 export const month_end_report = asyncHandler(
   async (req: Request, res: Response) => {
+    const expectedSecret = process.env.WEBHOOK_TRIGGER_SECRET;
+    if (!expectedSecret || req.headers["x-webhook-secret"] !== expectedSecret) {
+      console.warn("[webhook] month-end-report rejected: missing/invalid x-webhook-secret");
+      return res.status(401).json({ error: "unauthorized" });
+    }
+    
     if (!process.env.HMAC_SECRET) {
       console.error("[webhook] HMAC_SECRET is not set in .env");
       return res.status(500).json({ description: "Webhook not configured" });
@@ -101,8 +107,6 @@ export const month_end_report = asyncHandler(
     const performance = await webhookService.performance_report();
     //financial-report
     const financial = await webhookService.financial_report();
-
-    // console.log("leave", leave, "performance", performance, 'financial', financial);
 
     const signature = crypto
       .createHmac("sha256", process.env.HMAC_SECRET)

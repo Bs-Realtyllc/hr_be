@@ -4,17 +4,17 @@ import * as ctrl from '../../controllers/project.controller';
 import * as todoCtrl from '../../controllers/projectTodo.controller';
 import { authenticate, requireRole } from '../../middleware/auth';
 
-router.get('/by-employee/:empId', ctrl.byEmployee);
-router.get('/', ctrl.list);
-router.post('/', ctrl.create);
-router.put('/:id', ctrl.update);
-router.delete('/:id', ctrl.remove);
-router.get('/:id/assignments', ctrl.getAssignments);
-router.post('/:id/assignments', ctrl.addAssignment);
-router.delete('/:id/assignments/:empId', ctrl.removeAssignment);
-router.get('/:id/milestones', ctrl.getMilestones);
-router.post('/:id/milestones', ctrl.addMilestone);
-router.put('/:id/milestones/:mid', ctrl.updateMilestone);
+router.get('/by-employee/:empId',authenticate, ctrl.byEmployee);
+router.get('/',authenticate, ctrl.list);
+router.post('/',authenticate,requireRole('admin'), ctrl.create);
+router.put('/:id',authenticate,requireRole('admin'), ctrl.update);
+router.delete('/:id',authenticate,requireRole('admin'), ctrl.remove);
+router.get('/:id/assignments',authenticate, ctrl.getAssignments);
+router.post('/:id/assignments',authenticate,requireRole('admin'), ctrl.addAssignment);
+router.delete('/:id/assignments/:empId',authenticate,requireRole('admin'), ctrl.removeAssignment);
+router.get('/:id/milestones',authenticate, ctrl.getMilestones);
+router.post('/:id/milestones',authenticate,requireRole('admin'), ctrl.addMilestone);
+router.put('/:id/milestones/:mid',authenticate,requireRole('admin'), ctrl.updateMilestone);
 
 router.get('/:id/services', ctrl.getServices);
 router.post('/:id/services', ctrl.addService);
