@@ -1,0 +1,119 @@
+{
+  "src/": [
+    "docs/features/src.md"
+  ],
+  "src/config/": [
+    "docs/features/config.md"
+  ],
+  "src/controllers/auth.controller.ts": [
+    "docs/features/auth.controller.md"
+  ],
+  "src/controllers/cultureEvent.controller.ts": [
+    "docs/features/cultureevent.controller.md"
+  ],
+  "src/controllers/dashboard.controller.ts": [
+    "docs/features/dashboard.controller.md"
+  ],
+  "src/controllers/discordWebhook.controller.ts": [
+    "docs/features/discordwebhook.controller.md"
+  ],
+  "src/controllers/emailSettings.controller.ts": [
+    "docs/features/emailsettings.controller.md"
+  ],
+  "src/controllers/employee.controller.ts": [
+    "docs/features/employee.controller.md"
+  ],
+  "src/controllers/feedback.controller.ts": [
+    "docs/features/feedback.controller.md"
+  ],
+  "src/controllers/formLayout.controller.ts": [
+    "docs/features/formlayout.controller.md"
+  ],
+  "src/controllers/goal.controller.ts": [
+    "docs/features/goal.controller.md"
+  ],
+  "src/controllers/google.controller.ts": [
+    "docs/features/google.controller.md"
+  ],
+  "src/controllers/holiday.controller.ts": [
+    "docs/features/holiday.controller.md"
+  ],
+  "src/controllers/leave.controller.ts": [
+    "docs/features/leave.controller.md"
+  ],
+  "src/controllers/meeting.controller.ts": [
+    "docs/features/meeting.controller.md"
+  ],
+  "src/controllers/monthlyReport.controller.ts": [
+    "docs/features/monthlyreport.controller.md"
+  ],
+  "src/controllers/onboard.controller.ts": [
+    "docs/features/onboard.controller.md"
+  ],
+  "src/controllers/overtime.controller.ts": [
+    "docs/features/overtime.controller.md"
+  ],
+  "src/controllers/payroll.controller.ts": [
+    "docs/features/payroll.controller.md"
+  ],
+  "src/controllers/performance.controller.ts": [
+    "docs/features/performance.controller.md"
+  ],
+  "src/controllers/policy.controller.ts": [
+    "docs/features/policy.controller.md"
+  ],
+  "src/controllers/policyAcknowledgement.controller.ts": [
+    "docs/features/policyacknowledgement.controller.md"
+  ],
+  "src/controllers/profile.controller.ts": [
+    "docs/features/profile.controller.md"
+  ],
+  "src/controllers/project.controller.ts": [
+    "docs/features/project.controller.md"
+  ],
+  "src/controllers/projectTodo.controller.ts": [
+    "docs/features/projecttodo.controller.md"
+  ],
+  "src/controllers/roadmap.controller.ts": [
+    "docs/features/roadmap.controller.md"
+  ],
+  "src/controllers/server.controller.ts": [
+    "docs/features/server.controller.md"
+  ],
+  "src/controllers/serviceCredential.controller.ts": [
+    "docs/features/servicecredential.controller.md"
+  ],
+  "src/controllers/standup.controller.ts": [
+    "docs/features/standup.controller.md"
+  ],
+  "src/controllers/webhook.controller.ts": [
+    "docs/features/webhook.controller.md"
+  ],
+  "src/controllers/weeklyReport.controller.ts": [
+    "docs/features/weeklyreport.controller.md"
+  ],
+  "src/db/": [
+    "docs/features/db.md"
+  ],
+  "src/dtos/": [
+    "docs/features/dtos.md"
+  ],
+  "src/middleware/": [
+    "docs/features/middleware.md"
+  ],
+  "src/models/": [
+    "docs/features/models.md"
+  ],
+  "src/pkg/": [
+    "docs/features/pkg.md"
+  ],
+  "src/routes/": [
+    "docs/features/routes.md"
+  ],
+  "src/routes/index.ts": [
+    "docs/features/index.md"
+  ],
+  "src/services/": [
+    "docs/features/services.md"
+  ]
+}
