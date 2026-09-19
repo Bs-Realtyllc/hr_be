@@ -1,0 +1,7055 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "HR Platform API",
+    "version": "1.0.0",
+    "description": "Internal HR management platform \u2014 auth, employees, leaves, standups, projects, servers, payroll, profile, reports, and integrations (Google Calendar, Discord, generic webhooks)."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:6002",
+      "description": "Local development"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Service health check"
+    },
+    {
+      "name": "Auth",
+      "description": "Login, password change/reset"
+    },
+    {
+      "name": "Employees",
+      "description": "Employee profiles and directory"
+    },
+    {
+      "name": "Leaves",
+      "description": "Leave requests and balances"
+    },
+    {
+      "name": "Standups",
+      "description": "Async daily standup feed"
+    },
+    {
+      "name": "Projects",
+      "description": "Projects, assignments, milestones, and services"
+    },
+    {
+      "name": "Servers",
+      "description": "Server and environment configs"
+    },
+    {
+      "name": "Events",
+      "description": "Culture events \u2014 birthdays, anniversaries, milestones"
+    },
+    {
+      "name": "Payroll",
+      "description": "Salary, pay-frequency, and tax-profile management (admin/lead)"
+    },
+    {
+      "name": "Goals",
+      "description": "Individual, team, and company goals / KPI tracking"
+    },
+    {
+      "name": "Performance",
+      "description": "Performance review cycles and ratings"
+    },
+    {
+      "name": "Feedback",
+      "description": "Peer, manager, and public recognition feedback notes"
+    },
+    {
+      "name": "Profile",
+      "description": "The logged-in employee's own profile"
+    },
+    {
+      "name": "Reports",
+      "description": "Monthly report file submissions"
+    },
+    {
+      "name": "Dashboard",
+      "description": "Aggregate stats and trends"
+    },
+    {
+      "name": "Google Calendar",
+      "description": "Google OAuth connection and calendar sync"
+    },
+    {
+      "name": "Meetings",
+      "description": "Scheduled meetings backed by Google Calendar"
+    },
+    {
+      "name": "Discord",
+      "description": "Discord bot / Webhook Events integration for standups"
+    },
+    {
+      "name": "Email Settings",
+      "description": "Per-employee SMTP configuration for leave notifications"
+    },
+    {
+      "name": "Service Credentials",
+      "description": "Per-employee third-party service credentials"
+    },
+    {
+      "name": "Webhooks",
+      "description": "Generic inbound webhook endpoint for external services"
+    },
+    {
+      "name": "FormLayout",
+      "description": "Dynamic onboarding form field configuration"
+    },
+    {
+      "name": "Onboard",
+      "description": "Public onboarding applications and contract review"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Obtained from POST /api/auth/login. Send as `Authorization: Bearer <token>`."
+      }
+    },
+    "schemas": {
+      "Employee": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "example": "Jane Doe"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "jane@company.com"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+977 98XXXXXXXX"
+          },
+          "emergency_contact": {
+            "type": "string"
+          },
+          "designation": {
+            "type": "string",
+            "example": "Senior Backend Engineer"
+          },
+          "department": {
+            "type": "string",
+            "example": "Engineering"
+          },
+          "manager_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "manager_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2023-01-15"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Asia/Kathmandu"
+          },
+          "work_hours": {
+            "type": "string",
+            "example": "9 AM - 5 PM"
+          },
+          "tech_stack": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Go",
+              "React",
+              "MySQL"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "lead",
+              "employee",
+              "intern"
+            ],
+            "example": "employee"
+          },
+          "discord_username": {
+            "type": "string",
+            "nullable": true
+          },
+          "salary": {
+            "type": "number",
+            "nullable": true
+          },
+          "pay_frequency": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "biweekly",
+              "weekly"
+            ],
+            "nullable": true
+          },
+          "profile_picture": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "onboarding",
+              "active",
+              "on_leave",
+              "probation",
+              "terminated"
+            ]
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female",
+              "other",
+              "prefer_not_to_say"
+            ],
+            "nullable": true
+          },
+          "permanent_address": {
+            "type": "string",
+            "nullable": true
+          },
+          "education_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "institution_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "field_of_study": {
+            "type": "string",
+            "nullable": true
+          },
+          "graduation_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "previous_experience": {
+            "type": "string",
+            "nullable": true
+          },
+          "areas_of_interest": {
+            "type": "string",
+            "nullable": true
+          },
+          "linkedin_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "github_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "portfolio_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "emergency_contact_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EmployeeInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "email"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Jane Doe"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "emergency_contact": {
+            "type": "string"
+          },
+          "emergency_contact_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "designation": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "manager_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "timezone": {
+            "type": "string",
+            "default": "UTC"
+          },
+          "work_hours": {
+            "type": "string",
+            "default": "9 AM - 5 PM"
+          },
+          "tech_stack": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "lead",
+              "employee",
+              "intern"
+            ],
+            "default": "employee"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "onboarding",
+              "active"
+            ],
+            "default": "active",
+            "description": "Create only \u2014 'onboarding' creates a pending applicant (is_active = false) awaiting approval via PUT /{id}/approve or PUT /{id}/reject."
+          },
+          "discord_username": {
+            "type": "string",
+            "description": "Update only \u2014 matched against Discord standup submissions"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female",
+              "other",
+              "prefer_not_to_say"
+            ],
+            "nullable": true
+          },
+          "permanent_address": {
+            "type": "string",
+            "nullable": true
+          },
+          "education_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "institution_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "field_of_study": {
+            "type": "string",
+            "nullable": true
+          },
+          "graduation_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "previous_experience": {
+            "type": "string",
+            "nullable": true
+          },
+          "areas_of_interest": {
+            "type": "string",
+            "nullable": true
+          },
+          "linkedin_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "github_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "portfolio_url": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EmployeePayrollSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "designation": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "salary": {
+            "type": "number",
+            "nullable": true
+          },
+          "pay_frequency": {
+            "type": "string",
+            "nullable": true
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "working_days_this_month": {
+            "type": "integer"
+          },
+          "leave_days_this_month": {
+            "type": "integer"
+          },
+          "present_days": {
+            "type": "integer"
+          },
+          "daily_rate": {
+            "type": "integer"
+          },
+          "expected_pay": {
+            "type": "integer"
+          }
+        }
+      },
+      "LeaveRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "employee_id": {
+            "type": "integer"
+          },
+          "employee_name": {
+            "type": "string"
+          },
+          "designation": {
+            "type": "string"
+          },
+          "leave_type": {
+            "type": "string",
+            "enum": [
+              "sick",
+              "bereavement",
+              "maternity",
+              "paternity",
+              "casual",
+              "annual"
+            ]
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "reviewer_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LeaveUpdateInput": {
+        "type": "object",
+        "properties": {
+          "leave_type": {
+            "type": "string",
+            "enum": [
+              "sick",
+              "bereavement",
+              "maternity",
+              "paternity"
+            ]
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "LeaveBalance": {
+        "type": "object",
+        "properties": {
+          "leave_type": {
+            "type": "string",
+            "enum": [
+              "sick",
+              "bereavement",
+              "maternity",
+              "paternity"
+            ]
+          },
+          "total": {
+            "type": "integer"
+          },
+          "taken": {
+            "type": "integer"
+          },
+          "remaining": {
+            "type": "integer"
+          },
+          "year": {
+            "type": "integer"
+          }
+        }
+      },
+      "Standup": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "employee_id": {
+            "type": "integer"
+          },
+          "employee_name": {
+            "type": "string"
+          },
+          "designation": {
+            "type": "string"
+          },
+          "yesterday": {
+            "type": "string"
+          },
+          "today": {
+            "type": "string"
+          },
+          "blockers": {
+            "type": "string",
+            "nullable": true
+          },
+          "standup_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "example": "Gitgi Platform"
+          },
+          "description": {
+            "type": "string"
+          },
+          "repo_url": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "docs_url": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived",
+              "on_hold"
+            ]
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "expected_end_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProjectByEmployee": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Project"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "assigned_role": {
+                "type": "string",
+                "enum": [
+                  "lead",
+                  "backend",
+                  "frontend",
+                  "ui_ux",
+                  "qa",
+                  "devops"
+                ]
+              },
+              "milestones": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Milestone"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Milestone": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "project_id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "completed"
+            ]
+          }
+        }
+      },
+      "Assignment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "project_id": {
+            "type": "integer"
+          },
+          "employee_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "designation": {
+            "type": "string"
+          },
+          "profile_picture": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "lead",
+              "backend",
+              "frontend",
+              "ui_ux",
+              "qa",
+              "devops"
+            ]
+          },
+          "timezone": {
+            "type": "string"
+          }
+        }
+      },
+      "Server": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "project_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "project_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "example": "prod-api-01"
+          },
+          "environment": {
+            "type": "string",
+            "enum": [
+              "development",
+              "staging",
+              "production"
+            ]
+          },
+          "ip_address": {
+            "type": "string",
+            "example": "192.168.1.10",
+            "description": "Masked as \u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 when is_sensitive=true and show_sensitive is not requested"
+          },
+          "domain": {
+            "type": "string",
+            "example": "api.company.com",
+            "nullable": true
+          },
+          "ssh_user": {
+            "type": "string",
+            "example": "deploy",
+            "description": "Masked as \u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 when is_sensitive=true and show_sensitive is not requested"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_sensitive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CultureEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string",
+            "example": "Jane's Birthday"
+          },
+          "event_type": {
+            "type": "string",
+            "enum": [
+              "birthday",
+              "anniversary",
+              "team_event",
+              "milestone"
+            ]
+          },
+          "employee_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "employee_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "event_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Must be on an allowed organization domain"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          }
+        }
+      },
+      "UserSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "lead",
+              "employee"
+            ]
+          },
+          "designation": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "JWT, valid for 7 days"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserSummary"
+          }
+        }
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "required": [
+          "new_password"
+        ],
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "format": "password",
+            "description": "Required if the account already has a password set"
+          },
+          "new_password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 6
+          }
+        }
+      },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Token from the reset-password email link"
+          },
+          "new_password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 6
+          }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "DashboardStats": {
+        "type": "object",
+        "properties": {
+          "total_active": {
+            "type": "integer"
+          },
+          "on_leave_today": {
+            "type": "integer"
+          },
+          "present_today": {
+            "type": "integer"
+          },
+          "new_hires_month": {
+            "type": "integer"
+          },
+          "pending_leaves": {
+            "type": "integer"
+          },
+          "standups_today": {
+            "type": "integer"
+          },
+          "active_projects": {
+            "type": "integer"
+          }
+        }
+      },
+      "TrendPoint": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "count": {
+            "type": "integer"
+          }
+        }
+      },
+      "PayrollEmployee": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "designation": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "lead",
+              "employee"
+            ]
+          },
+          "salary": {
+            "type": "number",
+            "nullable": true
+          },
+          "pay_frequency": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "biweekly",
+              "weekly"
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SalaryUpdateInput": {
+        "type": "object",
+        "properties": {
+          "salary": {
+            "type": "number",
+            "nullable": true
+          },
+          "pay_frequency": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "biweekly",
+              "weekly"
+            ],
+            "default": "monthly"
+          }
+        }
+      },
+      "AdminPasswordResetInput": {
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 6
+          }
+        }
+      },
+      "PayrollTaxEmployee": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "designation": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "lead",
+              "employee"
+            ]
+          },
+          "salary": {
+            "type": "number",
+            "nullable": true
+          },
+          "pay_frequency": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "biweekly",
+              "weekly"
+            ],
+            "nullable": true
+          },
+          "tax_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "country": {
+            "type": "string"
+          },
+          "filing_status": {
+            "type": "string",
+            "enum": [
+              "single",
+              "married",
+              "head_of_household"
+            ]
+          },
+          "tax_regime": {
+            "type": "string",
+            "enum": [
+              "old",
+              "new"
+            ]
+          },
+          "exemptions": {
+            "type": "number"
+          },
+          "additional_withholding": {
+            "type": "number"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "annual_salary": {
+            "type": "number"
+          },
+          "taxable_income": {
+            "type": "number"
+          },
+          "estimated_annual_tax": {
+            "type": "number"
+          },
+          "estimated_monthly_tax": {
+            "type": "number"
+          },
+          "effective_rate": {
+            "type": "number",
+            "description": "Estimated effective tax rate as a percentage"
+          }
+        }
+      },
+      "TaxProfileInput": {
+        "type": "object",
+        "properties": {
+          "tax_id": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string",
+            "default": "Nepal"
+          },
+          "filing_status": {
+            "type": "string",
+            "enum": [
+              "single",
+              "married",
+              "head_of_household"
+            ],
+            "default": "single"
+          },
+          "tax_regime": {
+            "type": "string",
+            "enum": [
+              "old",
+              "new"
+            ],
+            "default": "new"
+          },
+          "exemptions": {
+            "type": "number",
+            "default": 0
+          },
+          "additional_withholding": {
+            "type": "number",
+            "default": 0
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "Goal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "employee_id": {
+            "type": "integer"
+          },
+          "employee_name": {
+            "type": "string"
+          },
+          "designation": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "individual",
+              "team",
+              "company"
+            ]
+          },
+          "metric_unit": {
+            "type": "string",
+            "example": "%"
+          },
+          "target_value": {
+            "type": "number"
+          },
+          "current_value": {
+            "type": "number"
+          },
+          "weight": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_started",
+              "in_progress",
+              "at_risk",
+              "completed",
+              "missed"
+            ]
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "created_by_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "GoalInput": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "employee_id": {
+            "type": "integer",
+            "description": "Admin/lead only \u2014 defaults to self"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "individual",
+              "team",
+              "company"
+            ],
+            "default": "individual"
+          },
+          "metric_unit": {
+            "type": "string",
+            "default": "%"
+          },
+          "target_value": {
+            "type": "number",
+            "default": 100
+          },
+          "current_value": {
+            "type": "number",
+            "default": 0
+          },
+          "weight": {
+            "type": "integer",
+            "default": 3
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_started",
+              "in_progress",
+              "at_risk",
+              "completed",
+              "missed"
+            ]
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "GoalProgressInput": {
+        "type": "object",
+        "properties": {
+          "current_value": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_started",
+              "in_progress",
+              "at_risk",
+              "completed",
+              "missed"
+            ]
+          }
+        }
+      },
+      "GoalSummary": {
+        "type": "object",
+        "properties": {
+          "employee_id": {
+            "type": "integer"
+          },
+          "employee_name": {
+            "type": "string"
+          },
+          "total_goals": {
+            "type": "integer"
+          },
+          "completed_goals": {
+            "type": "integer"
+          },
+          "at_risk_goals": {
+            "type": "integer"
+          },
+          "avg_progress": {
+            "type": "number",
+            "nullable": true,
+            "description": "Average completion percentage across goals"
+          }
+        }
+      },
+      "PerformanceReview": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "employee_id": {
+            "type": "integer"
+          },
+          "employee_name": {
+            "type": "string"
+          },
+          "designation": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "reviewer_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "reviewer_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "review_period": {
+            "type": "string",
+            "example": "2026-H1"
+          },
+          "overall_rating": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 5
+          },
+          "category_ratings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            },
+            "example": {
+              "technical": 4,
+              "communication": 5,
+              "teamwork": 4,
+              "ownership": 4
+            }
+          },
+          "strengths": {
+            "type": "string",
+            "nullable": true
+          },
+          "improvements": {
+            "type": "string",
+            "nullable": true
+          },
+          "manager_comments": {
+            "type": "string",
+            "nullable": true
+          },
+          "employee_comments": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "submitted",
+              "acknowledged"
+            ]
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "acknowledged_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PerformanceReviewInput": {
+        "type": "object",
+        "required": [
+          "employee_id",
+          "review_period"
+        ],
+        "properties": {
+          "employee_id": {
+            "type": "integer"
+          },
+          "review_period": {
+            "type": "string",
+            "example": "2026-H1"
+          },
+          "overall_rating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "category_ratings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "strengths": {
+            "type": "string"
+          },
+          "improvements": {
+            "type": "string"
+          },
+          "manager_comments": {
+            "type": "string"
+          }
+        }
+      },
+      "PerformanceAcknowledgeInput": {
+        "type": "object",
+        "properties": {
+          "employee_comments": {
+            "type": "string"
+          }
+        }
+      },
+      "RatingTrendPoint": {
+        "type": "object",
+        "properties": {
+          "review_period": {
+            "type": "string"
+          },
+          "overall_rating": {
+            "type": "number"
+          }
+        }
+      },
+      "FeedbackNote": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "from_employee_id": {
+            "type": "integer"
+          },
+          "from_name": {
+            "type": "string"
+          },
+          "from_designation": {
+            "type": "string"
+          },
+          "to_employee_id": {
+            "type": "integer"
+          },
+          "to_name": {
+            "type": "string"
+          },
+          "to_designation": {
+            "type": "string"
+          },
+          "feedback_type": {
+            "type": "string",
+            "enum": [
+              "praise",
+              "constructive",
+              "peer",
+              "manager"
+            ]
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "private"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "project_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FeedbackInput": {
+        "type": "object",
+        "required": [
+          "to_employee_id",
+          "message"
+        ],
+        "properties": {
+          "to_employee_id": {
+            "type": "integer"
+          },
+          "feedback_type": {
+            "type": "string",
+            "enum": [
+              "praise",
+              "constructive",
+              "peer",
+              "manager"
+            ],
+            "default": "praise"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "private"
+            ],
+            "default": "public"
+          },
+          "message": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "integer"
+          }
+        }
+      },
+      "FeedbackSummary": {
+        "type": "object",
+        "properties": {
+          "employee_id": {
+            "type": "integer"
+          },
+          "employee_name": {
+            "type": "string"
+          },
+          "total_received": {
+            "type": "integer"
+          },
+          "praise_count": {
+            "type": "integer"
+          },
+          "constructive_count": {
+            "type": "integer"
+          }
+        }
+      },
+      "Profile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "alt_phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "emergency_contact": {
+            "type": "string",
+            "nullable": true
+          },
+          "designation": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "dob": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "qualifications": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "profile_picture": {
+            "type": "string",
+            "nullable": true
+          },
+          "citizenship_front": {
+            "type": "string",
+            "nullable": true
+          },
+          "citizenship_back": {
+            "type": "string",
+            "nullable": true
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "work_hours": {
+            "type": "string"
+          },
+          "tech_stack": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "lead",
+              "employee"
+            ]
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "ProfileUpdateInput": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string"
+          },
+          "alt_phone": {
+            "type": "string"
+          },
+          "emergency_contact": {
+            "type": "string"
+          },
+          "dob": {
+            "type": "string",
+            "format": "date"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "work_hours": {
+            "type": "string"
+          },
+          "qualifications": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "UploadResponse": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string"
+          }
+        }
+      },
+      "MonthlyReport": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "employee_id": {
+            "type": "integer"
+          },
+          "employee_name": {
+            "type": "string"
+          },
+          "designation": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "month": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12
+          },
+          "year": {
+            "type": "integer"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "file_size": {
+            "type": "integer"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "GoogleAuthUrl": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "GoogleStatus": {
+        "type": "object",
+        "properties": {
+          "connected": {
+            "type": "boolean"
+          },
+          "webhookActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GoogleSyncResult": {
+        "type": "object",
+        "properties": {
+          "synced": {
+            "type": "integer"
+          }
+        }
+      },
+      "Meeting": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "start_datetime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_datetime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "attendees": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "email"
+            }
+          },
+          "google_event_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "meet_link": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "scheduled",
+              "cancelled"
+            ]
+          },
+          "created_by": {
+            "type": "integer"
+          },
+          "creator_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "MeetingInput": {
+        "type": "object",
+        "required": [
+          "title",
+          "start_datetime",
+          "end_datetime"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "start_datetime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_datetime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "attendees": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "email"
+            }
+          }
+        }
+      },
+      "MeetingCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "start_datetime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_datetime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "meetLink": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "googleEventId": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EmailSettings": {
+        "type": "object",
+        "properties": {
+          "smtp_host": {
+            "type": "string"
+          },
+          "smtp_port": {
+            "type": "integer"
+          },
+          "smtp_user": {
+            "type": "string"
+          },
+          "smtp_from": {
+            "type": "string"
+          },
+          "default_to": {
+            "type": "string",
+            "nullable": true
+          },
+          "default_cc": {
+            "type": "string",
+            "nullable": true
+          },
+          "default_bcc": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EmailSettingsInput": {
+        "type": "object",
+        "required": [
+          "smtp_host",
+          "smtp_user"
+        ],
+        "properties": {
+          "smtp_host": {
+            "type": "string"
+          },
+          "smtp_port": {
+            "type": "integer",
+            "default": 587
+          },
+          "smtp_user": {
+            "type": "string"
+          },
+          "smtp_pass": {
+            "type": "string",
+            "format": "password",
+            "description": "Required on initial setup; omit to keep the stored password unchanged"
+          },
+          "smtp_from": {
+            "type": "string"
+          },
+          "default_to": {
+            "type": "string"
+          },
+          "default_cc": {
+            "type": "string"
+          },
+          "default_bcc": {
+            "type": "string"
+          }
+        }
+      },
+      "ServiceCredential": {
+        "type": "object",
+        "properties": {
+          "service_name": {
+            "type": "string",
+            "example": "AWS Console"
+          },
+          "username": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ServiceCredentialInput": {
+        "type": "object",
+        "required": [
+          "service_name"
+        ],
+        "properties": {
+          "service_name": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "Left unchanged if omitted/blank on update"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "FormLayoutField": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "email"
+          },
+          "type": {
+            "type": "string",
+            "example": "text"
+          },
+          "label": {
+            "type": "string",
+            "example": "Email Address"
+          },
+          "section": {
+            "type": "string",
+            "example": "personal"
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FormLayoutResponse": {
+        "type": "object",
+        "description": "Fields grouped by section key",
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/FormLayoutField"
+          }
+        }
+      },
+      "OnboardProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "dob": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "current_address": {
+            "type": "string",
+            "nullable": true
+          },
+          "education_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "institution_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "field_of_study": {
+            "type": "string",
+            "nullable": true
+          },
+          "graduation_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "previous_experience": {
+            "type": "string",
+            "nullable": true
+          },
+          "areas_of_interest": {
+            "type": "string",
+            "nullable": true
+          },
+          "linkedin_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "github_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "portfolio_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "intern",
+              "employee"
+            ]
+          },
+          "additional_info": {
+            "type": "string",
+            "nullable": true
+          },
+          "nda_path": {
+            "type": "string",
+            "nullable": true,
+            "description": "Stored filename of the uploaded signed contract"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "Created": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        }
+      },
+      "Success": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Check server health",
+        "responses": {
+          "200": {
+            "description": "Server is up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Use this endpoint to verify that the server is up and running. The response will include the server's status and the current timestamp."
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Login with Email and Password",
+        "description": "Logs in a user by providing their email and password. Validates email domain and returns a JWT for 7 days. Returns appropriate errors for missing credentials or invalid domain.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing email or password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Email domain not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/password": {
+      "put": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Change User Password",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Password too short",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Current password incorrect / not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint allows a logged-in user to change their password. Provide a valid JSON object with the new password details in the request body to update the password."
+      }
+    },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Request Password Reset",
+        "description": "Sends a generic message to request a password reset, regardless of the email's existence to avoid enumeration attacks.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Reset password with token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid/expired token or bad password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Use this endpoint to reset your password by providing a valid reset token sent via email and a new password. Ensure the token is valid and not expired to proceed with the password reset process."
+      }
+    },
+    "/api/dashboard/stats": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Get aggregated headcount, leave, and project stats",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardStats"
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint provides aggregated data on employee headcount, leave balances, and project status. It's secured with Bearer token authentication. The response is in JSON format, containing the aggregated stats as described in the DashboardStats schema."
+      }
+    },
+    "/api/dashboard/standup-trend": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Get daily standup submission counts",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of daily counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TrendPoint"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint provides an array of daily counts for standup submissions over the last 30 days. It is secured with bearer authentication, and the response is a JSON array of TrendPoint objects."
+      }
+    },
+    "/api/dashboard/leave-trend": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Get leave request submission trend",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of daily counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TrendPoint"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint provides an array of daily counts for leave request submissions over the last 30 days. It can be used by frontend engineers to visualize leave request trends on a dashboard."
+      }
+    },
+    "/api/employees": {
+      "get": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Get all active employees",
+        "responses": {
+          "200": {
+            "description": "Array of employees",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Employee"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This API endpoint allows you to fetch a list of all active employees. It returns an array of employee objects in JSON format."
+      },
+      "post": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Create Employee",
+        "description": "Create a new employee record, including default leave balances for the current year. This operation is used to add a new employee to the system.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmployeeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Employee created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "DB error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/employees/onboarding": {
+      "get": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "List pending onboarding employees",
+        "description": "Returns a list of employees marked for onboarding (is_active = false). Use only with Admin permissions.",
+        "responses": {
+          "200": {
+            "description": "Array of pending applicants",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Employee"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/employees/{id}": {
+      "get": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Get employee by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Employee",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Employee"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "description": "This endpoint retrieves details of an employee identified by a unique ID. Provide the ID in the URL to fetch the employee's information."
+      },
+      "put": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Update Employee Details",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmployeeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nothing to update",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint allows updating the details of an employee by providing their unique ID and the updated fields in the request body."
+      },
+      "delete": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Soft-delete employee",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deactivated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          }
+        },
+        "description": "This operation soft-deletes an employee by setting their 'is_active' field to false. It accepts an employee ID in the path parameter to identify the employee to be deactivated."
+      }
+    },
+    "/api/employees/{id}/payroll-summary": {
+      "get": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Get employee payroll summary",
+        "description": "Fetch detailed payroll information for a specific employee, including their working days, leave days, and expected pay based on their current salary. This API is useful for HR systems to provide real-time payroll insights.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payroll summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeePayrollSummary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/employees/{id}/approve": {
+      "put": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Approve Employee",
+        "description": "This API endpoint is used to approve an employee who is in the 'onboarding' status. It sets the 'is_active' field to true and updates the 'status' to 'active', along with sending a one-time password to the employee's company email. Only Admins can use this endpoint.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Employee is not a pending applicant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/employees/{id}/reject": {
+      "put": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Reject Pending Employee Record",
+        "description": "Ends the onboarding process for an employee by deleting their record. Use this API only for employees in the 'onboarding' status.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "send_mail",
+            "in": "query",
+            "required": false,
+            "description": "If true, sends a rejection notice to the employee before deleting their record.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rejected and deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Employee is not a pending applicant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/leaves": {
+      "get": {
+        "tags": [
+          "Leaves"
+        ],
+        "summary": "List employee leave requests",
+        "description": "This endpoint allows users to retrieve a list of leave requests. Employees can filter by their own ID, and admins/leads can further filter by status and employee ID.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employee_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of leave requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LeaveRequest"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Leaves"
+        ],
+        "summary": "Submit Leave Request",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "employee_id",
+                  "leave_type",
+                  "start_date",
+                  "end_date"
+                ],
+                "properties": {
+                  "employee_id": {
+                    "type": "integer"
+                  },
+                  "leave_type": {
+                    "type": "string",
+                    "enum": [
+                      "sick",
+                      "bereavement",
+                      "maternity",
+                      "paternity"
+                    ]
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "end_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "If provided, sends a notification email via the employee's configured SMTP settings"
+                  },
+                  "cc": {
+                    "type": "string"
+                  },
+                  "bcc": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          }
+        },
+        "description": "This API allows submitting a leave request for an employee. It requires the employee's ID, leave type, start and end dates, and optionally the reason for the leave and notification details."
+      }
+    },
+    "/api/leaves/{id}": {
+      "put": {
+        "tags": [
+          "Leaves"
+        ],
+        "summary": "Edit Pending Leave Request",
+        "description": "Use this endpoint to update a pending leave request by its ID. Ensure the request comes from the authorized employee and the leave status is 'pending'.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaveUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not pending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the owner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Leaves"
+        ],
+        "summary": "Cancel Pending Leave Request",
+        "description": "This API endpoint allows the cancellation of a pending leave request. It requires the employee ID in the path parameter and can be called by the owning employee to cancel the leave if the status is still 'pending'.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not pending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the owner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/leaves/out/today": {
+      "get": {
+        "tags": [
+          "Leaves"
+        ],
+        "summary": "Today's Leave Approvers List",
+        "responses": {
+          "200": {
+            "description": "Array of employees out today",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "designation": {
+                        "type": "string"
+                      },
+                      "profile_picture": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "leave_type": {
+                        "type": "string"
+                      },
+                      "end_date": {
+                        "type": "string",
+                        "format": "date"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint returns an array of objects representing employees who are approved for leave today. Each object includes the employee's name, designation, profile picture URL (optional), leave type, and end date of leave."
+      }
+    },
+    "/api/leaves/out/week": {
+      "get": {
+        "tags": [
+          "Leaves"
+        ],
+        "summary": "Get employees on leave this week",
+        "responses": {
+          "200": {
+            "description": "Array of employees out this week",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "designation": {
+                        "type": "string"
+                      },
+                      "leave_type": {
+                        "type": "string"
+                      },
+                      "start_date": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "end_date": {
+                        "type": "string",
+                        "format": "date"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint retrieves a list of employees who are currently on approved leave that falls within the week spanning Monday through Friday. The response is an array of objects, each containing details such as the employee's name, designation, leave type, start date, and end date."
+      }
+    },
+    "/api/leaves/balances/{employeeId}": {
+      "get": {
+        "tags": [
+          "Leaves"
+        ],
+        "summary": "Get employee leave balances",
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Balance per leave type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LeaveBalance"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This API call retrieves the current year's leave balances for a specified employee ID. The response is an array of objects, each representing a leave type and its balance."
+      }
+    },
+    "/api/leaves/{id}/approve": {
+      "put": {
+        "tags": [
+          "Leaves"
+        ],
+        "summary": "Approve Leave Request",
+        "description": "Approves a leave request by an admin or lead. The request includes a 'reviewed_by' field indicating the approver. This action deducts leave days from the employee's balance and checks if the leave dates have passed.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reviewed_by": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dates already passed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/leaves/{id}/reject": {
+      "put": {
+        "tags": [
+          "Leaves"
+        ],
+        "summary": "Reject Leave Request",
+        "description": "Admins can reject leave requests by their subordinates, ensuring requests are processed within the required timeframe. Users must provide a reviewer's ID to validate the rejection.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reviewed_by": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dates already passed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/standups": {
+      "get": {
+        "tags": [
+          "Standups"
+        ],
+        "summary": "List employee standups by date",
+        "description": "Employees can filter standups by exact date, while admins/leads can see all standups and filter by employee ID or date range.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Exact date filter (YYYY-MM-DD)"
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Ignored if `date` is set"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Ignored if `date` is set"
+          },
+          {
+            "name": "employee_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of standups",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Standup"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Standups"
+        ],
+        "summary": "Create Standup Report",
+        "description": "This API allows you to submit a daily standup report for a specific employee. It supports submitting data in JSON format, including details like yesterday's and today's work, blockers, and the date. The standup report is saved and, if configured, mirrored to a Discord channel.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "employee_id",
+                  "yesterday",
+                  "today"
+                ],
+                "properties": {
+                  "employee_id": {
+                    "type": "integer"
+                  },
+                  "yesterday": {
+                    "type": "string"
+                  },
+                  "today": {
+                    "type": "string"
+                  },
+                  "blockers": {
+                    "type": "string"
+                  },
+                  "standup_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Defaults to today if omitted"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/standups/today": {
+      "get": {
+        "tags": [
+          "Standups"
+        ],
+        "summary": "Today's own standups or admin/lead access required",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of today's standups",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Standup"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Get an array of standups submitted today. Access is limited to the user's own entries unless the user has admin or lead privileges. Use this endpoint to retrieve standup submissions for today."
+      }
+    },
+    "/api/projects/by-employee/{empId}": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Get employee projects",
+        "parameters": [
+          {
+            "name": "empId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of projects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectByEmployee"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint retrieves an array of projects an employee is assigned to, including their role and milestones. It requires the employee's unique ID as a path parameter."
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "List projects by status",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "archived",
+                "on_hold"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of projects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Project"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint allows you to retrieve a list of all projects, with optional filtering by their status (active, archived, on_hold)."
+      },
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Create Project",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "repo_url": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  },
+                  "docs_url": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "archived",
+                      "on_hold"
+                    ],
+                    "default": "active"
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "expected_end_date": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint allows you to create a new project with optional parameters such as name, description, repositories, documentation URLs, status, start date, and expected end date."
+      }
+    },
+    "/api/projects/{id}": {
+      "put": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Update Project",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Project"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nothing to update",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Use this endpoint to modify an existing project by providing updated project details in the request body. Ensure the project ID is correctly specified in the path to avoid conflicts with other projects."
+      }
+    },
+    "/api/projects/{id}/assignments": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Get Project Assignments",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of assignments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Assignment"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Use this endpoint to retrieve a list of team assignments associated with a specific project ID. Ensure you pass the project ID in the URL to fetch the correct assignments."
+      },
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Assign Employee to Project ID",
+        "description": "Assigns a specific employee to a project identified by ID, allowing you to update their role within the project.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "employee_id",
+                  "role"
+                ],
+                "properties": {
+                  "employee_id": {
+                    "type": "integer"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "lead",
+                      "backend",
+                      "frontend",
+                      "ui_ux",
+                      "qa",
+                      "devops"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{id}/assignments/{empId}": {
+      "delete": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Remove project assignment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "empId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint allows removing an employee from a specific project by specifying the project ID and the employee ID in the URL. It responds with a 200 status code upon successful removal."
+      }
+    },
+    "/api/projects/{id}/milestones": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Get project milestones",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of milestones",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Milestone"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint retrieves a list of milestones associated with a specific project identified by the provided ID. It is useful for frontend developers who need to fetch and display project milestones on their web or mobile applications."
+      },
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Add milestone to project",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "due_date"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "due_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "in_progress",
+                      "completed"
+                    ],
+                    "default": "pending"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          }
+        },
+        "description": "Use this endpoint to add a new milestone to a specific project. The request body should include the milestone's title, due date, and status."
+      }
+    },
+    "/api/projects/{id}/milestones/{mid}": {
+      "put": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Update project milestone",
+        "description": "This operation allows updating the title, due date, and status of a specific milestone within a project. The status must be one of 'pending', 'in_progress', or 'completed'.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "due_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "in_progress",
+                      "completed"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{id}/services": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "List Project Services",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of service keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This API endpoint allows fetching a list of service keys linked to a specific project identified by its ID. It's useful for developers who need to retrieve the service keys associated with a project for further processing or display."
+      },
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Link service to project by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "service_key"
+                ],
+                "properties": {
+                  "service_key": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Linked (idempotent)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "service_key required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint allows you to associate a service with a project by providing the project ID and the service key in the request body. It's an idempotent operation, meaning you can make the call multiple times with the same parameters and it will have the same effect."
+      }
+    },
+    "/api/projects/{id}/services/{serviceKey}": {
+      "delete": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Delete project service link",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "serviceKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unlinked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          }
+        },
+        "description": "This operation removes a service from a specified project, allowing you to unlink a service from a project by providing the project ID and service key in the request."
+      }
+    },
+    "/api/servers": {
+      "get": {
+        "tags": [
+          "Servers"
+        ],
+        "summary": "List servers by project_id",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "show_sensitive",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Reveal masked sensitive fields (lead/admin only)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of servers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Server"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint allows you to retrieve a list of servers associated with a specific project_id. You can also specify the show_sensitive parameter to reveal sensitive fields, which is only accessible to users with the lead/admin role."
+      },
+      "post": {
+        "tags": [
+          "Servers"
+        ],
+        "summary": "Register Server",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "environment"
+                ],
+                "properties": {
+                  "project_id": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "environment": {
+                    "type": "string",
+                    "enum": [
+                      "development",
+                      "staging",
+                      "production"
+                    ]
+                  },
+                  "ip_address": {
+                    "type": "string"
+                  },
+                  "domain": {
+                    "type": "string"
+                  },
+                  "ssh_user": {
+                    "type": "string"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "is_sensitive": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          }
+        },
+        "description": "Use this endpoint to create a new server registration. Provide the server's name, environment, IP address, domain, SSH user, and any notes or sensitive information. The endpoint will return a successful status upon successful registration."
+      }
+    },
+    "/api/servers/{id}": {
+      "put": {
+        "tags": [
+          "Servers"
+        ],
+        "summary": "Update Server Details",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Server"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          }
+        },
+        "description": "This API endpoint allows updating server details by providing the server's ID and the updated server information in JSON format. The response is a 200 status code with a success schema if the update is successful."
+      },
+      "delete": {
+        "tags": [
+          "Servers"
+        ],
+        "summary": "Delete server by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          }
+        },
+        "description": "This API endpoint allows you to delete a server record by specifying its ID in the request URL. It returns a 200 status code upon successful deletion."
+      }
+    },
+    "/api/events": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "List recent culture events",
+        "responses": {
+          "200": {
+            "description": "Array of events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CultureEvent"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint provides a list of the latest 50 culture events. Developers can use this to fetch and display the most recent cultural activities on their applications."
+      },
+      "post": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Create an event",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "event_type",
+                  "event_date"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "event_type": {
+                    "type": "string",
+                    "enum": [
+                      "birthday",
+                      "anniversary",
+                      "team_event",
+                      "milestone"
+                    ]
+                  },
+                  "employee_id": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "event_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          }
+        },
+        "description": "To create a new event, you need to provide the title, event type, and event date in the request body. The event type can be 'birthday', 'anniversary', 'team_event', or 'milestone'. If you want to associate the event with an employee, you can include their ID. The response will be a success message with a status code of 201."
+      }
+    },
+    "/api/events/upcoming": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Upcoming events in next 30 days",
+        "responses": {
+          "200": {
+            "description": "Array of upcoming events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CultureEvent"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint provides an array of upcoming events that occur within the next 30 days. It can be used by frontend engineers to display or filter events in real-time."
+      }
+    },
+    "/api/payroll": {
+      "get": {
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "List Employees' Payroll Data",
+        "description": "Returns an array of payroll records for employees. The records are accessible based on the user's role: Admins/leads can see all active employees, others only their own record.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of payroll records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PayrollEmployee"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payroll/{id}/salary": {
+      "put": {
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "Update Employee Salary",
+        "description": "This API allows updating an employee's salary and pay frequency. Use it only when you have the appropriate permissions.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalaryUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payroll/{id}/reset-password": {
+      "put": {
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "Admin resets employee password",
+        "description": "This endpoint allows an admin to reset the password for a specific employee. The admin must provide the employee's ID and a new password to update.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPasswordResetInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Password too short",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payroll/taxes": {
+      "get": {
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "List Payroll Taxes",
+        "description": "Returns an array of tax profiles for employees, with estimated tax based on Nepal's tax slabs, suitable for admins and leads to view all records, while others can only see their own.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of tax records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PayrollTaxEmployee"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payroll/{id}/tax-profile": {
+      "put": {
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "Update Employee Tax Profile ID",
+        "description": "Use this API to update an employee's tax profile information. Developers should ensure the API call is made with the correct employee ID and include the necessary tax profile details in the request body.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaxProfileInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/goals": {
+      "get": {
+        "tags": [
+          "Goals"
+        ],
+        "summary": "List Goals",
+        "description": "Retrieve a list of goals for a specific employee, with optional status and category filters.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employee_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "not_started",
+                "in_progress",
+                "at_risk",
+                "completed",
+                "missed"
+              ]
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "individual",
+                "team",
+                "company"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of goals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Goal"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Goals"
+        ],
+        "summary": "Create Employee Goal",
+        "description": "Creates a new goal for the authenticated user. Admins and leads can assign goals to others.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/goals/summary": {
+      "get": {
+        "tags": [
+          "Goals"
+        ],
+        "summary": "Get aggregated goal completions per employee",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of per-employee summaries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GoalSummary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint returns an array of goal completion summaries for each employee, useful for frontend developers needing to display or integrate aggregated goal data."
+      }
+    },
+    "/api/goals/{id}": {
+      "put": {
+        "tags": [
+          "Goals"
+        ],
+        "summary": "Update Goal Details",
+        "description": "This API endpoint allows updating the details of a goal by providing the goal's ID and the updated goal details in JSON format. Only owners or administrators with appropriate permissions can update goals.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Goals"
+        ],
+        "summary": "Delete specific goal",
+        "description": "Use this endpoint to remove a goal by its ID. Ensure you have the necessary permissions or are an authorized admin/lead to perform this action.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/goals/{id}/progress": {
+      "put": {
+        "tags": [
+          "Goals"
+        ],
+        "summary": "Update Goal Progress",
+        "description": "This API endpoint allows updating the progress value and status of a specific goal. It requires a goal ID and a JSON payload containing the new progress value and status. Only users with appropriate permissions can update the goal progress.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalProgressInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/performance": {
+      "get": {
+        "tags": [
+          "Performance"
+        ],
+        "summary": "List Employee Performance Reviews",
+        "description": "This endpoint allows users to retrieve a list of performance reviews. Employees can see their own reviews, while admins/leads can view all reviews and filter by employee_id. Status filters are available for draft, submitted, and acknowledged reviews.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employee_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "submitted",
+                "acknowledged"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of reviews",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PerformanceReview"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Performance"
+        ],
+        "summary": "Create Performance Review",
+        "description": "Create a draft performance review for an employee. Only administrators and leads with the appropriate permissions can use this endpoint.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceReviewInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A review for this period already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/performance/trend/{employeeId}": {
+      "get": {
+        "tags": [
+          "Performance"
+        ],
+        "summary": "Get employee rating history",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of rating points",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RatingTrendPoint"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint retrieves the rating history for a specific employee, including their scores across various review periods. It requires the employee's ID to fetch the relevant data."
+      }
+    },
+    "/api/performance/{id}": {
+      "put": {
+        "tags": [
+          "Performance"
+        ],
+        "summary": "Edit Performance Draft Review",
+        "description": "This endpoint allows updating a performance review draft. It's intended for administrators or leads who have the appropriate permissions and only when the review's status is 'draft'.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceReviewInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Only draft reviews can be edited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Performance"
+        ],
+        "summary": "Delete Performance Draft Review",
+        "description": "Deletes a draft review for performance evaluations. Only available for admin or lead users when the review status is 'draft'. The request should be made using DELETE method to the /api/performance/{id} endpoint.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Only draft reviews can be deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/performance/{id}/submit": {
+      "put": {
+        "tags": [
+          "Performance"
+        ],
+        "summary": "Submit Draft Review",
+        "description": "Submits a previously drafted review to an employee. This endpoint is intended for administrative or lead users to submit reviews that have been prepared beforehand.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Review has already been submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/performance/{id}/acknowledge": {
+      "put": {
+        "tags": [
+          "Performance"
+        ],
+        "summary": "Acknowledge Submitted Review",
+        "description": "Acknowledges a submitted performance review by the employee who submitted it. Only the reviewed employee can acknowledge the review while its status is 'submitted'.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceAcknowledgeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Acknowledged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Only submitted reviews can be acknowledged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the reviewed employee",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/feedback": {
+      "get": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "List Feedback Notes",
+        "description": "Retrieve a list of feedback notes based on scope and type, useful for companies or individual users to view their own or others' feedback.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "public",
+                "received",
+                "sent"
+              ],
+              "default": "public"
+            }
+          },
+          {
+            "name": "employee_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "praise",
+                "constructive",
+                "peer",
+                "manager"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of feedback notes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeedbackNote"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Create Feedback Note",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing message or sending feedback to yourself",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "This operation allows users to send a feedback note to another employee. Users must provide a feedback message in the request body, which includes the message content. The request requires a valid JSON payload for successful execution."
+      }
+    },
+    "/api/feedback/summary": {
+      "get": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Employee feedback counts summary",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of per-employee summaries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeedbackSummary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint provides a list of feedback counts per employee. It is useful for a frontend engineer who needs to display or analyze the number of feedbacks received by each employee, typically for a leaderboard or dashboard display."
+      }
+    },
+    "/api/feedback/{id}": {
+      "delete": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Delete Feedback Note",
+        "description": "This API allows authorized users to delete a feedback note identified by its unique ID. Ensure you have the appropriate permissions to delete the feedback.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/profile": {
+      "get": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Get Employee Profile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Use this endpoint to retrieve the profile information of the currently logged-in employee. Ensure your API call includes the necessary authentication (Bearer token) as part of the request headers."
+      },
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Update Profile Fields",
+        "description": "This API allows you to update the editable fields of your profile. The request body should include the fields you wish to update.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nothing to update",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profile/photo": {
+      "post": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Upload Profile Photo",
+        "description": "This API allows you to upload or replace your profile photo. It accepts image files in .jpg, .jpeg, .png, or .webp formats, with a maximum size of 5 MB. The API deletes the previous photo if a new one is provided.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "photo"
+                ],
+                "properties": {
+                  "photo": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No file uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profile/citizenship/{side}": {
+      "post": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Upload Citizenship Document Image",
+        "description": "This endpoint allows you to upload a front or back citizenship document image. It supports .jpg, .jpeg, .png, and .webp files up to 5 MB. The previous file for the specified side will be deleted. The request requires a multipart/form-data body with a 'doc' field containing the image.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "side",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "front",
+                "back"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "doc"
+                ],
+                "properties": {
+                  "doc": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid side or no file uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "List Monthly Reports",
+        "description": "Returns an array of monthly reports filtered by year and month, suitable for frontend developers to integrate into their applications.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of reports",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonthlyReport"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Create Monthly Report",
+        "description": "This API endpoint allows you to submit a monthly report file for processing. It supports .pdf, .pptx, .ppt, .docx, and .doc files up to 20 MB in size. The request body requires the file, employee_id, title, month, and year fields, along with optional notes.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "employee_id",
+                  "title",
+                  "month",
+                  "year"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "employee_id": {
+                    "type": "integer"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "month": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
+                  },
+                  "year": {
+                    "type": "integer"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields or no file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/{id}/download": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Download Report File",
+        "description": "Allows non-privileged users to download their own report files, provided the report exists and the user has permission to access it.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File stream",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/{id}": {
+      "delete": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Delete user report",
+        "description": "This endpoint allows a user to delete their own report. It requires authentication and deletes both the report from the system and the associated file.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the owner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/google/auth-url": {
+      "get": {
+        "tags": [
+          "Google Calendar"
+        ],
+        "summary": "Get Google OAuth Consent URL",
+        "description": "This endpoint returns the URL needed for users to authenticate with Google OAuth. It is intended for use by administrators only.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Auth URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleAuthUrl"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "OAuth client not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/google/callback": {
+      "get": {
+        "tags": [
+          "Google Calendar"
+        ],
+        "summary": "Exchange auth code for tokens and redirect to frontend calendar page",
+        "description": "This endpoint receives an auth code from Google in the query parameters, exchanges it for tokens, stores the tokens, and then redirects the frontend to the calendar page using the FRONTEND_URL/calendar endpoint.",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to FRONTEND_URL/calendar with a status query param"
+          }
+        }
+      }
+    },
+    "/api/google/status": {
+      "get": {
+        "tags": [
+          "Google Calendar"
+        ],
+        "summary": "Get Google Calendar status",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleStatus"
+                }
+              }
+            }
+          }
+        },
+        "description": "This API endpoint returns the connection status of the user's Google Calendar. It is secured with Bearer token and returns a JSON object detailing the status."
+      }
+    },
+    "/api/google/disconnect": {
+      "delete": {
+        "tags": [
+          "Google Calendar"
+        ],
+        "summary": "Disconnect Google Calendar",
+        "description": "Stops push notifications and clears tokens. Use only with admin credentials.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disconnected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Google token revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Google not connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/google/sync": {
+      "post": {
+        "tags": [
+          "Google Calendar"
+        ],
+        "summary": "Sync Google Calendar events",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sync result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleSyncResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Google token revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Google not connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint allows users to manually sync their upcoming Google Calendar events into scheduled meetings. Developers can integrate this endpoint to automatically sync calendar events, ensuring meeting schedules are up-to-date with event information from Google Calendar."
+      }
+    },
+    "/api/google/webhook": {
+      "post": {
+        "tags": [
+          "Google Calendar"
+        ],
+        "summary": "Google Calendar Webhook Receiver",
+        "description": "Called by Google to notify changes in your Calendar. Use the x-goog-resource-state header to indicate state changes, then respond with 200 OK to acknowledge.",
+        "parameters": [
+          {
+            "name": "x-goog-resource-state",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Acknowledged"
+          }
+        }
+      }
+    },
+    "/api/google/meetings": {
+      "get": {
+        "tags": [
+          "Meetings"
+        ],
+        "summary": "List Recent Meetings",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of meetings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Meeting"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint retrieves a list of scheduled meetings from the last 7 days. It is secured using bearer authentication, and the response is an array of meeting objects."
+      },
+      "post": {
+        "tags": [
+          "Meetings"
+        ],
+        "summary": "Create Google Meeting and Calendar Event",
+        "description": "This endpoint allows you to create a new meeting, which also sets up a matching event in Google Calendar. You need to provide the necessary details in the request body, which includes fields like meeting name, start time, end time, and participants. Upon successful creation, a matching calendar event is created with a link for the meeting.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeetingInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetingCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google Calendar error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/google/meetings/{id}": {
+      "delete": {
+        "tags": [
+          "Meetings"
+        ],
+        "summary": "Cancel Meeting by ID",
+        "description": "This endpoint cancels a meeting by its ID. Only the creator or an admin can perform this action, which soft-deletes the meeting by setting its status to 'cancelled'.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/discord/standup": {
+      "post": {
+        "tags": [
+          "Discord"
+        ],
+        "summary": "Discord Standup Interaction",
+        "description": "Handles the /standup command and validates signatures for secure interactions. Use the provided headers for authentication and include the interaction payload in the request body.",
+        "parameters": [
+          {
+            "name": "X-Signature-Ed25519",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Signature-Timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Raw Discord interaction payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Interaction response (PING ack or slash-command reply)"
+          },
+          "204": {
+            "description": "Acknowledged, no content"
+          },
+          "401": {
+            "description": "Missing or invalid signature"
+          },
+          "500": {
+            "description": "DISCORD_PUBLIC_KEY not configured"
+          }
+        }
+      }
+    },
+    "/api/discord/standup-submit": {
+      "post": {
+        "tags": [
+          "Discord"
+        ],
+        "summary": "Submit a Discord standup record",
+        "description": "This endpoint allows submitting a standup record for a Discord channel. It requires a valid X-Internal-Token header for authentication and includes fields for the standup details.",
+        "parameters": [
+          {
+            "name": "X-Internal-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "discordName",
+                  "yesterday",
+                  "today"
+                ],
+                "properties": {
+                  "discordName": {
+                    "type": "string"
+                  },
+                  "yesterday": {
+                    "type": "string"
+                  },
+                  "today": {
+                    "type": "string"
+                  },
+                  "blockers": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "employee": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wrong internal token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No employee matched discordName",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/email-settings/{employeeId}": {
+      "get": {
+        "tags": [
+          "Email Settings"
+        ],
+        "summary": "Get Employee SMTP Settings",
+        "description": "This endpoint retrieves the SMTP settings for a specific employee without exposing their stored password.",
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Settings (or null if not configured)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Email Settings"
+        ],
+        "summary": "Create or update SMTP settings for an employee",
+        "description": "smtp_pass is required on first save; omit it on later updates to keep the existing password. Test-verifies the SMTP connection asynchronously when a password is provided.",
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/service-credentials/{employeeId}": {
+      "get": {
+        "tags": [
+          "Service Credentials"
+        ],
+        "summary": "List Employee Credentials",
+        "description": "This endpoint allows retrieval of stored service credentials associated with a specific employee identified by the employeeId. The response is an array of credentials, which can be used to authenticate and access protected services securely.",
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceCredential"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Service Credentials"
+        ],
+        "summary": "Create or update service credential for employee",
+        "description": "This API allows you to create or update a service credential for a specific employee. The employee's ID is provided in the URL path. You can include a service name and password in the request body to modify or add a credential.",
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceCredentialInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "service_name required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhooks/{service}": {
+      "get": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Verify webhook challenge",
+        "description": "This endpoint verifies a webhook challenge sent by the sender. It echoes back the provided 'hub.challenge' value as plain text, ensuring the webhook is correctly configured and authenticating the sender's identity using the 'hub.verify_token'.",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Labels the sender in logs"
+          },
+          {
+            "name": "hub.mode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.verify_token",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.challenge",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Challenge echoed back as plain text"
+          },
+          "400": {
+            "description": "Missing hub.challenge"
+          },
+          "403": {
+            "description": "Verify token mismatch"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Receive Webhook Event Payload",
+        "description": "This endpoint allows receiving a payload sent from an external service. It handles Slack-style verification requests and always responds with a 200 OK immediately, with the actual processing happening asynchronously.",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Arbitrary event payload, or a Slack url_verification challenge"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Acknowledged (or challenge echoed for Slack verification)"
+          }
+        }
+      }
+    },
+    "/month-end-report": {
+      "get": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Get month-end report",
+        "description": "This endpoint allows you to fetch a month-end report from the system. It's useful for integrating with n8n workflows where you need to process monthly data.",
+        "responses": {
+          "200": {
+            "description": "sucessfully send data to n8n webhook"
+          },
+          "502": {
+            "description": "n8n webhook returned an error"
+          },
+          "503": {
+            "description": "Error in sending request to n8n workflow"
+          }
+        }
+      }
+    },
+    "/api/form-layout": {
+      "get": {
+        "tags": [
+          "FormLayout"
+        ],
+        "summary": "Get form layout by type",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "intern",
+                "employee"
+              ]
+            },
+            "description": "Which onboarding form layout to fetch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Form layout grouped by section",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormLayoutResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint retrieves the form layout for either intern or employee onboarding. You can specify the type of form layout you need through the 'type' query parameter."
+      },
+      "post": {
+        "tags": [
+          "FormLayout"
+        ],
+        "summary": "Set Form Layout",
+        "description": "This endpoint allows setting the layout for onboarding forms. Admin/lead users can use this to update the form layout.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormLayoutResponse"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Layout saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/onboard": {
+      "get": {
+        "tags": [
+          "Onboard"
+        ],
+        "summary": "List onboard profiles by type",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "intern",
+                "employee"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of onboarding profiles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OnboardProfile"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "This endpoint lists onboarding profiles based on the specified type. You can request all profiles, intern profiles, or employee profiles by including the type query parameter in your request."
+      },
+      "post": {
+        "tags": [
+          "Onboard"
+        ],
+        "summary": "Submit Onboarding Application",
+        "description": "Use this endpoint to submit an onboarding application with a signed contract. The request includes a JSON-formatted payload and a binary file for the contract in a multipart form data format.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "payload",
+                  "contract"
+                ],
+                "properties": {
+                  "payload": {
+                    "type": "string",
+                    "description": "JSON-stringified onboarding form fields"
+                  },
+                  "contract": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Onboarding data added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing contract or validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/onboard/{id}/approve": {
+      "patch": {
+        "tags": [
+          "Onboard"
+        ],
+        "summary": "Approve onboard profile",
+        "description": "This operation allows approved administrators to approve an existing onboarding profile by its ID, ensuring the process is handled securely with appropriate permissions.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/onboard/{id}": {
+      "delete": {
+        "tags": [
+          "Onboard"
+        ],
+        "summary": "Delete onboarding profile",
+        "description": "This endpoint allows administrators or leads to remove a specific onboarding profile. It requires the 'bearerAuth' security and accepts a required 'id' parameter in the path to identify the profile to be deleted.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/onboard/{id}/contract": {
+      "get": {
+        "tags": [
+          "Onboard"
+        ],
+        "summary": "Get onboarded profile contract",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contract file stream",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contract not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "This API endpoint allows you to view the uploaded contract file associated with a specific onboarding profile by its ID. The response will be a stream of the PDF file in application/pdf format."
+      }
+    }
+  }
+}
