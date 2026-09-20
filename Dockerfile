@@ -10,7 +10,9 @@ COPY src ./src
 RUN npm run build \
  && cp src/db/*.sql dist/src/db/ \
  && mkdir -p dist/src/db/migrations \
- && cp src/db/migrations/*.sql dist/src/db/migrations/
+ && cp src/db/migrations/*.sql dist/src/db/migrations/ \
+ && mkdir -p dist/src/db/seed \
+ && cp src/db/seed/*.sql dist/src/db/seed/
 
 
 FROM node:20-alpine

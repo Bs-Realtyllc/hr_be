@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc && cp src/db/*.sql dist/src/db/ && mkdir -p dist/src/db/migrations && cp src/db/migrations/*.sql dist/src/db/migrations/",
+    "build": "tsc && cp src/db/*.sql dist/src/db/ && mkdir -p dist/src/db/migrations dist/src/db/seed && cp src/db/migrations/*.sql dist/src/db/migrations/ && cp src/db/seed/*.sql dist/src/db/seed/",
     "start": "node dist/index.js",
     "dev": "tsx watch index.ts",
     "migrate": "node dist/src/db/migrate.js",
+    "seed:roadmap": "node dist/src/db/seed/run-roadmap-seed.js",
     "create-admin": "node dist/src/db/create-admin.js",
     "generate:openapi": "npm run build && node scripts/generate-openapi.js"
   },
