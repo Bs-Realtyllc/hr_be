@@ -80,12 +80,12 @@ export async function addClockOut(empId: number) {
   return row;
 }
 
-export async function addPause(empId: number, reason:string) {
+export async function addPause(empId: number, reason: string) {
   const today = todayString();
 
   const result = await db
     .update(employeeDailyClock)
-    .set({ pause: new Date(), pause_reason:reason })
+    .set({ pause: new Date(), pause_reason: reason })
     .where(
       and(
         eq(employeeDailyClock.employeeId, empId),
