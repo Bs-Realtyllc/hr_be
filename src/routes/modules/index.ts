@@ -25,6 +25,7 @@ import policyRoutes from './policy.routes';
 import formLayoutRoutes from './formLayout.routes'
 import onboardRoutes from './onboard.routes'
 import roadmapRoutes from './roadmap.routes'
+import clockRoutes from './clock.routes'
 
 const modules: Array<{ path: string; router: Router }> = [
   { path: '/auth', router: authRoutes },
@@ -53,6 +54,8 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/form-layout', router: formLayoutRoutes},
   { path: '/onboard', router: onboardRoutes},
   { path: '/roadmap', router: roadmapRoutes },
+  { path: '/clock', router: clockRoutes },
+
 
 ];
 
