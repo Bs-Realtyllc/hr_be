@@ -30,3 +30,15 @@ export const resume = asyncHandler(async (req: any, res: Response) => {
   const result = await clockServices.resume(req.user.id);
   res.status(200).json({ result });
 });
+
+export const getAllForToday = asyncHandler(async (req: any, res: Response) => {
+  const date = req.query.date as string;
+  const result = await clockServices.getAllForToday(date);
+  res.status(200).json({ result });
+});
+
+// controller
+export const getAttendance = asyncHandler(async (req: Request, res: Response) => {
+  const result = await clockServices.getAttendance(req.query);
+  res.status(200).json(result);
+});

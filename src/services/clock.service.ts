@@ -1,5 +1,6 @@
 import AppError from "../pkg/AppError";
 import * as employeeDailyClockRepo from "../repositories/clock.repository";
+
 export async function clockIn(empId: number) {
   const hour = new Date().getHours();
   if (hour < 8 || hour >= 24) {
@@ -68,4 +69,24 @@ export async function resume(empId: number) {
   }
 
   return await employeeDailyClockRepo.addResume(empId);
+}
+
+
+export async function getAllForToday( date: string) {
+  const today = date || new Date().toISOString().split("T")[0];
+  return await employeeDailyClockRepo.getAllForToday(today);
+}
+
+// service
+export async function getAttendance(query: any) {
+  const filters = {
+    employeeId: query.employeeId ? Number(query.employeeId) : undefined,
+    startDate: query.startDate as string | null,
+    endDate: query.endDate as string | null,
+    page: query.page ? Math.max(1, Number(query.page)) : 1,
+    limit: query.limit ? Math.min(Number(query.limit), 100) : 20,
+    sortDir: query.sortDir === "asc" ? "asc" : "desc",
+  };
+
+  return await employeeDailyClockRepo.getAttendance(filters);
 }
