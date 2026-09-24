@@ -23,17 +23,6 @@ export const employeeDailyClock = mysqlTable(
 
     clockOut: timestamp("clock_out").default(sql`NULL`),
 
-    pause: timestamp("pause").default(sql`NULL`),
-
-    resume: timestamp("resume").default(sql`NULL`),
-
-    pause_reason: text("pause_reason"),
-
-    duration: time("duration", { fsp: 0 }).generatedAlwaysAs(
-      sql`SEC_TO_TIME(TIMESTAMPDIFF(SECOND, clock_in, clock_out) - COALESCE(TIMESTAMPDIFF(SECOND, pause, resume), 0))`,
-      { mode: "stored" },
-    ),
-
     clockDate: date("clock_date", { mode: "string" }).default(sql`CURDATE()`),
 
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),

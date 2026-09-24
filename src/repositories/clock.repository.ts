@@ -1,4 +1,4 @@
-import { employeeDailyClock } from "../models/EmployeeDailyClock";
+import { employeeClockPauses, employeeDailyClock } from "../models";
 import { employees } from "../models/Employee";
 import { db } from "../config/database";
 import AppError from "../pkg/AppError";
@@ -17,7 +17,7 @@ function todayString() {
   return new Date().toISOString().split("T")[0];
 }
 
-async function getRow(empId: number, today: string) {
+export async function getClockRow(empId: number, today: string) {
   const [row] = await db
     .select()
     .from(employeeDailyClock)
@@ -29,6 +29,15 @@ async function getRow(empId: number, today: string) {
     );
   return row;
 }
+
+export async function getPauseRow(clockId: number) {
+  const row = await db
+    .select()
+    .from(employeeClockPauses)
+    .where(eq(employeeClockPauses.clockId, clockId));
+  return row;
+}
+
 
 export async function addClockIn(empId: number) {
   // console.log(empId)
@@ -49,16 +58,26 @@ export async function addClockIn(empId: number) {
   }
 }
 export async function getClock(empId: number, today: string) {
-  const [row] = await db
-    .select()
-    .from(employeeDailyClock)
-    .where(
-      and(
-        eq(employeeDailyClock.employeeId, empId),
-        eq(employeeDailyClock.clockDate, today),
-      ),
-    )
-    .limit(1);
+const row = await db
+  .select({
+    id: employeeClockPauses.id,
+    clock_id: employeeDailyClock.id,
+    employeeId: employeeDailyClock.employeeId,
+    clockIn: employeeDailyClock.clockIn,
+    pause: employeeClockPauses.pause,
+    resume: employeeClockPauses.resume,
+    reason: employeeClockPauses.reason,
+    clockOut: employeeDailyClock.clockOut,
+    clockDate: employeeDailyClock.clockDate,
+    pauseDuration: sql<number | null>`TIMESTAMPDIFF(SECOND, ${employeeClockPauses.pause}, COALESCE(${employeeClockPauses.resume}, ${employeeDailyClock.clockOut}))`.mapWith(Number),
+  })
+  .from(employeeDailyClock)
+  .leftJoin(
+    employeeClockPauses,
+    eq(employeeDailyClock.id, employeeClockPauses.clockId)
+  )
+  .where(and(eq(employeeDailyClock.employeeId, empId), eq(employeeDailyClock.clockDate, today) ))
+  .orderBy(asc(employeeClockPauses.createdAt));
   if (!row) {
     throw new AppError(`No clock-in record found for ${today}.`, 404);
   }
@@ -90,80 +109,63 @@ export async function addClockOut(empId: number) {
   return row;
 }
 
-export async function addPause(empId: number, reason: string) {
+export async function addPause(clockId:number ,empId: number, reason: string) {
   const today = todayString();
 
-  const result = await db
-    .update(employeeDailyClock)
-    .set({ pause: new Date(), pause_reason: reason })
-    .where(
-      and(
-        eq(employeeDailyClock.employeeId, empId),
-        eq(employeeDailyClock.clockDate, today),
-      ),
-    );
+  const [result] = await db
+    .insert(employeeClockPauses)
+    .values({clockId: clockId, reason: reason});
 
-  if (result[0].affectedRows === 0) {
-    throw new AppError("No clock-in record found for today.", 404);
-  }
+  if(result.affectedRows === 0) throw new AppError('Unable to add new Pause record', 500);
 
-  return getRow(empId, today);
+  return getPauseRow(clockId);
 }
 
-export async function addResume(empId: number) {
+export async function addResume(clockPauseId: number, clockId: number) {
   const today = todayString();
 
   const result = await db
-    .update(employeeDailyClock)
+    .update(employeeClockPauses)
     .set({ resume: new Date() })
     .where(
-      and(
-        eq(employeeDailyClock.employeeId, empId),
-        eq(employeeDailyClock.clockDate, today),
-      ),
+        eq(employeeClockPauses.id, clockPauseId),
     );
 
   if (result[0].affectedRows === 0) {
-    throw new AppError("No clock-in record found for today.", 404);
+    throw new AppError('Unable to resume existing record', 500);
   }
 
-  return getRow(empId, today);
+  return getPauseRow(clockId);
 }
 export async function getAllForToday(today: string) {
-  const row = await db
-    .select({
-      id: employees.id,
-      name: employees.name,
-      gender: employees.gender,
-      email: employees.email,
-      phone: employees.phone,
-      profile_picture: employees.profile_picture,
-      start_date: employees.start_date,
-      role: employees.role,
-      address: employees.address,
-      discord_username: employees.discord_username,
-      work_hours: employees.work_hours,
-      clockDate: employeeDailyClock.clockDate,
-      clockIn: employeeDailyClock.clockIn,
-      clockOut: employeeDailyClock.clockOut,
-      duration: employeeDailyClock.duration,
-      pause: employeeDailyClock.pause,
-      pause_reason: employeeDailyClock.pause_reason,
-      resume: employeeDailyClock.resume,
-    })
-    .from(employeeDailyClock)
-    .leftJoin(employees, eq(employeeDailyClock.employeeId, employees.id))
-    .where(
-      and(
-        eq(employees.status, "active"),
-        eq(employeeDailyClock.clockDate, today),
-      ),
-    );
+const result = await db
+  .select({
+    employeeId: employees.id,
+    name: employees.name,
+    email: employees.email,
+    address: employees.address,
+    profilePicture: employees.profile_picture,
+    phone: employees.phone,
+    clockId: employeeDailyClock.id,
+    clockIn: employeeDailyClock.clockIn,
+    clockOut: employeeDailyClock.clockOut,
+    clockDate: employeeDailyClock.clockDate,
+    pause: employeeClockPauses.pause,
+    resume: employeeClockPauses.resume,
+    reason: employeeClockPauses.reason,
+  })
+  .from(employees)
+  .leftJoin(
+    employeeDailyClock,
+    eq(employeeDailyClock.employeeId, employees.id)
+  )
+  .leftJoin(
+    employeeClockPauses,
+    eq(employeeClockPauses.clockId, employeeDailyClock.id)
+  )
+  .where(eq(employeeDailyClock.clockDate, today));
 
-  if (!row) {
-    throw new AppError(`No clock-in record found for ${today}.`, 404);
-  }
-  return row;
+  return result;
 }
 
 export async function getAttendance(filters: AttendanceFilters) {
@@ -192,48 +194,33 @@ export async function getAttendance(filters: AttendanceFilters) {
   const offset = (page - 1) * limit;
   const orderFn = sortDir === "asc" ? asc : desc;
 
-  const [rows, totalResult] = await Promise.all([
-    db
-      .select({
-        employeeId: employees.id,
-        name: employees.name,
-        email: employees.email,
-        phone: employees.phone,
-        profilePicture: employees.profile_picture,
-        workHours: employees.work_hours,
-        clockRecordId: employeeDailyClock.id,
-        clockDate: employeeDailyClock.clockDate,
-        clockIn: employeeDailyClock.clockIn,
-        clockOut: employeeDailyClock.clockOut,
-        duration: employeeDailyClock.duration,
-        pause: employeeDailyClock.pause,
-        resume: employeeDailyClock.resume,
-      })
-      .from(employeeDailyClock)
-      .leftJoin(employees, eq(employeeDailyClock.employeeId, employees.id))
-      .where(whereClause)
-      .orderBy(orderFn(employeeDailyClock.clockDate), orderFn(employeeDailyClock.id))
-      .limit(limit)
-      .offset(offset),
+  const result = await db
+    .select({
+      employeeId: employees.id,
+      name: employees.name,
+      email: employees.email,
+      address: employees.address,
+      profilePicture: employees.profile_picture,
+      phone: employees.phone,
+      clockId: employeeDailyClock.id,
+      clockIn: employeeDailyClock.clockIn,
+      clockOut: employeeDailyClock.clockOut,
+      clockDate: employeeDailyClock.clockDate,
+      pause: employeeClockPauses.pause,
+      resume: employeeClockPauses.resume,
+      reason: employeeClockPauses.reason,
+      pauseDuration: sql<number | null>`TIMESTAMPDIFF(SECOND, ${employeeClockPauses.pause}, COALESCE(${employeeClockPauses.resume}, ${employeeDailyClock.clockOut}))`.mapWith(Number),
 
-    db
-      .select({ total: count() })
-      .from(employeeDailyClock)
-      .leftJoin(employees, eq(employeeDailyClock.employeeId, employees.id))
-      .where(whereClause),
-  ]);
+    })
+    .from(employeeDailyClock)
+    .leftJoin(employees, eq(employeeDailyClock.employeeId, employees.id))
+    .leftJoin(
+      employeeClockPauses,
+      eq(employeeClockPauses.clockId, employeeDailyClock.id),
+    )
+    .where(whereClause)
+    .limit(limit)
+    .offset(offset);
 
-  const total = totalResult[0]?.total ?? 0;
-
-  return {
-    data: rows,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-      hasNext: offset + rows.length < total,
-      hasPrev: page > 1,
-    },
-  };
+  return result;
 }

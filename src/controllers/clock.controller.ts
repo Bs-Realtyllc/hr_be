@@ -23,7 +23,7 @@ export const clockOut = asyncHandler(async (req: any, res: Response) => {
 export const pause = asyncHandler(async (req: any, res: Response) => {
   // console.log(req.body)
   const result = await clockServices.pause(req.user.id, req.body.reason);
-  res.status(200).json({ result });
+  res.status(200).json({ message: "Clock Paused Sucessfully" ,result });
 });
 
 export const resume = asyncHandler(async (req: any, res: Response) => {

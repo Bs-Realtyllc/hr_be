@@ -1,6 +1,96 @@
 import AppError from "../pkg/AppError";
 import * as employeeDailyClockRepo from "../repositories/clock.repository";
 
+type ClockStatus = "idle" | "running" | "paused" | "done";
+interface RawRow {
+  employeeId: number;
+  name: string;
+  email: string;
+  address: string;
+  profilePicture: string | null;
+  phone: string | null;
+  clockId: number;
+  clockIn: Date | string;
+  clockOut: Date | string | null;
+  clockDate: string;
+  pause: Date | string | null;
+  resume: Date | string | null;
+  pauseDuration?:number | null;
+  reason: string;
+}
+
+interface GroupedClockRecord {
+  employeeId: number;
+  name: string;
+  email: string;
+  address: string;
+  profilePicture: string | null;
+  phone: string | null;
+  clockId: number;
+  clockIn: Date | string;
+  clockOut: Date | string | null;
+  clockDate: string;
+  pauses: { pause: Date | string | null; resume: Date | string | null; reason: string | null, pauseDuration: number | null }[];
+}
+
+function deriveStatus(rows): ClockStatus {
+  if (rows.length === 0) return "idle"; // no clock-in record at all today — treat as not clocked in
+
+  const { clockOut } = rows[0]; // same across all rows for this clock session
+
+  if (clockOut) return "done";
+
+  const isCurrentlyPaused = rows.some((r) => r.pause && !r.resume);
+  return isCurrentlyPaused ? "paused" : "running";
+}
+
+function groupByClockId(rows: RawRow[]): GroupedClockRecord[] {
+  const map = new Map<number, GroupedClockRecord>();
+
+  for (const row of rows) {
+    const {
+      employeeId,
+      name,
+      email,
+      address,
+      profilePicture,
+      phone,
+      clockId,
+      clockIn,
+      clockOut,
+      clockDate,
+      pause,
+      resume,
+      pauseDuration,
+      reason,
+        } = row;
+
+    if (!map.has(clockId)) {
+      map.set(clockId, {
+        employeeId,
+        name,
+        email,
+        address,
+        profilePicture,
+        phone,
+        clockId,
+        clockIn,
+        clockOut,
+        clockDate,
+        pauses: [],
+      });
+    }
+
+    if (pause) {
+      map.get(clockId)!.pauses.push({ pause, resume, reason, pauseDuration });
+    }
+
+  }
+
+  return Array.from(map.values());
+}
+
+
 export async function clockIn(empId: number) {
   const hour = new Date().getHours();
   if (hour < 8 || hour >= 24) {
@@ -11,7 +101,25 @@ export async function clockIn(empId: number) {
 
 export async function getClock(empId: number, date: string) {
   const today = date || new Date().toISOString().split("T")[0];
-  return await employeeDailyClockRepo.getClock(empId, today);
+  const result = await employeeDailyClockRepo.getClock(empId, today);
+
+  let totalPauseDuration = 0;
+  result.map((data)=>{totalPauseDuration += data.pauseDuration})
+
+  return {
+    status: deriveStatus(result),
+    clockIn: result[0]?.clockIn ?? null,
+    clockOut: result[0]?.clockOut ?? null,
+    totalPauseDuration,
+    employeeId: result[0]?.employeeId ?? null,
+    pauses: result.map(({ id, pause, resume, reason, pauseDuration }) => ({
+      id,
+      pause,
+      resume,
+      reason,
+      pauseDuration,
+    })),
+  };
 }
 
 export async function clockOut(empId: number) {
@@ -22,7 +130,7 @@ export async function clockOut(empId: number) {
   if (!existing) {
     throw new AppError("You haven't clocked in today.", 400);
   }
-  if (existing.clockOut) {
+  if (existing.some((r) => r.clockIn && r.clockOut)) {
     throw new AppError("You have already clocked out today.", 409);
   }
   return await employeeDailyClockRepo.addClockOut(empId);
@@ -31,50 +139,74 @@ export async function clockOut(empId: number) {
 export async function pause(empId: number, reason: string) {
   const today = new Date().toISOString().split("T")[0];
   const record = await employeeDailyClockRepo.getClock(empId, today);
+  const isClockedOut = record.some((r)=> r.clockOut)
+  const isPaused = record.some((r)=> r.pause && !r.resume);
+  const clockId = record[0].clock_id;
+
+  // console.log(record, isClockedOut, isPaused);
 
   if (!record) {
     throw new AppError("You haven't clocked in today.", 400);
   }
-  if (record.clockOut) {
+  if (isClockedOut) {
     throw new AppError("You have already clocked out today.", 409);
   }
-  if (record.pause) {
-    throw new AppError("You have already paused today.", 409);
+    if (isPaused) {
+    throw new AppError("You have already paused the timer", 400);
   }
   if (!reason?.trim())
     throw new AppError("Cannot pause clock without valid reason", 400);
 
-  return await employeeDailyClockRepo.addPause(empId, reason);
+  return await employeeDailyClockRepo.addPause(clockId, empId, reason);
 }
 
 export async function resume(empId: number) {
   const today = new Date().toISOString().split("T")[0];
   const record = await employeeDailyClockRepo.getClock(empId, today);
-
+  const isClockedOut = record.some((r)=>r.employeeId=== empId && r.clockOut)
+  const isPaused = record.some((r)=>r.employeeId ===empId && r.pause && !r.resume);
+  // console.log(record, isClockedOut, isPaused)
+  
   if (!record) {
     throw new AppError("You haven't clocked in today.", 400);
   }
-  if (!record.pause) {
-    throw new AppError("You need to pause before resuming.", 400);
+  if (isClockedOut) {
+    throw new AppError("You have already clocked out today.", 409);
   }
-  if (record.resume) {
-    throw new AppError("You have already resumed today.", 409);
+    if (!isPaused) {
+    throw new AppError("You have not paused the clock.", 400);
   }
+  const [filteredRecord] = record.filter((r)=> r.pause && !r.resume)
+  // console.log(filteredRecord)
 
   const now = new Date();
-  if (now < new Date(record.pause)) {
-    // defensive only — should be structurally impossible since `now` is always
-    // later than a previously-stored `pause`, but guards against clock skew
+  if (now < new Date(filteredRecord.pause)) {
     throw new AppError("Resume time cannot be before pause time.", 400);
   }
 
-  return await employeeDailyClockRepo.addResume(empId);
+  return await employeeDailyClockRepo.addResume(filteredRecord.id, filteredRecord.clock_id);
 }
 
 
 export async function getAllForToday( date: string) {
   const today = date || new Date().toISOString().split("T")[0];
-  return await employeeDailyClockRepo.getAllForToday(today);
+  const data = await employeeDailyClockRepo.getAllForToday(today);
+  const grouped = groupByClockId(data);
+  const result = grouped.map((row) => {
+    let status: 'done' | 'paused' | 'running' = 'running';
+
+    if (row.clockOut) {
+      status = 'done';
+    } else if (row.pauses?.some((r) => r.pause && !r.resume)) {
+      status = 'paused';
+    }
+
+    return {
+      ...row,
+      status,
+    };
+  });
+  return result;
 }
 
 // service
@@ -88,5 +220,19 @@ export async function getAttendance(query: any) {
     sortDir: query.sortDir === "asc" ? "asc" : "desc",
   };
 
-  return await employeeDailyClockRepo.getAttendance(filters);
+  const data = await employeeDailyClockRepo.getAttendance(filters);
+  const grouped = groupByClockId(data);
+  const result = grouped.map((g)=>{
+    let totalPauseDuration = 0;
+    g.pauses.map((p)=>{
+      totalPauseDuration += p.pauseDuration;
+    });
+    
+    return{
+      ...g,
+      totalPauseDuration
+    }
+
+  })
+  return result
 }

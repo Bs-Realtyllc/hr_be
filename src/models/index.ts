@@ -32,4 +32,6 @@ export { policyAcknowledgements } from './PolicyAcknowledgement';
 export { formsLayout } from './FormLayout';
 export { otpCodes } from './OtpCode';
 export { projectTodos } from './ProjectTodo';
+export {employeeDailyClock} from './EmployeeDailyClock'
+export {employeeClockPauses} from './EmployeeClockPauses'
 
