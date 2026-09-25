@@ -2,6 +2,16 @@ import AppError from "../pkg/AppError";
 import * as employeeDailyClockRepo from "../repositories/clock.repository";
 
 type ClockStatus = "idle" | "running" | "paused" | "done";
+
+export interface AttendanceQuery {
+  employeeId?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: string;
+  limit?: string;
+  sortDir?: string;
+}
+
 interface RawRow {
   employeeId: number;
   name: string;
@@ -210,29 +220,36 @@ export async function getAllForToday( date: string) {
 }
 
 // service
-export async function getAttendance(query: any) {
+export async function getAttendance(query: AttendanceQuery) {
   const filters = {
     employeeId: query.employeeId ? Number(query.employeeId) : undefined,
-    startDate: query.startDate as string | null,
-    endDate: query.endDate as string | null,
+    startDate: (query.startDate as string) || null,
+    endDate: (query.endDate as string) || null,
     page: query.page ? Math.max(1, Number(query.page)) : 1,
     limit: query.limit ? Math.min(Number(query.limit), 100) : 20,
-    sortDir: query.sortDir === "asc" ? "asc" : "desc",
+    sortDir: query.sortDir === "asc" ? ("asc" as const) : ("desc" as const),
   };
-
-  const data = await employeeDailyClockRepo.getAttendance(filters);
-  const grouped = groupByClockId(data);
-  const result = grouped.map((g)=>{
-    let totalPauseDuration = 0;
-    g.pauses.map((p)=>{
-      totalPauseDuration += p.pauseDuration;
-    });
-    
-    return{
-      ...g,
-      totalPauseDuration
-    }
-
-  })
-  return result
+ 
+  const { data, total, page, limit } =
+    await employeeDailyClockRepo.getAttendance(filters);
+ 
+  // groupByClockId is no longer needed here — the repo already returns
+  // one entry per clock record with its pauses embedded, correctly paginated.
+  const result = data.map((record) => {
+    const totalPauseDuration = record.pauses.reduce(
+      (sum, p) => sum + (p.pauseDuration ?? 0),
+      0,
+    );
+    return { ...record, totalPauseDuration };
+  });
+ 
+  return {
+    data: result,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  };
 }
