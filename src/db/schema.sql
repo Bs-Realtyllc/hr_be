@@ -309,31 +309,30 @@ CREATE TABLE
     year YEAR NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
+
 CREATE TABLE
   IF NOT EXISTS employee_daily_clock (
     id INT PRIMARY KEY AUTO_INCREMENT,
     employee_id INT NOT NULL,
-    clock_in TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+    clock_in TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     clock_out TIMESTAMP DEFAULT NULL,
-    pause TIMESTAMP DEFAULT NULL,
-    resume TIMESTAMP DEFAULT NULL,
-    pause_reason text,
-    duration TIME(0) GENERATED ALWAYS AS (
-      SEC_TO_TIME (
-        TIMESTAMPDIFF (SECOND, clock_in, clock_out) - CASE
-          WHEN pause IS NOT NULL
-          AND resume IS NOT NULL THEN TIMESTAMPDIFF (SECOND, pause, resume)
-          WHEN pause IS NOT NULL
-          AND resume IS NULL THEN TIMESTAMPDIFF (SECOND, pause, clock_out)
-          ELSE 0
-        END
-      )
-    ) STORED,
     clock_date DATE DEFAULT (CURDATE ()),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE,
     UNIQUE KEY unique_employee_day (employee_id, clock_date)
+  );
+
+CREATE TABLE
+  IF NOT EXISTS employee_clock_pauses (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    clock_id INT NOT NULL,
+    pause TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resume TIMESTAMP DEFAULT NULL,
+    reason VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (clock_id) REFERENCES employee_daily_clock (id) ON DELETE CASCADE
   );
 
 -- Seed: default leave balances trigger after employee insert
