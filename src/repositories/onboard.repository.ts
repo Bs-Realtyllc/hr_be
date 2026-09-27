@@ -89,7 +89,7 @@ export async function approveOnboardProfile(id: number) {
       emergency_contact: profile.emergency_contact,
       github_url: profile.github_url,
       role: profile.role,
-      // tech_stack: profile.tech_stack,
+      tech_stack: profile.tech_stack,
       status: "onboarding", // employee starts in onboarding status, not active
     });
 
