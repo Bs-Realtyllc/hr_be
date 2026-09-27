@@ -1,0 +1,38 @@
++--------------------------+-----------------------------------------------------------------+------+-----+-------------+----------------+
+| Field                    | Type                                                            | Null | Key | Default     | Extra          |
++--------------------------+-----------------------------------------------------------------+------+-----+-------------+----------------+
+| id                       | int                                                             | NO   | PRI | NULL        | auto_increment |
+| name                     | varchar(100)                                                    | NO   |     | NULL        |                |
+| gender                   | enum('male','female','other','prefer_not_to_say')               | YES  |     | NULL        |                |
+| email                    | varchar(150)                                                    | NO   | UNI | NULL        |                |
+| secondary_email          | varchar(150)                                                    | YES  |     | NULL        |                |
+| phone                    | varchar(20)                                                     | YES  |     | NULL        |                |
+| alt_phone                | varchar(20)                                                     | YES  |     | NULL        |                |
+| discord_username         | varchar(100)                                                    | YES  | UNI | NULL        |                |
+| panNo                    | varchar(50)                                                     | YES  | UNI | NULL        |                |
+| emergency_contact        | varchar(150)                                                    | YES  |     | NULL        |                |
+| dob                      | date                                                            | YES  |     | NULL        |                |
+| bio                      | text                                                            | YES  |     | NULL        |                |
+| address                  | text                                                            | YES  |     | NULL        |                |
+| github_url               | varchar(255)                                                    | YES  |     | NULL        |                |
+| profile_picture          | varchar(255)                                                    | YES  |     | NULL        |                |
+| citizenship_front        | varchar(255)                                                    | YES  |     | NULL        |                |
+| citizenship_back         | varchar(255)                                                    | YES  |     | NULL        |                |
+| designation              | varchar(100)                                                    | YES  |     | NULL        |                |
+| designation_id           | int                                                             | YES  | MUL | NULL        |                |
+| department               | varchar(100)                                                    | YES  |     | NULL        |                |
+| department_id            | int                                                             | YES  | MUL | NULL        |                |
+| manager_id               | int                                                             | YES  | MUL | NULL        |                |
+| start_date               | date                                                            | YES  |     | NULL        |                |
+| timezone                 | varchar(50)                                                     | YES  |     | UTC         |                |
+| work_hours               | varchar(50)                                                     | YES  |     | 9 AM - 5 PM |                |
+| role                     | enum('admin','lead','employee')                                 | YES  |     | employee    |                |
+| password_hash            | varchar(255)                                                    | YES  |     | NULL        |                |
+| salary                   | decimal(10,2)                                                   | YES  |     | NULL        |                |
+| pay_frequency            | enum('monthly','biweekly','weekly')                             | YES  |     | monthly     |                |
+| status                   | enum('onboarding','active','on_leave','probation','terminated') | NO   |     | active      |                |
+| termination_date         | date                                                            | YES  |     | NULL        |                |
+| termination_reason       | varchar(255)                                                    | YES  |     | NULL        |                |
+| leave_policy_accepted    | tinyint(1)                                                      | YES  |     | 0           |                |
+| leave_policy_accepted_at | timestamp                                                       | YES  |     | NULL        |                |
++--------------------------+-----------------------------------------------------------------+------+-----+-------------+----------------+
