@@ -16,6 +16,10 @@ export async function list() {
   return employeeRepo.findAllActive();
 }
 
+export async function listAllNames() {
+  return employeeRepo.findAllActiveNames();
+}
+
 export async function listOnboarding() {
   return employeeRepo.findAllOnboarding();
 }

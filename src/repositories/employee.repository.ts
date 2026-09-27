@@ -93,6 +93,10 @@ const leaveRequests = mysqlTable('leave_requests', {
 export async function findAllActive() {
   return baseQueryWithManager().where(ACTIVE_ROSTER).orderBy(employees.name);
 }
+export async function findAllActiveNames() {
+  const rows = await db.select({id:employees.id, name:employees.name}).from(employees).where(ACTIVE_ROSTER).orderBy(employees.name);
+  return rows;
+}
 
 export async function findAllOnboarding() {
   return baseQueryWithManager().where(eq(employees.status, 'onboarding')).orderBy(employees.name);

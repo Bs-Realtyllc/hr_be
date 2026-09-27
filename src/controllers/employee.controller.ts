@@ -52,3 +52,8 @@ export const payrollSummary = asyncHandler(async (req: Request, res: Response) =
   const summary = await employeeService.payrollSummary(req.params.id);
   res.json(summary);
 });
+
+export const getAllNames = asyncHandler(async(req:any, res:Response) =>{
+  const result = await employeeService.listAllNames();
+  res.status(200).json(result);
+})
