@@ -90,7 +90,7 @@ export async function approveOnboardProfile(id: number) {
       github_url: profile.github_url,
       role: profile.role,
       tech_stack: profile.tech_stack,
-      status: "onboarding", // employee starts in onboarding status, not active
+      status: "active", // employee starts in onboarding status, not active
     });
 
     const newEmployeeId = insertResult.insertId;
