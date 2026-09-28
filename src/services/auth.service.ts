@@ -172,7 +172,7 @@ export async function changePassword(userId: number, { current_password, new_pas
 export async function forgotPassword({ email }: ForgotPasswordInput) {
   const emp = await employeeRepo.findActiveBasicByEmail(email);
 
-  if (!emp) return;
+  if (!emp) throw new AppError('Email not registered ', 404);
 
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
