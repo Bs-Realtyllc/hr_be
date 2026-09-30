@@ -22,7 +22,7 @@ CREATE TABLE
     panNo VARCHAR(50) NULL UNIQUE,
     timezone VARCHAR(50) DEFAULT 'UTC',
     work_hours VARCHAR(50) DEFAULT '9 AM - 5 PM',
-    tech_stack JSON,
+    tech_stack JSON NULL,
     role ENUM ('admin', 'lead', 'employee', 'intern') NOT NULL DEFAULT 'employee',
     password_hash VARCHAR(255) NULL,
     salary DECIMAL(10, 2) NULL,
