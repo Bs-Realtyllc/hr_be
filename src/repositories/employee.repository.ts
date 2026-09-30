@@ -9,6 +9,7 @@ import {
   designations,
 } from '../models';
 import type { EmployeeCreateInput, EmployeeUpdateInput } from '../dtos/employee.dto';
+import AppError from '../pkg/AppError';
 
 type Db = typeof db;
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
@@ -28,7 +29,7 @@ const docPic = alias(employeeDocuments, 'doc_pic');
 const docCf = alias(employeeDocuments, 'doc_cf');
 const docCb = alias(employeeDocuments, 'doc_cb');
 
-const ACTIVE_ROSTER = sql`${employees.status} NOT IN ('onboarding', 'terminated')`;
+const ACTIVE_ROSTER = sql`${employees.status} NOT IN ('terminated')`; //filter only terminated employee not onboarding
 
 const BASE_COLUMNS = {
   id: employees.id,
@@ -274,9 +275,14 @@ export async function create(data: EmployeeCreateInput, actorId: number | null =
     });
     const employeeId = insertedId(result);
 
+    const [selectedData] = await tx.select({id: employees.id, name: employees.name, email:employees.email, role:employees.role})
+    .from(employees)
+    .where(eq(employees.id, employeeId))
+
+    if(!selectedData) throw new AppError('Failed to get created employee data', 404)
     // await upsertOnboardingProfile(employeeId, data, tx);
 
-    return employeeId;
+    return selectedData;
   });
 }
 

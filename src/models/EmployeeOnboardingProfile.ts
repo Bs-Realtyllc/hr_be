@@ -6,6 +6,7 @@ import {
   date,
   json,
   mysqlEnum,
+  boolean
 } from "drizzle-orm/mysql-core";
 
 export const employeeOnboardingProfile = mysqlTable(
@@ -28,6 +29,7 @@ export const employeeOnboardingProfile = mysqlTable(
     education_level: varchar("education_level", { length: 50 }),
     institution_name: varchar("institution_name", { length: 50 }),
     field_of_study: varchar("field_of_study", { length: 50 }),
+    is_active: boolean("is_active").default(true),
     graduation_date: date("graduation_date", { mode: "string" }),
     previous_experience: text("previous_experience"),
     areas_of_interest: text("areas_of_interest"),
@@ -42,7 +44,9 @@ export const employeeOnboardingProfile = mysqlTable(
     citizenship_back_path: varchar("citizenship_back_path", { length: 255 }),
     pan_path: varchar("pan_path", { length: 255 }),
     photo_path: varchar("photo_path", { length: 255 }),
-    passout_certificate_path: varchar("passout_certificate_path", { length: 255 }),
+    passout_certificate_path: varchar("passout_certificate_path", {
+      length: 255,
+    }),
   },
 );
 

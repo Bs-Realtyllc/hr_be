@@ -12,6 +12,32 @@ import {
   buildRejectionEmailHtml,
 } from './onboardingEmailTemplate';
 
+//send email after sucessfull entry
+export async function sendApproveMail(name: string, to: string, role: string) {
+  const transporter = nodemailer.createTransport({
+    host: process.env.MAIL_HOST,
+    port: Number(process.env.MAIL_PORT) || 587,
+    secure: process.env.MAIL_SECURE === "true",
+    auth: {
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM || process.env.MAIL_USER,
+    to,
+    subject: "HR Platform — Onboarding sucessfull",
+    html: `
+      <p>Hi ${name},</p>
+      <p>You have been added to gitgi.com for the role ${role}!</p>
+      <p>Please log in via <a href="https://hr.gitgi.com/login" style="color:#4f46e5;font-weight:bold">https://hr.gitgi.com/login</a> and click <strong>"Forgot password"</strong> to get the reset link sent to your registered email address.</p>
+      <p>If you have any questions, feel free to contact the HR department.</p>
+      <p style="color:#888;font-size:12px">HR Platform</p>
+    `,
+  });
+}
+
 export async function list() {
   return employeeRepo.findAllActive();
 }
@@ -29,12 +55,25 @@ export async function get(id: string) {
 }
 
 export async function create(data: EmployeeCreateInput, actorId: number | null) {
-  const id = await employeeRepo.create(data, actorId);
+  const result = await employeeRepo.create(data, actorId);
 
+  // console.log(result)
   const year = new Date().getFullYear();
-  await employeeRepo.seedLeaveBalances(id, year);
+  await employeeRepo.seedLeaveBalances(result.id, year);
+  
+  if (process.env.MAIL_HOST) {
+    try {
+      await sendApproveMail(result.name, result.email, result.role);
+    } catch (mailErr: any) {
+      console.error("[auth] Failed to send reset email:", mailErr.message);
+    }
+  } else {
+    console.info(
+      `[auth] MAIL_HOST not set — Failed to send notification mail to ${result.email}`,
+    );
+  }
 
-  return id;
+  return result;
 }
 
 export async function update(id: string, updates: EmployeeUpdateInput, actorId: number | null) {
