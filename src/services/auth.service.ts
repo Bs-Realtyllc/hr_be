@@ -75,34 +75,35 @@ export async function login({ email, password }: LoginInput, ip: string = 'unkno
   const valid = await bcrypt.compare(password, emp!.password_hash);
   if (!valid) unauthorized('Invalid credentials');
 
-  if (emp.role === 'admin') {
-    await otpRepo.invalidateAllForEmployee(emp.id);
+  //temporary -- only for admin
+  // if (emp.role === 'admin') {
+  //   await otpRepo.invalidateAllForEmployee(emp.id);
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const codeHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+  //   const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  //   const codeHash = await bcrypt.hash(otp, 10);
+  //   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    await otpRepo.create(emp.id, codeHash, expiresAt);
+  //   await otpRepo.create(emp.id, codeHash, expiresAt);
 
-    if (process.env.MAIL_HOST) {
-      try {
-        await sendOtpEmail(emp.name, email, otp);
-      } catch (mailErr: any) {
-        console.error(`[auth] Failed to send OTP email to ${email}:`, mailErr.message);
-      }
-    } else {
-      console.info(`[auth] MAIL_HOST not set — OTP for ${email} is ${otp}`);
-    }
+  //   if (process.env.MAIL_HOST) {
+  //     try {
+  //       await sendOtpEmail(emp.name, email, otp);
+  //     } catch (mailErr: any) {
+  //       console.error(`[auth] Failed to send OTP email to ${email}:`, mailErr.message);
+  //     }
+  //   } else {
+  //     console.info(`[auth] MAIL_HOST not set — OTP for ${email} is ${otp}`);
+  //   }
 
-    const tempToken = jwt.sign(
-      { employeeId: emp.id, purpose: 'admin_otp' },
-      process.env.JWT_SECRET as string,
-      { expiresIn: '5m' }
-    );
+  //   const tempToken = jwt.sign(
+  //     { employeeId: emp.id, purpose: 'admin_otp' },
+  //     process.env.JWT_SECRET as string,
+  //     { expiresIn: '5m' }
+  //   );
 
-    console.log(`[audit] OTP generated for employee ID ${emp.id} (IP: ${ip})`);
-    return { requiresOtp: true, tempToken };
-  }
+  //   console.log(`[audit] OTP generated for employee ID ${emp.id} (IP: ${ip})`);
+  //   return { requiresOtp: true, tempToken };
+  // }
 
   console.log(`[audit] ${emp!.name} (${email}) logged in successfully (IP: ${ip})`);
 
@@ -153,7 +154,7 @@ export async function verifyOtp({ code, tempToken, ip }: { code: string; tempTok
   }
 
   const user = authDto.toLoginResponse(emp);
-  const token = jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: '7d' });
+  const token = jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: '2d' });
   return { token, user };
 }
 

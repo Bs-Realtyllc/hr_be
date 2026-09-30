@@ -1,9 +1,9 @@
-import { eq } from "drizzle-orm";
+import { eq,and } from "drizzle-orm";
 import { db } from "../config/database";
 import { employeeOnboardingProfile, employees } from "../models";
 import AppError from "../pkg/AppError";
-import fs from 'fs/promises';
-import path from 'path';
+import fs from "fs/promises";
+import path from "path";
 
 interface OnboardFilenames {
   contract: string;
@@ -29,11 +29,12 @@ type OnboardPayload = Omit<
 export async function getOnboardProfile(type: "intern" | "employee" | "all") {
   const result =
     type === "all"
-      ? await db.select().from(employeeOnboardingProfile) // no filter → all rows
+      ? await db.select().from(employeeOnboardingProfile)
+      .where(eq(employeeOnboardingProfile.is_active, true)) // no filter → all rows must be active
       : await db
           .select()
           .from(employeeOnboardingProfile)
-          .where(eq(employeeOnboardingProfile.role, type)); // filtered by role
+          .where(and(eq(employeeOnboardingProfile.role, type), eq(employeeOnboardingProfile.is_active, true))); // filtered by role and active status
 
   return result;
 }
@@ -90,16 +91,19 @@ export async function approveOnboardProfile(id: number) {
       github_url: profile.github_url,
       role: profile.role,
       tech_stack: profile.tech_stack,
-      status: "active", // employee starts in onboarding status, not active
+      status: "onboarding",
+      start_date: new Date().toISOString().split('T')[0]
     });
 
-    const newEmployeeId = insertResult.insertId;
+    // const newEmployeeId = insertResult.insertId;
 
-    await tx
-      .delete(employeeOnboardingProfile)
-      .where(eq(employeeOnboardingProfile.id, id));
+    // await tx
+      // .delete(employeeOnboardingProfile)
+      // .where(eq(employeeOnboardingProfile.id, id));
 
-    return newEmployeeId;
+      await tx.update(employeeOnboardingProfile).set({is_active : false}).where(eq(employeeOnboardingProfile.id, id))
+
+    return profile;
   });
 }
 
@@ -153,7 +157,10 @@ export async function deleteOnboardProfile(id: number) {
       try {
         await fs.unlink(path.join(folder, filename));
       } catch (unlinkErr) {
-        console.error(`Failed to delete file ${field} (${filename}):`, unlinkErr);
+        console.error(
+          `Failed to delete file ${field} (${filename}):`,
+          unlinkErr,
+        );
       }
     }),
   );

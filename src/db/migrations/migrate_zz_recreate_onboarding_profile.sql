@@ -26,6 +26,7 @@ CREATE TABLE employee_onboarding_profile (
   field_of_study VARCHAR(50) NULL,
   graduation_date DATE NULL,
   previous_experience TEXT NULL,
+  is_active tinyint default 1,
   areas_of_interest TEXT NULL,
   linkedin_url VARCHAR(255) NULL,
   github_url VARCHAR(255) NULL,
