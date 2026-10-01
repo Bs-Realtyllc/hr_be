@@ -111,6 +111,7 @@ export interface EmployeeCreateInput extends OnboardingProfileFields {
   github_url: string | null;
 }
 
+
 export interface EmployeeUpdateInput extends Partial<OnboardingProfileFields> {
   name?: string;
   secondary_email?: string | null;

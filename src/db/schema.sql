@@ -335,5 +335,29 @@ CREATE TABLE
     FOREIGN KEY (clock_id) REFERENCES employee_daily_clock (id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS access_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    trace_id VARCHAR(36) NOT NULL,
+    employee_id BIGINT NULL,
+    endpoint VARCHAR(255) NOT NULL,
+    method VARCHAR(10) NOT NULL,
+    ip_address VARCHAR(45),
+    response_status SMALLINT NOT NULL,
+    response_duration_ms INT,
+    user_agent VARCHAR(500),
+    request_timestamp TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS operation_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    trace_id VARCHAR(36) NOT NULL,
+    employee_id BIGINT NULL,
+    operation VARCHAR(100) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    metadata JSON NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Seed: default leave balances trigger after employee insert
 -- Run manually or via app logic

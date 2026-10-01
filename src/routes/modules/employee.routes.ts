@@ -11,6 +11,7 @@ router.get('/:id', authenticate, ctrl.get);
 router.get('/:id/payroll-summary', authenticate, requireRole('admin', 'lead'), ctrl.payrollSummary);
 router.get('/:id/acknowledgements', authenticate, requireRole('admin'), ackCtrl.listForEmployeeAdmin);
 
+router.post('/bulkAdd', authenticate, ctrl.createBulk);
 router.post('/', authenticate, requireRole('admin', 'lead'), ctrl.create);
 router.put('/:id', authenticate, requireRole('admin', 'lead'), ctrl.update);
 router.put('/:id/approve', authenticate, requireRole('admin'), ctrl.approve);

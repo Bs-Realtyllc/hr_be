@@ -1,7 +1,8 @@
-import * as dashboardRepo from '../repositories/dashboard.repository';
+import { enqueueOperationLog } from "../pkg/requestLogQueue";
+import * as dashboardRepo from "../repositories/dashboard.repository";
 
-export async function getStats() {
-  const today = new Date().toISOString().split('T')[0];
+export async function getStats(req: any) {
+  const today = new Date().toISOString().split("T")[0];
 
   const total_active = await dashboardRepo.countActiveEmployees();
   const on_leave_today = await dashboardRepo.countOnLeaveToday(today);
@@ -10,6 +11,22 @@ export async function getStats() {
   const pending_overtime = await dashboardRepo.countPendingOvertime();
   const standups_today = await dashboardRepo.countStandupsToday(today);
   const active_projects = await dashboardRepo.countActiveProjects();
+
+  enqueueOperationLog({
+    req,
+    status: "success",
+    operation: "access.dashboardStats",
+    metadata: {
+      total_active,
+      on_leave_today,
+      present_today: total_active - on_leave_today,
+      new_hires_month: new_hires,
+      pending_leaves,
+      pending_overtime,
+      standups_today,
+      active_projects,
+    },
+  });
 
   return {
     total_active,

@@ -1,16 +1,20 @@
-import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
-import nodemailer from 'nodemailer';
-import * as employeeRepo from '../repositories/employee.repository';
-import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
-import type { EmployeeCreateInput, EmployeeUpdateInput } from '../dtos/employee.dto';
-import AppError from '../pkg/AppError';
+import crypto from "crypto";
+import bcrypt from "bcryptjs";
+import nodemailer from "nodemailer";
+import * as employeeRepo from "../repositories/employee.repository";
+import * as payrollAdjustmentRepo from "../repositories/payrollAdjustment.repository";
+import type {
+  EmployeeCreateInput,
+  EmployeeUpdateInput,
+} from "../dtos/employee.dto";
+import AppError from "../pkg/AppError";
 import {
   buildApprovalEmailSubject,
   buildApprovalEmailHtml,
   buildRejectionEmailSubject,
   buildRejectionEmailHtml,
-} from './onboardingEmailTemplate';
+} from "./onboardingEmailTemplate";
+import { NewEmployee } from "../models/Employee";
 
 //send email after sucessfull entry
 export async function sendApproveMail(name: string, to: string, role: string) {
@@ -37,6 +41,51 @@ export async function sendApproveMail(name: string, to: string, role: string) {
     `,
   });
 }
+//send email after sucessfull entry in bulk
+export async function sendApproveMailBulk(emails: string[]) {
+  const transporter = nodemailer.createTransport({
+    host: process.env.MAIL_HOST,
+    port: Number(process.env.MAIL_PORT) || 587,
+    secure: process.env.MAIL_SECURE === "true",
+    auth: {
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM || process.env.MAIL_USER,
+    bcc: emails,
+    subject: "HR Platform — Onboarding sucessfull",
+    html: `
+      <p>Hi,</p>
+
+      <p>
+        You have been successfully added to gitgi.com.
+      </p>
+
+      <p>
+        Please log in via
+        <a
+          href="https://hr.gitgi.com/login"
+          style="color:#4f46e5;font-weight:bold"
+        >
+          https://hr.gitgi.com/login
+        </a>
+        and click <strong>"Forgot password"</strong>
+        to get the reset link sent to your registered email address.
+      </p>
+
+      <p>
+        If you have any questions, feel free to contact the HR department.
+      </p>
+
+      <p style="color:#888;font-size:12px">
+        HR Platform
+      </p>
+    `,
+  });
+}
 
 export async function list() {
   return employeeRepo.findAllActive();
@@ -54,13 +103,16 @@ export async function get(id: string) {
   return employeeRepo.findById(id);
 }
 
-export async function create(data: EmployeeCreateInput, actorId: number | null) {
+export async function create(
+  data: EmployeeCreateInput,
+  actorId: number | null,
+) {
   const result = await employeeRepo.create(data, actorId);
 
   // console.log(result)
   const year = new Date().getFullYear();
   await employeeRepo.seedLeaveBalances(result.id, year);
-  
+
   if (process.env.MAIL_HOST) {
     try {
       await sendApproveMail(result.name, result.email, result.role);
@@ -76,9 +128,13 @@ export async function create(data: EmployeeCreateInput, actorId: number | null) 
   return result;
 }
 
-export async function update(id: string, updates: EmployeeUpdateInput, actorId: number | null) {
+export async function update(
+  id: string,
+  updates: EmployeeUpdateInput,
+  actorId: number | null,
+) {
   if (!Object.keys(updates).length) {
-    throw new AppError('Nothing to update', 400);
+    throw new AppError("Nothing to update", 400);
   }
   await employeeRepo.update(id, updates, actorId);
 }
@@ -87,28 +143,37 @@ export async function remove(id: string, actorId: number | null) {
   await employeeRepo.deactivate(id, actorId);
 }
 
-const TEMP_PASSWORD_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+const TEMP_PASSWORD_CHARS =
+  "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
 
 function generateTempPassword(length = 10): string {
-  let result = '';
+  let result = "";
   for (let i = 0; i < length; i++) {
     result += TEMP_PASSWORD_CHARS[crypto.randomInt(TEMP_PASSWORD_CHARS.length)];
   }
   return result;
 }
 
-async function sendApprovalEmail(name: string, to: string, tempPassword: string) {
-  const loginUrl = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/login` : 'http://localhost:6001/login';
+async function sendApprovalEmail(
+  name: string,
+  to: string,
+  tempPassword: string,
+) {
+  const loginUrl = process.env.FRONTEND_URL
+    ? `${process.env.FRONTEND_URL}/login`
+    : "http://localhost:6001/login";
 
   if (!process.env.MAIL_HOST) {
-    console.info(`[employee] MAIL_HOST not set — temp password for ${to}: ${tempPassword}`);
+    console.info(
+      `[employee] MAIL_HOST not set — temp password for ${to}: ${tempPassword}`,
+    );
     return;
   }
 
   const transporter = nodemailer.createTransport({
     host: process.env.MAIL_HOST,
     port: Number(process.env.MAIL_PORT) || 587,
-    secure: process.env.MAIL_SECURE === 'true',
+    secure: process.env.MAIL_SECURE === "true",
     auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
   });
 
@@ -122,14 +187,16 @@ async function sendApprovalEmail(name: string, to: string, tempPassword: string)
 
 async function sendRejectionEmail(name: string, to: string) {
   if (!process.env.MAIL_HOST) {
-    console.info(`[employee] MAIL_HOST not set — skipping rejection email to ${to}`);
+    console.info(
+      `[employee] MAIL_HOST not set — skipping rejection email to ${to}`,
+    );
     return;
   }
 
   const transporter = nodemailer.createTransport({
     host: process.env.MAIL_HOST,
     port: Number(process.env.MAIL_PORT) || 587,
-    secure: process.env.MAIL_SECURE === 'true',
+    secure: process.env.MAIL_SECURE === "true",
     auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
   });
 
@@ -143,9 +210,9 @@ async function sendRejectionEmail(name: string, to: string) {
 
 export async function approve(id: string, actorId: number | null) {
   const employee = await employeeRepo.findById(id);
-  if (!employee) throw new AppError('Not found', 404);
-  if (employee.status !== 'onboarding') {
-    throw new AppError('Only pending applicants can be approved', 400);
+  if (!employee) throw new AppError("Not found", 404);
+  if (employee.status !== "onboarding") {
+    throw new AppError("Only pending applicants can be approved", 400);
   }
 
   const tempPassword = generateTempPassword();
@@ -155,22 +222,28 @@ export async function approve(id: string, actorId: number | null) {
   try {
     await sendApprovalEmail(employee.name, employee.email, tempPassword);
   } catch (err: any) {
-    console.error(`[employee] Failed to send approval email for ${id}:`, err.message);
+    console.error(
+      `[employee] Failed to send approval email for ${id}:`,
+      err.message,
+    );
   }
 }
 
 export async function reject(id: string, notify: boolean) {
   const employee = await employeeRepo.findById(id);
-  if (!employee) throw new AppError('Not found', 404);
-  if (employee.status !== 'onboarding') {
-    throw new AppError('Only pending applicants can be rejected', 400);
+  if (!employee) throw new AppError("Not found", 404);
+  if (employee.status !== "onboarding") {
+    throw new AppError("Only pending applicants can be rejected", 400);
   }
 
   if (notify) {
     try {
       await sendRejectionEmail(employee.name, employee.email);
     } catch (err: any) {
-      console.error(`[employee] Failed to send rejection email for ${id}:`, err.message);
+      console.error(
+        `[employee] Failed to send rejection email for ${id}:`,
+        err.message,
+      );
     }
   }
 
@@ -180,7 +253,7 @@ export async function reject(id: string, notify: boolean) {
 export async function payrollSummary(id: string) {
   const emp = await employeeRepo.findPayrollBaseById(id);
   if (!emp) {
-    const err: any = new Error('Not found');
+    const err: any = new Error("Not found");
     err.status = 404;
     throw err;
   }
@@ -196,15 +269,26 @@ export async function payrollSummary(id: string) {
     if (day !== 0 && day !== 6) workingDays++;
   }
 
-  const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-  const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+  const monthStart = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const monthEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
 
-  const leaveRanges = await employeeRepo.findApprovedLeaveRangesForEmployee(id, monthStart, monthEnd);
+  const leaveRanges = await employeeRepo.findApprovedLeaveRangesForEmployee(
+    id,
+    monthStart,
+    monthEnd,
+  );
 
   let leaveDays = 0;
   for (const lr of leaveRanges as any[]) {
-    const s = new Date(Math.max(new Date(lr.start_date).getTime(), new Date(monthStart).getTime()));
-    const e = new Date(Math.min(new Date(lr.end_date).getTime(), new Date(monthEnd).getTime()));
+    const s = new Date(
+      Math.max(
+        new Date(lr.start_date).getTime(),
+        new Date(monthStart).getTime(),
+      ),
+    );
+    const e = new Date(
+      Math.min(new Date(lr.end_date).getTime(), new Date(monthEnd).getTime()),
+    );
     for (const d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
       if (d.getDay() !== 0 && d.getDay() !== 6) leaveDays++;
     }
@@ -214,10 +298,20 @@ export async function payrollSummary(id: string) {
   const dailyRate = emp.salary ? Number(emp.salary) / workingDays : 0;
   const expectedPay = dailyRate * presentDays;
 
-  const adjustments = await payrollAdjustmentRepo.findForEmployeePeriod(id, year, month + 1);
-  const overtimePay = adjustments.filter((a: any) => a.type === 'overtime_pay').reduce((s: number, a: any) => s + Number(a.amount), 0);
-  const leaveDeduction = adjustments.filter((a: any) => a.type === 'leave_deduction').reduce((s: number, a: any) => s + Number(a.amount), 0);
-  const leaveBonus = adjustments.filter((a: any) => a.type === 'leave_bonus').reduce((s: number, a: any) => s + Number(a.amount), 0);
+  const adjustments = await payrollAdjustmentRepo.findForEmployeePeriod(
+    id,
+    year,
+    month + 1,
+  );
+  const overtimePay = adjustments
+    .filter((a: any) => a.type === "overtime_pay")
+    .reduce((s: number, a: any) => s + Number(a.amount), 0);
+  const leaveDeduction = adjustments
+    .filter((a: any) => a.type === "leave_deduction")
+    .reduce((s: number, a: any) => s + Number(a.amount), 0);
+  const leaveBonus = adjustments
+    .filter((a: any) => a.type === "leave_bonus")
+    .reduce((s: number, a: any) => s + Number(a.amount), 0);
 
   return {
     ...emp,
@@ -229,7 +323,41 @@ export async function payrollSummary(id: string) {
     overtime_pay: Math.round(overtimePay),
     leave_deduction: Math.round(leaveDeduction),
     leave_bonus: Math.round(leaveBonus),
-    net_pay: Math.round(expectedPay + overtimePay + leaveDeduction + leaveBonus),
-    adjustments: adjustments.map((a: any) => ({ title: a.title, type: a.type, amount: Number(a.amount) })),
+    net_pay: Math.round(
+      expectedPay + overtimePay + leaveDeduction + leaveBonus,
+    ),
+    adjustments: adjustments.map((a: any) => ({
+      title: a.title,
+      type: a.type,
+      amount: Number(a.amount),
+    })),
   };
+}
+
+export async function createBulk(data: NewEmployee[], actorId: number | null) {
+  if (data.length < 1) throw new AppError("No rows to add employee", 400);
+  const result = await employeeRepo.createBulk(data, actorId);
+  const emails = result.map((r) => r.email);
+
+  // console.log(result)
+  const year = new Date().getFullYear();
+  for (let r of result) {
+    await employeeRepo.seedLeaveBalances(r.id, year);
+  }
+
+  if (process.env.MAIL_HOST) {
+    try {
+      await sendApproveMailBulk(emails);
+    } catch (mailErr: any) {
+      console.error("[auth] Failed to send reset email:", mailErr.message);
+    }
+  } else {
+    emails.map((email) => {
+      console.info(
+        `[auth] MAIL_HOST not set — Failed to send notification mail to ${email}`,
+      );
+    });
+  }
+
+  return result;
 }

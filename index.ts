@@ -5,7 +5,7 @@ import cors from "cors";
 import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
 import morgan from "morgan";
-// import fs from 'fs'
+import { enqueueAccessLog } from "./src/pkg/requestLogQueue";
 
 import { sql } from "drizzle-orm";
 import swaggerSpec from "./src/swagger";
@@ -50,15 +50,35 @@ app.use(
   }),
 );
 
-// morgan.token("employee_id",(req) => {
-//   return String(req.user?.id ?? "0");
-// });
-// morgan.token("trace_id", (req) => {
-//   return req.traceId ?? "-";
-// });
-// app.use(morgan(":trace_id :employee_id :method :url :status :remote-addr"));
-app.use(cors());
+morgan.token("employee_id", (req) => {
+  const id = req.user?.id;
+  return id != null ? String(id) : null;
+});
+morgan.token("trace_id", (req) => {
+  return req.trace_id;
+});
 
+// app.use(
+//   morgan(
+//     (tokens, req, res) => {
+//       enqueueAccessLog({
+//         traceId: tokens["trace_id"](req, res),
+//         employeeId: tokens["employee_id"](req, res),
+//         method: tokens.method(req, res),
+//         endpoint: tokens.url(req, res),
+//         responseStatus: Number(tokens.status(req, res)),
+//         responseDurationMs: Number(tokens["response-time"](req, res)),
+//         ipAddress: tokens["remote-addr"](req, res),
+//         requestTimestamp: new Date(),
+//         userAgent: tokens["user-agent"](req, res),
+//       });
+//       return null; // returning null/undefined suppresses Morgan's own console output
+//     },
+//     { skip: (req) => req.method === "OPTIONS" },
+//   ),
+// );
+
+app.use(cors());
 
 app.use(
   "/uploads",
@@ -75,7 +95,18 @@ app.use(
   }),
 );
 
-app.use("/api", routes);
+app.use(
+  "/api",
+  (req, res, next) => {
+    try {
+      (req as any).trace_id = crypto.randomUUID(); //for handling trace operations
+      next();
+    } catch {
+      res.status(401).json({ error: `Couldn't add trace_id to the request` });
+    }
+  },
+  routes,
+);
 app.get("/api/health", (req, res) =>
   res.json({ status: "ok", timestamp: new Date() }),
 );
