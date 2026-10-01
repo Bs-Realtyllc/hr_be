@@ -58,25 +58,25 @@ morgan.token("trace_id", (req) => {
   return req.trace_id;
 });
 
-// app.use(
-//   morgan(
-//     (tokens, req, res) => {
-//       enqueueAccessLog({
-//         traceId: tokens["trace_id"](req, res),
-//         employeeId: tokens["employee_id"](req, res),
-//         method: tokens.method(req, res),
-//         endpoint: tokens.url(req, res),
-//         responseStatus: Number(tokens.status(req, res)),
-//         responseDurationMs: Number(tokens["response-time"](req, res)),
-//         ipAddress: tokens["remote-addr"](req, res),
-//         requestTimestamp: new Date(),
-//         userAgent: tokens["user-agent"](req, res),
-//       });
-//       return null; // returning null/undefined suppresses Morgan's own console output
-//     },
-//     { skip: (req) => req.method === "OPTIONS" },
-//   ),
-// );
+app.use(
+  morgan(
+    (tokens, req, res) => {
+      enqueueAccessLog({
+        traceId: tokens["trace_id"](req, res),
+        employeeId: tokens["employee_id"](req, res),
+        method: tokens.method(req, res),
+        endpoint: tokens.url(req, res),
+        responseStatus: Number(tokens.status(req, res)),
+        responseDurationMs: Number(tokens["response-time"](req, res)),
+        ipAddress: tokens["remote-addr"](req, res),
+        requestTimestamp: new Date(),
+        userAgent: tokens["user-agent"](req, res),
+      });
+      return null; // returning null/undefined suppresses Morgan's own console output
+    },
+    { skip: (req) => req.method === "OPTIONS" },
+  ),
+);
 
 app.use(cors());
 
