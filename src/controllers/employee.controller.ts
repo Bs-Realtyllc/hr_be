@@ -57,3 +57,10 @@ export const getAllNames = asyncHandler(async(req:any, res:Response) =>{
   const result = await employeeService.listAllNames();
   res.status(200).json(result);
 })
+
+export const createBulk = asyncHandler(async (req: any, res: Response) => {
+  // const input = employeeDto.toCreateInput(req.body);
+  const data = await employeeService.createBulk(req.body.employeesToAdd, req.user?.id ?? null);
+  // console.log(req.user.id, req.body)
+  res.status(201).json({ data });
+});

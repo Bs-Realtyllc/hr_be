@@ -2,8 +2,8 @@ import { Request, Response } from 'express';
 import * as dashboardService from '../services/dashboard.service';
 import asyncHandler from '../middleware/asyncHandler';
 
-export const getStats = asyncHandler(async (req: Request, res: Response) => {
-  const stats = await dashboardService.getStats();
+export const getStats = asyncHandler(async (req: any, res: Response) => {
+  const stats = await dashboardService.getStats(req);
   res.json(stats);
 });
 
