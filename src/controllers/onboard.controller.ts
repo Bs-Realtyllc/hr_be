@@ -13,6 +13,22 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json(response);
 });
 
+// looked up by the candidate's own browser before they've authenticated — pre-fills
+// the onboarding form if the job-portal webhook already seeded a draft for their email
+export const getDraft = asyncHandler(async (req: Request, res: Response) => {
+  const email = (req.query.email as string | undefined)?.trim();
+  if (!email) {
+    return res.status(200).json({ found: false });
+  }
+
+  const draft = await onboardService.getDraft(email);
+  if (!draft) {
+    return res.status(200).json({ found: false });
+  }
+
+  res.status(200).json({ found: true, data: draft });
+});
+
 //add data in employee_onboarding_profile;
 const REQUIRED_FIELDS = [
   "contract",
