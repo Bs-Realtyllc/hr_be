@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import crypto from "crypto";
 const leaveEvents = require("../services/leaveEvents");
+const jobPortalEvents = require("../services/jobPortalEvents");
 import asyncHandler from "../middleware/asyncHandler";
 
 import * as webhookService from "../services/webhook.service";
@@ -12,7 +13,19 @@ const EVENT_HANDLERS: Record<
   n8n: {
     leave_approved: leaveEvents.handleLeaveApproved,
   },
+  job_portal: {
+    candidate_hired: jobPortalEvents.handleCandidateHired,
+  },
 };
+
+/** Constant-time secret comparison — avoids leaking match-length via timing on an otherwise plain string compare. */
+function secretsMatch(provided: string | undefined, expected: string): boolean {
+  if (!provided) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
 
 const processedEvents = new Set<string>();
 
@@ -30,7 +43,7 @@ export const verify = (req: Request, res: Response) => {
 
   const expectedToken =
     process.env[`WEBHOOK_VERIFY_TOKEN_${service.toUpperCase()}`];
-  if (expectedToken && token !== expectedToken) {
+  if (expectedToken && !secretsMatch(token as string | undefined, expectedToken)) {
     console.warn(`[webhook:${service}] Rejected: verify_token mismatch`);
     return res.status(403).send("Verification token mismatch");
   }
@@ -49,7 +62,7 @@ export const receive = async (req: Request, res: Response) => {
   }
 
   const expectedSecret = process.env[`WEBHOOK_SECRET_${service.toUpperCase()}`];
-  if (expectedSecret && req.headers["x-webhook-secret"] !== expectedSecret) {
+  if (expectedSecret && !secretsMatch(req.headers["x-webhook-secret"] as string | undefined, expectedSecret)) {
     console.warn(`[webhook:${service}] Rejected: x-webhook-secret mismatch`);
     return res.status(401).json({ error: "unauthorized" });
   }

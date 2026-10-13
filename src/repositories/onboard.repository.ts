@@ -4,6 +4,7 @@ import { employeeOnboardingProfile, employees } from "../models";
 import AppError from "../pkg/AppError";
 import fs from "fs/promises";
 import path from "path";
+import * as employeeRepo from "./employee.repository";
 
 interface OnboardFilenames {
   contract: string;
@@ -69,6 +70,94 @@ export async function saveOnboardProfile(
     );
   }
 }
+interface ExternalOnboardDraft {
+  name: string;
+  email: string;
+  phone?: string | null;
+  linkedin_url?: string | null;
+  github_url?: string | null;
+  designation?: string | null;
+  tech_stack?: string[] | null;
+  previous_experience?: string | null;
+  role: "intern" | "employee";
+  source: string;
+  source_application_id: string;
+}
+
+/**
+ * Seeds or refreshes a draft onboarding profile from an external source (the job-portal
+ * candidate-hired webhook). Only fills fields that source actually has — gender, DOB,
+ * address, emergency contact, education, and the document uploads are left for the
+ * candidate/HR to complete in the onboarding form.
+ */
+export async function upsertDraftFromExternalSource(data: ExternalOnboardDraft) {
+  const existingEmployee = await employeeRepo.findByEmail(data.email);
+  if (existingEmployee) {
+    console.info(`[job-portal-sync] ${data.email} is already an employee — skipping draft`);
+    return existingEmployee.id;
+  }
+
+  const [existingDraft] = await db
+    .select({ id: employeeOnboardingProfile.id })
+    .from(employeeOnboardingProfile)
+    .where(eq(employeeOnboardingProfile.email, data.email));
+
+  if (existingDraft) {
+    await db
+      .update(employeeOnboardingProfile)
+      .set({
+        name: data.name,
+        phone: data.phone ?? null,
+        linkedin_url: data.linkedin_url ?? null,
+        github_url: data.github_url ?? null,
+        designation: data.designation ?? null,
+        tech_stack: data.tech_stack ?? null,
+        previous_experience: data.previous_experience ?? null,
+        role: data.role,
+        source: data.source,
+        source_application_id: data.source_application_id,
+        is_active: true,
+      })
+      .where(eq(employeeOnboardingProfile.id, existingDraft.id));
+    return existingDraft.id;
+  }
+
+  const [result] = await db.insert(employeeOnboardingProfile).values({
+    name: data.name,
+    email: data.email,
+    phone: data.phone ?? null,
+    linkedin_url: data.linkedin_url ?? null,
+    github_url: data.github_url ?? null,
+    designation: data.designation ?? null,
+    tech_stack: data.tech_stack ?? null,
+    previous_experience: data.previous_experience ?? null,
+    role: data.role,
+    source: data.source,
+    source_application_id: data.source_application_id,
+  } as typeof employeeOnboardingProfile.$inferInsert);
+
+  return (result as any).insertId;
+}
+
+/**
+ * Fields a candidate's own browser is allowed to see before they've authenticated —
+ * no id, no file paths, no source bookkeeping. Only returns a job-portal-seeded draft
+ * that hasn't been approved/rejected yet (is_active = true).
+ */
+export async function getDraftByEmail(email: string) {
+  const [draft] = await db
+    .select({
+      name: employeeOnboardingProfile.name,
+      linkedin_url: employeeOnboardingProfile.linkedin_url,
+      github_url: employeeOnboardingProfile.github_url,
+      previous_experience: employeeOnboardingProfile.previous_experience,
+    })
+    .from(employeeOnboardingProfile)
+    .where(and(eq(employeeOnboardingProfile.email, email), eq(employeeOnboardingProfile.is_active, true)));
+
+  return draft ?? null;
+}
+
 export async function approveOnboardProfile(id: number) {
   return db.transaction(async (tx) => {
     const [profile] = await tx
@@ -89,6 +178,7 @@ export async function approveOnboardProfile(id: number) {
       address: profile.current_address,
       emergency_contact: profile.emergency_contact,
       github_url: profile.github_url,
+      designation: profile.designation,
       role: profile.role,
       tech_stack: profile.tech_stack,
       status: "onboarding",

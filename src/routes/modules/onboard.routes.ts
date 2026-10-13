@@ -5,6 +5,10 @@ import { upload } from "../../middleware/uplod";
 const router = express.Router();
 
 router.get("/", authenticate, requireRole('admin'), ctrl.list);
+
+// Public lookup so the onboarding form can pre-fill itself — same unauthenticated
+// surface as the POST below, since the candidate isn't logged in when they land here.
+router.get("/draft", ctrl.getDraft);
 router.post(
   "/",
   upload.fields([
