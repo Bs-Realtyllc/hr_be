@@ -14,7 +14,7 @@ const options = {
     ],
     tags: [
       { name: "Health", description: "Service health check" },
-      { name: "Auth", description: "Login, password change/reset" },
+      { name: "Auth", description: "Login, password change/reset, login history" },
       { name: "Employees", description: "Employee profiles and directory" },
       { name: "Leaves", description: "Leave requests and balances" },
       { name: "Standups", description: "Async daily standup feed" },
@@ -488,6 +488,41 @@ const options = {
         MessageResponse: {
           type: "object",
           properties: { message: { type: "string" } },
+        },
+        LoginHistoryEntry: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            employee_id: { type: "integer", nullable: true },
+            employee_name: {
+              type: "string",
+              nullable: true,
+              description: "Only present on the admin, all-employees listing",
+            },
+            email: { type: "string", format: "email" },
+            ip_address: { type: "string", nullable: true },
+            user_agent: { type: "string", nullable: true },
+            success: { type: "boolean" },
+            failure_reason: {
+              type: "string",
+              nullable: true,
+              enum: ["user_not_found", "no_password_set", "invalid_password"],
+            },
+            created_at: { type: "string", format: "date-time" },
+          },
+        },
+        PaginatedLoginHistory: {
+          type: "object",
+          properties: {
+            entries: {
+              type: "array",
+              items: { $ref: "#/components/schemas/LoginHistoryEntry" },
+            },
+            total: { type: "integer" },
+            page: { type: "integer" },
+            limit: { type: "integer" },
+            totalPages: { type: "integer" },
+          },
         },
 
         DashboardStats: {
@@ -1231,6 +1266,143 @@ const options = {
             },
             400: {
               description: "Invalid/expired token or bad password",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/api/auth/login-history": {
+        get: {
+          tags: ["Auth"],
+          summary: "Get own login history",
+          description:
+            "Returns a paginated list of sign-in attempts (successful and failed) for the currently authenticated employee, sorted newest first.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", default: 1, minimum: 1 },
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: {
+                type: "integer",
+                default: 20,
+                minimum: 1,
+                maximum: 100,
+              },
+            },
+          ],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/PaginatedLoginHistory" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/auth/admin/login-history": {
+        get: {
+          tags: ["Auth"],
+          summary: "Get login history for all employees",
+          description: "Admin only.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", default: 1, minimum: 1 },
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: {
+                type: "integer",
+                default: 20,
+                minimum: 1,
+                maximum: 100,
+              },
+            },
+          ],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/PaginatedLoginHistory" },
+                },
+              },
+            },
+            403: {
+              description: "Insufficient permissions",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/auth/admin/employees/{employeeId}/login-history": {
+        get: {
+          tags: ["Auth"],
+          summary: "Get login history for a specific employee",
+          description: "Admin only.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "employeeId",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", default: 1, minimum: 1 },
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: {
+                type: "integer",
+                default: 20,
+                minimum: 1,
+                maximum: 100,
+              },
+            },
+          ],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/PaginatedLoginHistory" },
+                },
+              },
+            },
+            403: {
+              description: "Insufficient permissions",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Employee not found",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },

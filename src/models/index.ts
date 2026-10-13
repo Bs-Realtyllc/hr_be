@@ -34,4 +34,5 @@ export { otpCodes } from './OtpCode';
 export { projectTodos } from './ProjectTodo';
 export {employeeDailyClock} from './EmployeeDailyClock'
 export {employeeClockPauses} from './EmployeeClockPauses'
+export { loginHistory } from './LoginHistory';
 
