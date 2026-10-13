@@ -457,6 +457,18 @@ const options = {
             user: { $ref: "#/components/schemas/UserSummary" },
           },
         },
+        RequiresTwoFactorResponse: {
+          type: "object",
+          description:
+            "Returned instead of LoginResponse when the account has 2FA enabled and the request isn't from a trusted device. Pass tempToken to one of the /2fa/*/verify endpoints to finish signing in.",
+          properties: {
+            requiresTwoFactor: { type: "boolean", example: true },
+            tempToken: {
+              type: "string",
+              description: "Short-lived (5 min) token identifying the pending login",
+            },
+          },
+        },
         ChangePasswordRequest: {
           type: "object",
           required: ["new_password"],
@@ -522,6 +534,100 @@ const options = {
             page: { type: "integer" },
             limit: { type: "integer" },
             totalPages: { type: "integer" },
+          },
+        },
+
+        TwoFactorStatus: {
+          type: "object",
+          properties: {
+            enabled: { type: "boolean" },
+            backupCodesRemaining: { type: "integer" },
+          },
+        },
+        TwoFactorSetup: {
+          type: "object",
+          properties: {
+            secret: {
+              type: "string",
+              description: "Base32 TOTP secret — pass back unchanged to POST /2fa/enable",
+            },
+            otpauthUrl: { type: "string", format: "uri" },
+            qrDataUrl: {
+              type: "string",
+              description: "data: URL of a QR code encoding otpauthUrl, ready to render in an <img> tag",
+            },
+          },
+        },
+        TwoFactorEnableInput: {
+          type: "object",
+          required: ["code", "secret"],
+          properties: {
+            code: {
+              type: "string",
+              description: "6-digit code from the authenticator app, to confirm the secret was scanned correctly",
+            },
+            secret: { type: "string", description: "The secret returned by POST /2fa/setup" },
+          },
+        },
+        BackupCodesResponse: {
+          type: "object",
+          properties: {
+            backupCodes: {
+              type: "array",
+              items: { type: "string", example: "A1B2C3-D4E5F6" },
+              description: "Shown once — each code can be used in place of an authenticator code exactly one time",
+            },
+          },
+        },
+        TwoFactorDisableInput: {
+          type: "object",
+          required: ["password", "code"],
+          properties: {
+            password: { type: "string", format: "password" },
+            code: { type: "string", description: "6-digit authenticator code" },
+          },
+        },
+        TwoFactorCodeInput: {
+          type: "object",
+          required: ["code"],
+          properties: { code: { type: "string", description: "6-digit authenticator code" } },
+        },
+        TrustedDevice: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            ip_address: { type: "string", nullable: true },
+            user_agent: { type: "string", nullable: true },
+            created_at: { type: "string", format: "date-time" },
+            last_used_at: { type: "string", format: "date-time" },
+            expires_at: { type: "string", format: "date-time" },
+          },
+        },
+        TempTokenInput: {
+          type: "object",
+          required: ["tempToken"],
+          properties: {
+            tempToken: { type: "string", description: "tempToken returned by POST /auth/login" },
+          },
+        },
+        RevokedCount: {
+          type: "object",
+          properties: { revokedCount: { type: "integer" } },
+        },
+        TempTokenWithCodeInput: {
+          type: "object",
+          required: ["tempToken", "code"],
+          properties: {
+            tempToken: { type: "string", description: "tempToken returned by POST /auth/login" },
+            code: {
+              type: "string",
+              description: "Authenticator code (/2fa/verify), backup code (/2fa/backup/verify), or emailed code (/2fa/email-otp/verify)",
+            },
+            rememberDevice: {
+              type: "boolean",
+              default: false,
+              description: "If true, sets a 30-day trustedDevice cookie so future logins from this browser skip 2FA",
+            },
           },
         },
 
@@ -1131,7 +1237,7 @@ const options = {
           tags: ["Auth"],
           summary: "Log in with company email and password",
           description:
-            "Restricted to allowed organization email domains. Returns a JWT valid for 7 days.",
+            "Restricted to allowed organization email domains. Returns a JWT valid for 7 days, or a RequiresTwoFactorResponse if the account has 2FA enabled and this isn't a trusted device (trustedDevice cookie).",
           requestBody: {
             required: true,
             content: {
@@ -1142,10 +1248,15 @@ const options = {
           },
           responses: {
             200: {
-              description: "Authenticated",
+              description: "Authenticated, or a pending 2FA challenge",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/LoginResponse" },
+                  schema: {
+                    oneOf: [
+                      { $ref: "#/components/schemas/LoginResponse" },
+                      { $ref: "#/components/schemas/RequiresTwoFactorResponse" },
+                    ],
+                  },
                 },
               },
             },
@@ -1408,6 +1519,259 @@ const options = {
                   schema: { $ref: "#/components/schemas/Error" },
                 },
               },
+            },
+          },
+        },
+      },
+
+      "/api/auth/2fa/status": {
+        get: {
+          tags: ["Auth"],
+          summary: "Get own 2FA status",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/TwoFactorStatus" } },
+              },
+            },
+          },
+        },
+      },
+      "/api/auth/2fa/setup": {
+        post: {
+          tags: ["Auth"],
+          summary: "Start enabling 2FA — generates a TOTP secret and QR code",
+          description:
+            "Scan the QR code (or enter the secret manually) in an authenticator app, then confirm with POST /2fa/enable. Fails if 2FA is already enabled.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/TwoFactorSetup" } },
+              },
+            },
+            400: {
+              description: "2FA is already enabled",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+      "/api/auth/2fa/enable": {
+        post: {
+          tags: ["Auth"],
+          summary: "Confirm setup and turn 2FA on",
+          description: "Verifies the code against the secret from POST /2fa/setup, then enables 2FA and generates one-time backup codes.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/TwoFactorEnableInput" } } },
+          },
+          responses: {
+            200: {
+              description: "2FA enabled",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/BackupCodesResponse" } } },
+            },
+            400: {
+              description: "2FA already enabled, or invalid verification code",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+      "/api/auth/2fa/disable": {
+        delete: {
+          tags: ["Auth"],
+          summary: "Turn 2FA off",
+          description: "Requires both the account password and a current authenticator code. Also revokes all trusted devices.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/TwoFactorDisableInput" } } },
+          },
+          responses: {
+            200: {
+              description: "2FA disabled",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/MessageResponse" } } },
+            },
+            400: {
+              description: "2FA not enabled, or invalid authenticator code",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            401: {
+              description: "Invalid password",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+      "/api/auth/2fa/backup-codes/regenerate": {
+        post: {
+          tags: ["Auth"],
+          summary: "Invalidate existing backup codes and generate a fresh set",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/TwoFactorCodeInput" } } },
+          },
+          responses: {
+            200: {
+              description: "OK",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/BackupCodesResponse" } } },
+            },
+            400: {
+              description: "2FA not enabled, or invalid authenticator code",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+      "/api/auth/2fa/trusted-devices": {
+        get: {
+          tags: ["Auth"],
+          summary: "List own trusted (2FA-skip) devices",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": {
+                  schema: { type: "array", items: { $ref: "#/components/schemas/TrustedDevice" } },
+                },
+              },
+            },
+          },
+        },
+        delete: {
+          tags: ["Auth"],
+          summary: "Revoke all trusted devices",
+          description: "Future logins from any device will require a 2FA code again.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "OK",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/RevokedCount" } } },
+            },
+          },
+        },
+      },
+      "/api/auth/2fa/trusted-devices/{deviceId}": {
+        delete: {
+          tags: ["Auth"],
+          summary: "Revoke a single trusted device",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "deviceId", in: "path", required: true, schema: { type: "integer" } },
+          ],
+          responses: {
+            200: {
+              description: "Trusted device removed",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/MessageResponse" } } },
+            },
+            404: {
+              description: "Trusted device not found",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+      "/api/auth/2fa/verify": {
+        post: {
+          tags: ["Auth"],
+          summary: "Complete login with a TOTP authenticator code",
+          security: [],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/TempTokenWithCodeInput" } } },
+          },
+          responses: {
+            200: {
+              description: "Authenticated",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/LoginResponse" } } },
+            },
+            400: {
+              description: "Invalid authenticator code",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            401: {
+              description: "Invalid or expired temp token",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+      "/api/auth/2fa/backup/verify": {
+        post: {
+          tags: ["Auth"],
+          summary: "Complete login with a one-time backup code",
+          description: "Each backup code can only be used once.",
+          security: [],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/TempTokenWithCodeInput" } } },
+          },
+          responses: {
+            200: {
+              description: "Authenticated",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/LoginResponse" } } },
+            },
+            400: {
+              description: "Invalid backup code",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            401: {
+              description: "Invalid or expired temp token",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+      "/api/auth/2fa/email-otp/request": {
+        post: {
+          tags: ["Auth"],
+          summary: "Email a one-time verification code as a 2FA fallback",
+          description: "Code expires in 10 minutes. Requires the tempToken from the initial login attempt.",
+          security: [],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/TempTokenInput" } } },
+          },
+          responses: {
+            200: {
+              description: "Code sent",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/MessageResponse" } } },
+            },
+            401: {
+              description: "Invalid or expired temp token",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+      "/api/auth/2fa/email-otp/verify": {
+        post: {
+          tags: ["Auth"],
+          summary: "Complete login with the emailed one-time code",
+          security: [],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/TempTokenWithCodeInput" } } },
+          },
+          responses: {
+            200: {
+              description: "Authenticated",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/LoginResponse" } } },
+            },
+            400: {
+              description: "Invalid or expired verification code",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            401: {
+              description: "Invalid or expired temp token",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
           },
         },
