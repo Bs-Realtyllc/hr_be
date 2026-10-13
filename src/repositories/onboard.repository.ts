@@ -53,15 +53,39 @@ export async function saveOnboardProfile(
   data: OnboardPayload,
   filenames: OnboardFilenames,
 ) {
+  const fileFields = {
+    nda_path: filenames.contract,
+    citizenship_front_path: filenames.citizenshipFront,
+    citizenship_back_path: filenames.citizenshipBack,
+    pan_path: filenames.panCard,
+    passout_certificate_path: filenames.passoutCertificate,
+    photo_path: filenames.passportPhoto,
+  };
+
   try {
-    return await db.insert(employeeOnboardingProfile).values({
+    // email is unique — if a job-portal webhook already seeded a draft for this address,
+    // complete that same row instead of inserting a second one and hitting the unique key.
+    const [existingDraft] = await db
+      .select({ id: employeeOnboardingProfile.id })
+      .from(employeeOnboardingProfile)
+      .where(
+        and(
+          eq(employeeOnboardingProfile.email, data.email),
+          eq(employeeOnboardingProfile.is_active, true),
+        ),
+      );
+
+    if (existingDraft) {
+      await db
+        .update(employeeOnboardingProfile)
+        .set({ ...data, ...fileFields })
+        .where(eq(employeeOnboardingProfile.id, existingDraft.id));
+      return;
+    }
+
+    await db.insert(employeeOnboardingProfile).values({
       ...data,
-      nda_path: filenames.contract,
-      citizenship_front_path: filenames.citizenshipFront,
-      citizenship_back_path: filenames.citizenshipBack,
-      pan_path: filenames.panCard,
-      passout_certificate_path: filenames.passoutCertificate,
-      photo_path: filenames.passportPhoto,
+      ...fileFields,
     } as typeof employeeOnboardingProfile.$inferInsert);
   } catch (err) {
     throw new AppError(
@@ -151,6 +175,9 @@ export async function getDraftByEmail(email: string) {
       linkedin_url: employeeOnboardingProfile.linkedin_url,
       github_url: employeeOnboardingProfile.github_url,
       previous_experience: employeeOnboardingProfile.previous_experience,
+      // Not a form field to pre-fill — used by the frontend only to warn if the candidate
+      // is filling out the wrong form (e.g. drafted as "employee" but on the intern page).
+      role: employeeOnboardingProfile.role,
     })
     .from(employeeOnboardingProfile)
     .where(and(eq(employeeOnboardingProfile.email, email), eq(employeeOnboardingProfile.is_active, true)));
