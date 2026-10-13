@@ -91,11 +91,12 @@ DROP TABLE IF EXISTS employee_auth;
 
 DROP TABLE IF EXISTS employee_profile;
 
--- ── Step 9: redesign employee_documents (0 live rows — drop + recreate is
--- lossless) ───────────────────────────────────────────────────────────────────
-DROP TABLE IF EXISTS employee_documents;
-
-CREATE TABLE
+-- ── Step 9: redesign employee_documents. CREATE TABLE IF NOT EXISTS rather than
+-- DROP + CREATE — this file reruns on every boot, and a drop here would silently
+-- wipe every uploaded document the moment this table actually holds any (see the
+-- identical bug just fixed on employee_onboarding_profile in
+-- migrate_zz_recreate_onboarding_profile.sql) ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS
   employee_documents (
     id INT PRIMARY KEY AUTO_INCREMENT,
     emp_id INT NOT NULL,
@@ -109,10 +110,11 @@ CREATE TABLE
 -- ── Step 10: redesign employee_tax_profiles into a per-month ledger keyed by
 -- panNo (the single existing row's data was already carried forward as
 -- employees.panNo in Step 4 — the old filing-status/exemptions shape has no
--- equivalent in the new monthly-ledger model, so it is not migrated) ────────
-DROP TABLE IF EXISTS employee_tax_profiles;
-
-CREATE TABLE
+-- equivalent in the new monthly-ledger model, so it is not migrated).
+-- CREATE TABLE IF NOT EXISTS rather than DROP + CREATE for the same reason as
+-- Step 9 above — this file reruns on every boot, and a drop here would wipe
+-- every real monthly tax record the moment this table actually holds any ────
+CREATE TABLE IF NOT EXISTS
   employee_tax_profiles (
     id INT PRIMARY KEY AUTO_INCREMENT,
     panNo VARCHAR(50) NOT NULL,
