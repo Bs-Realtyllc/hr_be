@@ -8,6 +8,7 @@ import * as otpRepo from '../repositories/otpCode.repository';
 import * as authDto from '../dtos/auth.dto';
 import type { LoginInput, ChangePasswordInput, ForgotPasswordInput, ResetPasswordInput } from '../dtos/auth.dto';
 import AppError from '../pkg/AppError';
+// import { enqueueOperationLog } from '../pkg/requestLogQueue';
 
 
 function unauthorized(message: string): never {
@@ -74,7 +75,21 @@ export async function login({ email, password }: LoginInput, ip: string = 'unkno
 
   const valid = await bcrypt.compare(password, emp!.password_hash);
   if (!valid) unauthorized('Invalid credentials');
-
+      // enqueueOperationLog({
+        // req
+      // req,
+      // status: "success",
+      // operation: "access.dashboardStats",
+      // metadata: {
+      //   total_active,
+      //   on_leave_today,
+      //   present_today: total_active - on_leave_today,
+      //   new_hires_month: new_hires,
+      //   pending_leaves,
+      //   pending_overtime,
+      //   standups_today,
+      //   active_projects,
+    // });
   //temporary -- only for admin
   // if (emp.role === 'admin') {
   //   await otpRepo.invalidateAllForEmployee(emp.id);

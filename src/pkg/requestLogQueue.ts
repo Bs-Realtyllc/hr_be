@@ -32,7 +32,7 @@ export function enqueueAccessLog(entry: NewAccessLog) {
 export function enqueueOperationLog(entry: enqueueOperationType) {
 
   const employeeId = entry.req?.user.id ?? '-';
-  const traceId = entry.req.trace_id ?? 'ca';
+  const traceId = entry.req.trace_id ?? '-';
 
   operationQueue.push({
     traceId,

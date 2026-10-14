@@ -72,7 +72,7 @@ export async function addClockIn(empId: number) {
   try {
     const [result] = await db
       .insert(employeeDailyClock)
-      .values({ employeeId: empId });
+      .values({ employeeId: empId, clockDate:new Date().toISOString().split('T')[0] });
     const [row] = await db
       .select()
       .from(employeeDailyClock)
