@@ -19,7 +19,7 @@ export const employeeOnboardingProfile = mysqlTable(
       "female",
       "other",
       "prefer_not_to_say",
-    ]).notNull(),
+    ]),
     dob: date("dob", { mode: "string" }),
     email: varchar("email", { length: 150 }).notNull().unique(),
     phone: varchar("phone", { length: 20 }),
@@ -39,6 +39,12 @@ export const employeeOnboardingProfile = mysqlTable(
     role: mysqlEnum("role", ["intern", "employee"]).notNull(),
     additional_info: text("additional_info"),
     tech_stack: json("tech_stack"),
+    designation: varchar("designation", { length: 100 }),
+    // 'manual' (filled in directly via the HR onboarding form) or 'job_portal' (seeded by the
+    // candidate-hired webhook). source_application_id is the job portal's Application id, kept
+    // for traceability and to let the webhook upsert instead of creating duplicate drafts.
+    source: varchar("source", { length: 20 }).notNull().default("manual"),
+    source_application_id: varchar("source_application_id", { length: 100 }),
     nda_path: varchar("nda_path", { length: 255 }),
     citizenship_front_path: varchar("citizenship_front_path", { length: 255 }),
     citizenship_back_path: varchar("citizenship_back_path", { length: 255 }),

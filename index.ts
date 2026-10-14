@@ -2,6 +2,7 @@ import "dotenv/config";
 import path from "path";
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
 import morgan from "morgan";
@@ -24,11 +25,17 @@ const REQUIRED_ENV = [
   "DB_PASSWORD",
   "DB_NAME",
   "JWT_SECRET",
+  "TWO_FACTOR_ENCRYPTION_KEY",
 ];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length) {
   console.error(`✘ Missing required env vars: ${missing.join(", ")}`);
   console.error("  Copy .env.example to .env and fill in the values.");
+  process.exit(1);
+}
+if (process.env.TWO_FACTOR_ENCRYPTION_KEY!.length !== 64) {
+  console.error("✘ TWO_FACTOR_ENCRYPTION_KEY must be a 64-char hex string (32 bytes).");
+  console.error('  Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
   process.exit(1);
 }
 
@@ -100,18 +107,6 @@ app.use(
 );
 app.use("/api", trace, routes); 
 
-// app.use(
-//   "/api",
-//   (req, res, next) => {
-//     try {
-//       (req as any).trace_id = crypto.randomUUID(); //for handling trace operations
-//       next();
-//     } catch {
-//       res.status(401).json({ error: `Couldn't add trace_id to the request` });
-//     }
-//   },
-//   routes,
-// );
 app.get("/api/health", (req, res) =>
   res.json({ status: "ok", timestamp: new Date() }),
 );

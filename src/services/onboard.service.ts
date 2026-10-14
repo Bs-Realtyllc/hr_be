@@ -50,6 +50,10 @@ export async function get(type: "intern" | "employee" | "all") {
   return onboardRepo.getOnboardProfile(type);
 }
 
+export async function getDraft(email: string) {
+  return onboardRepo.getDraftByEmail(email);
+}
+
 export async function create(
   data: string | Record<string, any>,
   filenames: OnboardFilenames,

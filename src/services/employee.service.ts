@@ -348,7 +348,6 @@ export async function createBulk(data: NewEmployee[], actorId: number | null) {
   if (process.env.MAIL_HOST) {
     try {
       await sendApproveMailBulk(emails);
-      console.error("[auth] Send mail to emails sucessfully.");
     } catch (mailErr: any) {
       console.error("[auth] Failed to send reset email:", mailErr.message);
     }

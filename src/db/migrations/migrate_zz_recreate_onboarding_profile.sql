@@ -7,37 +7,13 @@
 -- The 13 rows on the old table were dev/seed fixtures with no name/email/gender captured
 -- and several roles (admin/lead) that don't fit the new role enum, so they are dropped
 -- rather than backfilled (confirmed with the team before running this).
+--
+-- That one-time conversion is long done — the table has had the new shape for a
+-- while now. The DROP TABLE + CREATE TABLE that used to live below is gone on
+-- purpose: this file reruns on every single boot (the migration runner has no
+-- "already applied" gate), and leaving a table-recreate in a file like that means
+-- every deploy silently deletes every real pending onboarding submission sitting
+-- in the table at the time. Confirmed this actually happened in production before
+-- removing it. Left as a no-op (no executable statements) so the history and
+-- rationale above stay visible without re-running.
 USE hr_platform;
-
-DROP TABLE IF EXISTS employee_onboarding_profile;
-
-CREATE TABLE employee_onboarding_profile (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  name VARCHAR(100) NOT NULL,
-  gender ENUM ('male', 'female', 'other', 'prefer_not_to_say') NOT NULL,
-  dob DATE NULL,
-  email VARCHAR(150) UNIQUE NOT NULL,
-  phone VARCHAR(20),
-  current_address VARCHAR(60) NULL,
-  permanent_address VARCHAR(60) NULL,
-  emergency_contact VARCHAR(150),
-  education_level VARCHAR(50) NULL,
-  institution_name VARCHAR(50) NULL,
-  field_of_study VARCHAR(50) NULL,
-  graduation_date DATE NULL,
-  previous_experience TEXT NULL,
-  is_active tinyint default 1,
-  areas_of_interest TEXT NULL,
-  linkedin_url VARCHAR(255) NULL,
-  github_url VARCHAR(255) NULL,
-  portfolio_url VARCHAR(255) NULL,
-  role ENUM ('intern', 'employee') NOT NULL,
-  additional_info TEXT NULL,
-  tech_stack JSON,
-  nda_path VARCHAR(255) NULL,
-  citizenship_front_path VARCHAR(255) NULL,
-  citizenship_back_path VARCHAR(255) NULL,
-  pan_path VARCHAR(255) NULL,
-  passout_certificate_path VARCHAR(255) NULL,
-  photo_path VARCHAR(255) NULL
-);

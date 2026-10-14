@@ -154,6 +154,7 @@ export async function findAuthByEmail(email: string) {
       designation: designations.title,
       department: departments.name,
       password_hash: employees.password_hash,
+      two_factor_enabled: employees.two_factor_enabled,
     })
     .from(employees)
     .leftJoin(designations, eq(employees.designation_id, designations.id))
