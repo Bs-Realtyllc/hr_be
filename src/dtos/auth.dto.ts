@@ -88,3 +88,67 @@ export function toVerifyOtpInput(body: unknown): VerifyOtpInput {
   return bindAndValidate(verifyOtpSchema, body, 'OTP and temporary token are required');
 }
 
+export interface TwoFactorEnableInput {
+  code: string;
+  secret: string;
+}
+const twoFactorEnableSchema = z.object({
+  code: z.string().length(6, 'Verification code must be exactly 6 digits'),
+  secret: z.string().min(1, 'Secret is required'),
+});
+
+export function toTwoFactorEnableInput(body: unknown): TwoFactorEnableInput {
+  return bindAndValidate(twoFactorEnableSchema, body, 'Verification code and secret are required');
+}
+
+export interface TwoFactorDisableInput {
+  password: string;
+  code: string;
+}
+const twoFactorDisableSchema = z.object({
+  password: z.string().min(1, 'Password is required'),
+  code: z.string().length(6, 'Authenticator code must be exactly 6 digits'),
+});
+
+export function toTwoFactorDisableInput(body: unknown): TwoFactorDisableInput {
+  return bindAndValidate(twoFactorDisableSchema, body, 'Password and authenticator code are required');
+}
+
+export interface TwoFactorCodeInput {
+  code: string;
+}
+const twoFactorCodeSchema = z.object({
+  code: z.string().length(6, 'Authenticator code must be exactly 6 digits'),
+});
+
+export function toTwoFactorCodeInput(body: unknown): TwoFactorCodeInput {
+  return bindAndValidate(twoFactorCodeSchema, body, 'Authenticator code is required');
+}
+
+export interface TempTokenInput {
+  tempToken: string;
+}
+const tempTokenSchema = z.object({
+  tempToken: z.string().min(1, 'Temporary token is required'),
+});
+
+export function toTempTokenInput(body: unknown): TempTokenInput {
+  return bindAndValidate(tempTokenSchema, body, 'Temporary token is required');
+}
+
+export interface TempTokenWithCodeInput {
+  tempToken: string;
+  code: string;
+  rememberDevice: boolean;
+}
+const tempTokenWithCodeSchema = z.object({
+  tempToken: z.string().min(1, 'Temporary token is required'),
+  code: z.string().min(1, 'Code is required'),
+  rememberDevice: z.boolean().optional(),
+});
+
+export function toTempTokenWithCodeInput(body: unknown): TempTokenWithCodeInput {
+  const parsed = bindAndValidate(tempTokenWithCodeSchema, body, 'Temporary token and code are required');
+  return { ...parsed, rememberDevice: parsed.rememberDevice === true };
+}
+

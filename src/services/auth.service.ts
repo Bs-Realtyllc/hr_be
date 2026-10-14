@@ -5,6 +5,8 @@ import nodemailer from 'nodemailer';
 import * as employeeRepo from '../repositories/employee.repository';
 import * as passwordResetTokenRepo from '../repositories/passwordResetToken.repository';
 import * as otpRepo from '../repositories/otpCode.repository';
+import * as loginHistoryRepo from '../repositories/loginHistory.repository';
+import * as twoFactorService from './twoFactor.service';
 import * as authDto from '../dtos/auth.dto';
 import type { LoginInput, ChangePasswordInput, ForgotPasswordInput, ResetPasswordInput } from '../dtos/auth.dto';
 import AppError from '../pkg/AppError';
@@ -66,50 +68,97 @@ export async function sendOtpEmail(name: string, to: string, code: string) {
   });
 }
 
-export async function login({ email, password }: LoginInput, ip: string = 'unknown') {
-  console.log(`[auth] Login attempt for ${email} (IP: ${ip})`);
+export async function login(
+  { email, password }: LoginInput,
+  { ip, userAgent, trustedDeviceToken }: { ip?: string; userAgent?: string; trustedDeviceToken?: string | null } = {}
+) {
+  const ipAddress = ip || 'unknown';
+  let employeeId: number | null = null;
+  let success = false;
+  let failureReason: string | null = null;
 
-  const emp = await employeeRepo.findAuthByEmail(email);
-  if (!emp?.password_hash) unauthorized('Invalid credentials');
+  try {
+    const emp = await employeeRepo.findAuthByEmail(email);
+    if (!emp) {
+      failureReason = 'user_not_found';
+      unauthorized('Invalid credentials');
+    }
 
-  const valid = await bcrypt.compare(password, emp!.password_hash);
-  if (!valid) unauthorized('Invalid credentials');
+    employeeId = emp!.id;
 
-  //temporary -- only for admin
-  // if (emp.role === 'admin') {
-  //   await otpRepo.invalidateAllForEmployee(emp.id);
+    if (!emp!.password_hash) {
+      failureReason = 'no_password_set';
+      unauthorized('Invalid credentials');
+    }
 
-  //   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  //   const codeHash = await bcrypt.hash(otp, 10);
-  //   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const valid = await bcrypt.compare(password, emp!.password_hash);
+    if (!valid) {
+      failureReason = 'invalid_password';
+      unauthorized('Invalid credentials');
+    }
 
-  //   await otpRepo.create(emp.id, codeHash, expiresAt);
+    success = true;
 
-  //   if (process.env.MAIL_HOST) {
-  //     try {
-  //       await sendOtpEmail(emp.name, email, otp);
-  //     } catch (mailErr: any) {
-  //       console.error(`[auth] Failed to send OTP email to ${email}:`, mailErr.message);
-  //     }
-  //   } else {
-  //     console.info(`[auth] MAIL_HOST not set — OTP for ${email} is ${otp}`);
-  //   }
+    if (emp!.two_factor_enabled) {
+      const trusted = await twoFactorService.isTrustedDevice(emp!.id, trustedDeviceToken);
+      if (!trusted) {
+        const tempToken = jwt.sign(
+          { employeeId: emp!.id, purpose: 'two_factor_pending' },
+          process.env.JWT_SECRET as string,
+          { expiresIn: '5m' }
+        );
+        return { requiresTwoFactor: true, tempToken };
+      }
+    }
 
-  //   const tempToken = jwt.sign(
-  //     { employeeId: emp.id, purpose: 'admin_otp' },
-  //     process.env.JWT_SECRET as string,
-  //     { expiresIn: '5m' }
-  //   );
+    const { two_factor_enabled, ...authFields } = emp!;
+    const user = authDto.toLoginResponse(authFields);
+    const token = jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: '2d' });
+    return { token, user };
+  } finally {
+    loginHistoryRepo
+      .record({ employeeId, email, ipAddress, userAgent: userAgent || null, success, failureReason })
+      .catch((err: any) => console.error('[auth] Failed to record login history:', err.message));
+  }
+}
 
-  //   console.log(`[audit] OTP generated for employee ID ${emp.id} (IP: ${ip})`);
-  //   return { requiresOtp: true, tempToken };
-  // }
+// Decodes the short-lived token issued mid-login while a 2FA code is pending.
+// Shared by the verify-code controllers (which need the employeeId before
+// checking the code) and completeTwoFactorLogin (which needs it afterwards).
+export function decodeTwoFactorPendingToken(tempToken: string): number {
+  let decoded: any;
+  try {
+    decoded = jwt.verify(tempToken, process.env.JWT_SECRET as string);
+  } catch {
+    throw new AppError('Invalid or expired two-factor session. Please log in again.', 401);
+  }
 
-  console.log(`[audit] ${emp!.name} (${email}) logged in successfully (IP: ${ip})`);
+  if (decoded.purpose !== 'two_factor_pending' || !decoded.employeeId) {
+    throw new AppError('Invalid token purpose', 400);
+  }
 
-  const user = authDto.toLoginResponse(emp!);
+  return decoded.employeeId;
+}
+
+// Called after a TOTP/backup/email-OTP code is verified — issues the full session token
+export async function completeTwoFactorLogin(
+  tempToken: string,
+  { rememberDevice, ipAddress, userAgent }: { rememberDevice?: boolean; ipAddress?: string; userAgent?: string } = {}
+) {
+  const employeeId = decodeTwoFactorPendingToken(tempToken);
+
+  const emp = await employeeRepo.findAuthById(employeeId);
+  if (!emp) throw new AppError('Employee not found or inactive.', 404);
+
+  const user = authDto.toLoginResponse(emp);
   const token = jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: '2d' });
-  return { token, user };
+
+  let trustedDeviceToken: string | null = null;
+  if (rememberDevice) {
+    trustedDeviceToken = await twoFactorService.createTrustedDevice(emp.id, { ipAddress, userAgent });
+  }
+
+  return { token, user, trustedDeviceToken };
 }
 
 export async function verifyOtp({ code, tempToken, ip }: { code: string; tempToken: string; ip: string }) {
@@ -203,4 +252,36 @@ export async function resetPassword({ token, new_password }: ResetPasswordInput)
   const hash = await bcrypt.hash(new_password, 10);
   await employeeRepo.updatePasswordHash(row.employee_id, hash);
   await passwordResetTokenRepo.markUsed(row.id);
+}
+
+interface LoginHistoryQuery {
+  page?: string | number;
+  limit?: string | number;
+}
+
+function parsePagination(query: LoginHistoryQuery = {}) {
+  // Number(query.page) is NaN for garbage input (e.g. "abc"); `|| 1` / `|| 20`
+  // catches both NaN and 0 and falls back to the default instead of handing
+  // LIMIT/OFFSET a NaN, which mysql2 rejects outright.
+  const page = Math.max(1, Math.trunc(Number(query.page)) || 1);
+  const limit = Math.min(100, Math.max(1, Math.trunc(Number(query.limit)) || 20));
+  return { page, limit };
+}
+
+export async function getLoginHistory(employeeId: number, query: LoginHistoryQuery = {}) {
+  const { page, limit } = parsePagination(query);
+  const { entries, total } = await loginHistoryRepo.findByEmployeeId(employeeId, { page, limit });
+  return { entries, total, page, limit, totalPages: Math.ceil(total / limit) };
+}
+
+export async function adminGetAllLoginHistory(query: LoginHistoryQuery = {}) {
+  const { page, limit } = parsePagination(query);
+  const { entries, total } = await loginHistoryRepo.findAll({ page, limit });
+  return { entries, total, page, limit, totalPages: Math.ceil(total / limit) };
+}
+
+export async function adminGetEmployeeLoginHistory(employeeId: number, query: LoginHistoryQuery = {}) {
+  const emp = await employeeRepo.findById(employeeId);
+  if (!emp) throw new AppError('Employee not found', 404);
+  return getLoginHistory(employeeId, query);
 }

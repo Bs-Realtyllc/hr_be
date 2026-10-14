@@ -62,6 +62,9 @@ export const employees = mysqlTable("employees", {
   updated_by: int("updated_by"),
   leave_policy_accepted: boolean("leave_policy_accepted").default(false),
   leave_policy_accepted_at: timestamp("leave_policy_accepted_at"),
+  two_factor_enabled: boolean("two_factor_enabled").notNull().default(false),
+  two_factor_secret: varchar("two_factor_secret", { length: 255 }),
+  two_factor_backup_codes: json("two_factor_backup_codes"),
 });
 
 export type Employee = typeof employees.$inferSelect;
