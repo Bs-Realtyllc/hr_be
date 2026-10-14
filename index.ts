@@ -15,6 +15,8 @@ import { renewWebhookChannelIfNeeded } from "./src/services/googleCalendar";
 import * as weeklyReminder from "./src/services/weeklyReminder";
 import errorHandler from "./src/middleware/errorHandler";
 import { authenticate, requireRole } from "./src/middleware/auth";
+import { RequestContext } from "./src/pkg/requestContext";
+import { trace } from "./src/middleware/trace";
 
 const REQUIRED_ENV = [
   "DB_HOST",
@@ -50,20 +52,22 @@ app.use(
   }),
 );
 
-morgan.token("employee_id", (req) => {
-  const id = req.user?.id;
-  return id != null ? String(id) : null;
-});
-morgan.token("trace_id", (req) => {
-  return req.trace_id;
-});
+// morgan.token("employee_id", (req) => {
+//   const id = req.user?.id;
+//   return id != null ? String(id) : null;
+// });
+// morgan.token("trace_id", (req) => {
+//   return req.trace_id;
+// });
 
 app.use(
   morgan(
     (tokens, req, res) => {
+      const ctx = res.locals.ctx as RequestContext | undefined;
+
       enqueueAccessLog({
-        traceId: tokens["trace_id"](req, res),
-        employeeId: tokens["employee_id"](req, res),
+        traceId: ctx?.traceId ?? "-",
+        employeeId: ctx?.employeeId ?? null,
         method: tokens.method(req, res),
         endpoint: tokens.url(req, res),
         responseStatus: Number(tokens.status(req, res)),
@@ -94,19 +98,20 @@ app.use(
     },
   }),
 );
+app.use("/api", trace, routes); 
 
-app.use(
-  "/api",
-  (req, res, next) => {
-    try {
-      (req as any).trace_id = crypto.randomUUID(); //for handling trace operations
-      next();
-    } catch {
-      res.status(401).json({ error: `Couldn't add trace_id to the request` });
-    }
-  },
-  routes,
-);
+// app.use(
+//   "/api",
+//   (req, res, next) => {
+//     try {
+//       (req as any).trace_id = crypto.randomUUID(); //for handling trace operations
+//       next();
+//     } catch {
+//       res.status(401).json({ error: `Couldn't add trace_id to the request` });
+//     }
+//   },
+//   routes,
+// );
 app.get("/api/health", (req, res) =>
   res.json({ status: "ok", timestamp: new Date() }),
 );

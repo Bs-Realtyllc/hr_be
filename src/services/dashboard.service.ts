@@ -1,7 +1,7 @@
 import { enqueueOperationLog } from "../pkg/requestLogQueue";
 import * as dashboardRepo from "../repositories/dashboard.repository";
 
-export async function getStats(req: any) {
+export async function getStats() {
   const today = new Date().toISOString().split("T")[0];
 
   const total_active = await dashboardRepo.countActiveEmployees();
@@ -13,7 +13,6 @@ export async function getStats(req: any) {
   const active_projects = await dashboardRepo.countActiveProjects();
 
   enqueueOperationLog({
-    req,
     status: "success",
     operation: "access.dashboardStats",
     metadata: {
