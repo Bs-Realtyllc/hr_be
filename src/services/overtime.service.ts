@@ -1,9 +1,57 @@
 import * as overtimeRepo from '../repositories/overtime.repository';
 import * as employeeRepo from '../repositories/employee.repository';
 import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
+import * as notificationPreferenceService from './notificationPreference.service';
 import AppError from '../pkg/AppError';
 import type { OvertimeCreateInput, OvertimeUpdateInput } from '../dtos/overtime.dto';
 import { toMonthlySalary, calculateOvertimePay } from '../pkg/payrollCalculator';
+import { sendPlatformMail } from '../pkg/mailer';
+
+async function notifyOvertimeStatusIfNeeded(employeeId: number, status: 'approved' | 'rejected', workDate: string, hours: number) {
+  if (!process.env.MAIL_HOST) return;
+  try {
+    const enabled = await notificationPreferenceService.isEnabled(employeeId, 'overtime_request');
+    if (!enabled) return;
+    const emp = await employeeRepo.findById(employeeId);
+    if (!emp) return;
+    await sendPlatformMail(
+      emp.email,
+      `HR Platform — Overtime Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+      `<p>Hi ${emp.name},</p>
+       <p>Your overtime request for <strong>${hours}h</strong> on <strong>${workDate}</strong> has been ${status}.</p>
+       <p style="color:#888;font-size:12px">HR Platform</p>`,
+    );
+  } catch (err: any) {
+    console.error(`[overtime] Failed to send overtime ${status} email for employee ${employeeId}:`, err.message);
+  }
+}
+
+// Every employee with role 'lead' gets notified, regardless of manager_id —
+// there's no reporting-chain targeting here, just a role check.
+async function notifyApproversOfNewOvertimeRequest(employeeId: number, workDate: string, hours: number) {
+  if (!process.env.MAIL_HOST) return;
+  try {
+    const [requester, leads] = await Promise.all([
+      employeeRepo.findById(employeeId),
+      employeeRepo.findLeads(),
+    ]);
+    if (!requester) return;
+
+    for (const lead of leads) {
+      const enabled = await notificationPreferenceService.isEnabled(lead.id, 'overtime_request_submitted');
+      if (!enabled) continue;
+      await sendPlatformMail(
+        lead.email,
+        'HR Platform — New Overtime Request Needs Review',
+        `<p>Hi ${lead.name},</p>
+         <p>${requester.name} submitted an overtime request for <strong>${hours}h</strong> on <strong>${workDate}</strong>, pending your review.</p>
+         <p style="color:#888;font-size:12px">HR Platform</p>`,
+      );
+    }
+  } catch (err: any) {
+    console.error(`[overtime] Failed to notify approvers of new overtime request from employee ${employeeId}:`, err.message);
+  }
+}
 
 interface AuthUser {
   id: number;
@@ -17,7 +65,9 @@ export async function list(user: AuthUser, employeeIdFilter?: string, status?: s
 }
 
 export async function create(data: OvertimeCreateInput) {
-  return overtimeRepo.create(data);
+  const id = await overtimeRepo.create(data);
+  notifyApproversOfNewOvertimeRequest(data.employee_id, data.work_date, data.hours);
+  return id;
 }
 
 export async function update(id: string, updates: OvertimeUpdateInput, userId: number) {
@@ -73,6 +123,8 @@ export async function approve(id: string, user: AuthUser) {
     notes: `Hourly rate Rs. ${hourlyRate} × 1.5 = Rs. ${overtimeHourlyRate}/hr`,
   });
 
+  notifyOvertimeStatusIfNeeded(ot.employee_id, 'approved', ot.work_date, Number(ot.hours));
+
   return { amount };
 }
 
@@ -90,4 +142,5 @@ export async function reject(id: string, user: AuthUser) {
   }
 
   await overtimeRepo.reject(id, user.id);
+  notifyOvertimeStatusIfNeeded(ot.employee_id, 'rejected', ot.work_date, Number(ot.hours));
 }

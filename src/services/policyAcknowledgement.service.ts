@@ -1,5 +1,6 @@
 import * as policyRepo from '../repositories/policy.repository';
 import * as policyAckRepo from '../repositories/policyAcknowledgement.repository';
+import * as notificationPreferenceService from './notificationPreference.service';
 import AppError from '../pkg/AppError';
 import { notifyRejection } from './policyAcknowledgementService';
 
@@ -34,8 +35,11 @@ export async function reviewSubmission(
   await policyAckRepo.review(ack.id, { status, rejectionReason, reviewedBy });
 
   if (status === 'rejected') {
-    notifyRejection(ack, rejectionReason as string).catch((err: any) =>
-      console.error('[policy-ack] Failed to send rejection email:', err.message)
-    );
+    const enabled = await notificationPreferenceService.isEnabled(ack.employee_id, 'documents_signature');
+    if (enabled) {
+      notifyRejection(ack, rejectionReason as string).catch((err: any) =>
+        console.error('[policy-ack] Failed to send rejection email:', err.message)
+      );
+    }
   }
 }

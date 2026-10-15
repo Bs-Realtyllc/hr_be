@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import * as employeeRepo from "../repositories/employee.repository";
 import * as payrollAdjustmentRepo from "../repositories/payrollAdjustment.repository";
+import * as notificationPreferenceService from "./notificationPreference.service";
+import { sendPlatformMail } from "../pkg/mailer";
 import type {
   EmployeeCreateInput,
   EmployeeUpdateInput,
@@ -128,6 +130,8 @@ export async function create(
   return result;
 }
 
+const EMPLOYEE_UPDATE_NOTIFY_FIELDS = ["designation", "department"] as const;
+
 export async function update(
   id: string,
   updates: EmployeeUpdateInput,
@@ -136,7 +140,36 @@ export async function update(
   if (!Object.keys(updates).length) {
     throw new AppError("Nothing to update", 400);
   }
+
+  const before = await employeeRepo.findById(id);
   await employeeRepo.update(id, updates, actorId);
+
+  if (before) {
+    const changedFields = EMPLOYEE_UPDATE_NOTIFY_FIELDS.filter(
+      (field) => field in updates && (updates as any)[field] !== (before as any)[field],
+    );
+    if (changedFields.length) {
+      notifyEmployeeUpdatedIfNeeded(before, changedFields);
+    }
+  }
+}
+
+async function notifyEmployeeUpdatedIfNeeded(employee: { id: number; name: string; email: string }, changedFields: readonly string[]) {
+  if (!process.env.MAIL_HOST) return;
+  try {
+    const enabled = await notificationPreferenceService.isEnabled(employee.id, "employee_updates");
+    if (!enabled) return;
+    await sendPlatformMail(
+      employee.email,
+      "HR Platform — Your Profile Was Updated",
+      `<p>Hi ${employee.name},</p>
+       <p>The following field(s) on your employee record were updated by an admin: <strong>${changedFields.join(", ")}</strong>.</p>
+       <p>If you have questions about this change, contact HR.</p>
+       <p style="color:#888;font-size:12px">HR Platform</p>`,
+    );
+  } catch (err: any) {
+    console.error(`[employee] Failed to send employee-updated email for ${employee.id}:`, err.message);
+  }
 }
 
 export async function remove(id: string, actorId: number | null) {
