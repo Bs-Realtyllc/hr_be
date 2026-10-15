@@ -2,7 +2,6 @@
 -- the Culture Events domain to the BaseModel standard — see
 -- src/models/BaseModel.ts and instruction.md. culture_events already has
 -- created_at.
-USE hr_platform;
 
 ALTER TABLE culture_events
   ADD COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at,

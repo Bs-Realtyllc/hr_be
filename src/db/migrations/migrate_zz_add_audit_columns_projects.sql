@@ -6,7 +6,6 @@
 -- tables (no natural "creator" beyond their own project_id/employee_id +
 -- assigned_at) and deliberately skip BaseModel, same as other lookup/join
 -- tables in this app (departments, designations).
-USE hr_platform;
 
 ALTER TABLE projects
   ADD COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at,

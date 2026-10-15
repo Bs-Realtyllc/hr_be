@@ -7,7 +7,6 @@
 --
 -- Order matters: add the new employees columns and backfill them from the
 -- tables being dropped BEFORE dropping those tables.
-USE hr_platform;
 
 -- ── Step 1: additive columns on employees ───────────────────────────────────
 -- ALTER TABLE employees

@@ -6,7 +6,6 @@
 -- payroll_adjustments is deliberately NOT given these — it's an append-only
 -- ledger (never updated after insert), same rationale as the history tables
 -- (employee_job_history, employee_compensation_history) skipping BaseModel.
-USE hr_platform;
 
 ALTER TABLE employee_tax_profiles
   ADD COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP AFTER notes,

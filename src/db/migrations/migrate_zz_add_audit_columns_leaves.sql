@@ -11,7 +11,6 @@
 -- order; leave_requests has existed since schema.sql, so this has no real
 -- ordering dependency, but the prefix is kept for consistency with the other
 -- audit-column migrations.
-USE hr_platform;
 
 ALTER TABLE leave_requests
   ADD COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at,

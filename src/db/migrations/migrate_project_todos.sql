@@ -1,4 +1,3 @@
-USE hr_platform;
 
 CREATE TABLE IF NOT EXISTS project_todos (
   id INT PRIMARY KEY AUTO_INCREMENT,

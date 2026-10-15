@@ -1,4 +1,3 @@
-USE hr_platform;
 
 CREATE TABLE IF NOT EXISTS otp_codes (
   id INT PRIMARY KEY AUTO_INCREMENT,

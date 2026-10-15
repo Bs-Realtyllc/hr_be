@@ -8,7 +8,6 @@
 -- that) or "this employee's pending/approved requests" (both columns cover
 -- that) — one index serves both instead of paying for two.
 
-USE hr_platform;
 
 -- leave_requests: Dashboard.js pending-leave count, LeaveRequest.js per-employee
 -- lookups, and the approved-range overlap check run on every new leave

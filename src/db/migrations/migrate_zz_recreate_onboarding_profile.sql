@@ -16,4 +16,3 @@
 -- in the table at the time. Confirmed this actually happened in production before
 -- removing it. Left as a no-op (no executable statements) so the history and
 -- rationale above stay visible without re-running.
-USE hr_platform;
