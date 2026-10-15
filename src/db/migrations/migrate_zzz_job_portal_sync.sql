@@ -14,3 +14,4 @@ ALTER TABLE employee_onboarding_profile ADD COLUMN source VARCHAR(20) NOT NULL D
 ALTER TABLE employee_onboarding_profile ADD COLUMN source_application_id VARCHAR(100) NULL;
 
 ALTER TABLE employee_onboarding_profile ADD UNIQUE KEY uq_onboarding_source_application (source_application_id);
+ALTER TABLE employee_onboarding_profile ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE;

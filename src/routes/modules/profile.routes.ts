@@ -31,7 +31,7 @@ function imageUpload(folder: string) {
 
 router.get('/', authenticate, ctrl.getProfile);
 router.put('/', authenticate, ctrl.updateProfile);
-router.post('/photo', authenticate, imageUpload('profile').single('photo'), ctrl.uploadPhoto);
+router.post('/photo', authenticate, imageUpload('profile/photo').single('photo'), ctrl.uploadPhoto);
 router.post('/citizenship/:side', authenticate, imageUpload('docs').single('doc'), ctrl.uploadCitizenship);
 
 export default router;

@@ -79,7 +79,7 @@ export const add = asyncHandler(async (req: Request, res: Response) => {
 export const approve = asyncHandler(async (req: Request, res: Response) => {
   const onboardId = Number(req.params.id);
   const id = await onboardService.approve(onboardId);
-  res.status(200).json({id});
+  res.status(200).json({ id });
 });
 
 //reject user from employee_onboarding_profile and delete tha data;
@@ -102,3 +102,33 @@ export const getContract = asyncHandler(async (req: any, res: Response) => {
   res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
   res.sendFile(filePath);
 });
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ALLOWDED_ROLES = ["admin"];
+
+export const onboardAdmin = asyncHandler(
+  async (req: Request, res: Response) => {
+    
+    const { name, email, role, gender } = req.body;
+    const g= gender ? gender :'prefer_not_to_say';
+    if (!name || !email || !role) {
+      throw new AppError("Name, email and role are required.", 400);
+    }
+    if (!EMAIL_REGEX.test(email)) {
+      throw new AppError("Enter a valid email address.", 400);
+    }
+
+    if (!ALLOWDED_ROLES.includes(role)) {
+      throw new AppError(
+        `Role '${role}' is not allowed for this request.`,
+        400,
+      );
+    }
+    const { id } = await onboardService.onboardAdmin(name, email, role,g);
+
+    res.status(201).json({
+      message: "Access request submitted.",
+      id,
+    });
+  },
+);

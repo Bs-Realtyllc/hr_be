@@ -91,12 +91,15 @@ app.use(
 
 app.use(cors());
 
+const uploadsDir = path.join(process.cwd(), "uploads");
+//for profile images -- no auth
 app.use(
-  "/uploads",
-  authenticate,
-  requireRole("admin"),
-  express.static(path.join(process.cwd(), "uploads")),
+  "/uploads/profile/photo",
+  express.static(path.join(uploadsDir, "profile/photo")),
 );
+//for other docs --require auth
+app.use("/uploads", authenticate, requireRole("admin"), express.static(uploadsDir));
+
 app.use(
   express.json({
     limit: "1mb",

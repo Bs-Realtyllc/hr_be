@@ -126,3 +126,8 @@ export async function getContractFilePath(
 
   return { filePath, filename: profile[fileType.typePath] };
 }
+
+export async function onboardAdmin(name: string, email:string, role: string, g:string) {
+  const id = await onboardRepo.addAdmin(name, email, role,g);
+  return { id };
+}

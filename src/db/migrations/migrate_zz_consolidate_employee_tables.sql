@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS employee_onboarding_profile (
   linkedin_url VARCHAR(255) NULL,
   github_url VARCHAR(255) NULL,
   portfolio_url VARCHAR(255) NULL,
-  role ENUM ('intern', 'employee') NOT NULL,
+  role ENUM ('intern', 'employee', 'admin') NOT NULL,
   additional_info TEXT NULL,
   tech_stack JSON,
   nda_path VARCHAR(255) NULL,
