@@ -9,7 +9,6 @@
 -- depends on: employee_auth/employee_profile don't exist until
 -- migrate_normalize_employees_p1.sql, and password_reset_tokens doesn't exist
 -- until migrate_profile.sql — both sort after "n"/"p" but before "zz".
-USE hr_platform;
 
 -- employees already has created_at; needs the other three.
 ALTER TABLE employees

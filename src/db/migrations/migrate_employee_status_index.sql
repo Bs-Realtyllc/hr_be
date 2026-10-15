@@ -16,7 +16,6 @@
 -- `status` alone isn't a real access pattern yet, so one index covers both
 -- without paying for a second index's write overhead.
 
-USE hr_platform;
 
 ALTER TABLE employees
   ADD INDEX idx_employees_active_status (is_active, status);

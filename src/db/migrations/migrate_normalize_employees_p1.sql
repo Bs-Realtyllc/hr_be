@@ -11,7 +11,6 @@
 --   employee_documents            -- versioned file metadata (profile picture, citizenship docs)
 --   schema_migrations             -- minimal migration-tracking table (see migrate.js)
 
-USE hr_platform;
 
 -- ── Migration tracking ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS schema_migrations (

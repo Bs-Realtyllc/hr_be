@@ -2,7 +2,6 @@
 -- Each column is a separate statement so ER_DUP_FIELDNAME on one does not
 -- block the others — the migrator skips that error code automatically.
 
-USE hr_platform;
 
 ALTER TABLE employee_onboarding_profile ADD COLUMN nda_path VARCHAR(255) NULL;
 ALTER TABLE employee_onboarding_profile ADD COLUMN citizenship_front_path VARCHAR(255) NULL;

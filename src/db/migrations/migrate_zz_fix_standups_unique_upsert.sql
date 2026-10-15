@@ -11,7 +11,6 @@
 -- one standup row for the same (employee_id, standup_date) from the bug
 -- above. If that happens, dedupe those rows first (keep the latest
 -- `created_at` per pair) before this constraint can apply.
-USE hr_platform;
 
 ALTER TABLE standups
   ADD UNIQUE KEY unique_employee_standup_date (employee_id, standup_date);

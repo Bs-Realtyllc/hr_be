@@ -1,7 +1,6 @@
 -- Adds the standard audit columns to holidays as part of converting the
 -- Holidays domain to the BaseModel standard — see src/models/BaseModel.ts
 -- and instruction.md. holidays already has created_at.
-USE hr_platform;
 
 ALTER TABLE holidays
   ADD COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at,

@@ -2,7 +2,6 @@
 -- doubles as the BaseModel "who created this row" audit field, no separate
 -- column needed); just adding updated_by for symmetry (tracks who cancelled
 -- it, the only mutation this domain has).
-USE hr_platform;
 
 ALTER TABLE meetings
   ADD COLUMN updated_by INT NULL AFTER created_by,
