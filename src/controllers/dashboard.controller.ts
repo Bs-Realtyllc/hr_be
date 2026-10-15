@@ -3,7 +3,7 @@ import * as dashboardService from '../services/dashboard.service';
 import asyncHandler from '../middleware/asyncHandler';
 
 export const getStats = asyncHandler(async (req: any, res: Response) => {
-  const stats = await dashboardService.getStats(req);
+  const stats = await dashboardService.getStats();
   res.json(stats);
 });
 

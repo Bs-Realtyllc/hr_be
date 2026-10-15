@@ -1,54 +1,45 @@
-// lib/accessLogQueue.ts
 import { db } from "../config/database";
 import { accessLog, NewAccessLog } from "../models/AccessLog";
 import { NewOperationLog, operationLog } from "../models/OperationLog";
+import { getContext } from "./requestContext";
 
-interface enqueueOperationType {
-  req: any;
-  status: string;
+interface EnqueueOperationType {
+  status: "success" | "failure";
   operation: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
+
 const MAX_QUEUE_SIZE = 100;
-const FLUSH_INTERVAL_MS = 10_000;
+const FLUSH_INTERVAL_MS = 1_000;
 
 let accessQueue: NewAccessLog[] = [];
 let operationQueue: NewOperationLog[] = [];
 let flushTimer: NodeJS.Timeout | null = null;
 
-export function enqueueAccessLog(entry: NewAccessLog) {
-  // console.log(entry)
-  accessQueue.push(entry);
-
-  if (accessQueue.length >= MAX_QUEUE_SIZE) {
-    flush(); // size trigger — flush immediately, don't wait for the timer
+function scheduleFlush() {
+  if (accessQueue.length >= MAX_QUEUE_SIZE || operationQueue.length >= MAX_QUEUE_SIZE) {
+    void flush();
     return;
   }
-  if (!flushTimer) {
-    flushTimer = setTimeout(flush, FLUSH_INTERVAL_MS);
-  }
+  if (!flushTimer) flushTimer = setTimeout(() => void flush(), FLUSH_INTERVAL_MS);
 }
 
-export function enqueueOperationLog(entry: enqueueOperationType) {
+export function enqueueAccessLog(entry: NewAccessLog) {
+  accessQueue.push(entry);
+  scheduleFlush();
+}
 
-  const employeeId = entry.req?.user.id ?? '-';
-  const traceId = entry.req.trace_id ?? 'ca';
+export function enqueueOperationLog(entry: EnqueueOperationType) {
+  const ctx = getContext(); // no req needed
 
   operationQueue.push({
-    traceId,
+    traceId: ctx?.traceId ?? '-',
+    employeeId: ctx?.employeeId ?? null,
     operation: entry.operation,
     status: entry.status,
-    employeeId,
     metadata: entry.metadata,
   });
-  
-  //   if (operationQueue.length >= MAX_QUEUE_SIZE) {
-  //     flush(); // size trigger — flush immediately, don't wait for the timer
-  //     return;
-  //   }
-  //   if (!flushTimer) {
-  //     flushTimer = setTimeout(flush, FLUSH_INTERVAL_MS);
-  //   }
+  scheduleFlush();
 }
 
 async function flush() {
@@ -56,29 +47,32 @@ async function flush() {
     clearTimeout(flushTimer);
     flushTimer = null;
   }
+  if (accessQueue.length === 0 && operationQueue.length === 0) return;
 
-  if (accessQueue.length === 0) return;
-
-  // Swap the accessQueue out immediately so new entries arriving during the
-  // DB write don't get lost or double-flushed.
   const accessBatch = accessQueue;
   const operationBatch = operationQueue;
   accessQueue = [];
   operationQueue = [];
 
-  try {
-    await db.insert(accessLog).values(accessBatch);
-    if (operationBatch.length === 0) {
-      return;
+  if (accessBatch.length) {
+    try {
+      await db.insert(accessLog).values(accessBatch);
+    } catch (err) {
+      console.error("Failed to flush access log batch:", err);
     }
-    await db.insert(operationLog).values(operationBatch);
-  } catch (err) {
-    console.error("Failed to flush request log batch:", err);
-    // Optional: re-queue on failure, at the cost of possible duplicates on retry.
-    // queue = [...batch, ...queue];
+  }
+  if (operationBatch.length) {
+    try {
+      await db.insert(operationLog).values(operationBatch);
+    } catch (err) {
+      console.error("Failed to flush operation log batch:", err);
+    }
   }
 }
 
-// Ensure logs aren't lost if the process shuts down cleanly
-process.on("SIGTERM", flush);
-process.on("SIGINT", flush);
+async function shutdown() {
+  await flush();
+  process.exit(0);
+}
+process.once("SIGTERM", shutdown);
+process.once("SIGINT", shutdown);
