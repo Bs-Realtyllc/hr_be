@@ -14,7 +14,10 @@ const options = {
     ],
     tags: [
       { name: "Health", description: "Service health check" },
-      { name: "Auth", description: "Login, password change/reset, login history" },
+      {
+        name: "Auth",
+        description: "Login, password change/reset, login history",
+      },
       { name: "Employees", description: "Employee profiles and directory" },
       { name: "Leaves", description: "Leave requests and balances" },
       { name: "Standups", description: "Async daily standup feed" },
@@ -465,7 +468,8 @@ const options = {
             requiresTwoFactor: { type: "boolean", example: true },
             tempToken: {
               type: "string",
-              description: "Short-lived (5 min) token identifying the pending login",
+              description:
+                "Short-lived (5 min) token identifying the pending login",
             },
           },
         },
@@ -549,12 +553,14 @@ const options = {
           properties: {
             secret: {
               type: "string",
-              description: "Base32 TOTP secret — pass back unchanged to POST /2fa/enable",
+              description:
+                "Base32 TOTP secret — pass back unchanged to POST /2fa/enable",
             },
             otpauthUrl: { type: "string", format: "uri" },
             qrDataUrl: {
               type: "string",
-              description: "data: URL of a QR code encoding otpauthUrl, ready to render in an <img> tag",
+              description:
+                "data: URL of a QR code encoding otpauthUrl, ready to render in an <img> tag",
             },
           },
         },
@@ -564,9 +570,13 @@ const options = {
           properties: {
             code: {
               type: "string",
-              description: "6-digit code from the authenticator app, to confirm the secret was scanned correctly",
+              description:
+                "6-digit code from the authenticator app, to confirm the secret was scanned correctly",
             },
-            secret: { type: "string", description: "The secret returned by POST /2fa/setup" },
+            secret: {
+              type: "string",
+              description: "The secret returned by POST /2fa/setup",
+            },
           },
         },
         BackupCodesResponse: {
@@ -575,7 +585,8 @@ const options = {
             backupCodes: {
               type: "array",
               items: { type: "string", example: "A1B2C3-D4E5F6" },
-              description: "Shown once — each code can be used in place of an authenticator code exactly one time",
+              description:
+                "Shown once — each code can be used in place of an authenticator code exactly one time",
             },
           },
         },
@@ -590,7 +601,9 @@ const options = {
         TwoFactorCodeInput: {
           type: "object",
           required: ["code"],
-          properties: { code: { type: "string", description: "6-digit authenticator code" } },
+          properties: {
+            code: { type: "string", description: "6-digit authenticator code" },
+          },
         },
         TrustedDevice: {
           type: "object",
@@ -607,7 +620,10 @@ const options = {
           type: "object",
           required: ["tempToken"],
           properties: {
-            tempToken: { type: "string", description: "tempToken returned by POST /auth/login" },
+            tempToken: {
+              type: "string",
+              description: "tempToken returned by POST /auth/login",
+            },
           },
         },
         RevokedCount: {
@@ -618,15 +634,20 @@ const options = {
           type: "object",
           required: ["tempToken", "code"],
           properties: {
-            tempToken: { type: "string", description: "tempToken returned by POST /auth/login" },
+            tempToken: {
+              type: "string",
+              description: "tempToken returned by POST /auth/login",
+            },
             code: {
               type: "string",
-              description: "Authenticator code (/2fa/verify), backup code (/2fa/backup/verify), or emailed code (/2fa/email-otp/verify)",
+              description:
+                "Authenticator code (/2fa/verify), backup code (/2fa/backup/verify), or emailed code (/2fa/email-otp/verify)",
             },
             rememberDevice: {
               type: "boolean",
               default: false,
-              description: "If true, sets a 30-day trustedDevice cookie so future logins from this browser skip 2FA",
+              description:
+                "If true, sets a 30-day trustedDevice cookie so future logins from this browser skip 2FA",
             },
           },
         },
@@ -969,44 +990,86 @@ const options = {
         Profile: {
           type: "object",
           properties: {
-            id: { type: "integer" },
+            id: { type: "integer", example: 1 },
             name: { type: "string" },
             email: { type: "string", format: "email" },
             phone: { type: "string", nullable: true },
-            alt_phone: { type: "string", nullable: true },
-            emergency_contact: { type: "string", nullable: true },
-            designation: { type: "string" },
-            department: { type: "string" },
-            dob: { type: "string", format: "date", nullable: true },
-            bio: { type: "string", nullable: true },
-            address: { type: "string", nullable: true },
-            qualifications: {
-              type: "array",
-              items: { type: "string" },
+            secondary_email: {
+              type: "string",
+              format: "email",
               nullable: true,
             },
-            profile_picture: { type: "string", nullable: true },
-            citizenship_front: { type: "string", nullable: true },
-            citizenship_back: { type: "string", nullable: true },
-            timezone: { type: "string" },
-            work_hours: { type: "string" },
-            tech_stack: { type: "array", items: { type: "string" } },
+            designation_id: { type: "integer", nullable: true },
+            designation: { type: "string", nullable: true },
+            department_id: { type: "integer", nullable: true },
+            department: { type: "string", nullable: true },
+            manager_id: { type: "integer", nullable: true },
+            start_date: { type: "string", format: "date", nullable: true },
+            dob: { type: "string", format: "date", nullable: true },
+            gender: {
+              type: "string",
+              enum: ["male", "female", "other"],
+              nullable: true,
+            },
+            github_url: { type: "string", format: "uri", nullable: true },
+            address: { type: "string", nullable: true },
+            discord_username: { type: "string", nullable: true },
+            panNo: { type: "string", nullable: true },
             role: { type: "string", enum: ["admin", "lead", "employee"] },
-            start_date: { type: "string", format: "date" },
+            status: { type: "string", example: "active" },
+            profile_picture: {
+              type: "string",
+              nullable: true,
+              description: "Stored filename, not a URL",
+              example: "1792056880927_ibbowzmnkwb.jpeg",
+            },
+            citizenship_front: {
+              type: "string",
+              nullable: true,
+              description: "Stored filename",
+            },
+            citizenship_back: {
+              type: "string",
+              nullable: true,
+              description: "Stored filename",
+            },
           },
         },
         ProfileUpdateInput: {
           type: "object",
           properties: {
-            phone: { type: "string" },
-            alt_phone: { type: "string" },
-            emergency_contact: { type: "string" },
-            dob: { type: "string", format: "date" },
-            bio: { type: "string" },
-            address: { type: "string" },
-            timezone: { type: "string" },
-            work_hours: { type: "string" },
-            qualifications: { type: "array", items: { type: "string" } },
+            name: { type: "string", minLength: 1, maxLength: 100 },
+            email: { type: "string", format: "email" },
+            secondary_email: {
+              type: "string",
+              format: "email",
+              nullable: true,
+            },
+            phone: { type: "string", nullable: true, example: "9800000000" },
+            dob: { type: "string", format: "date", nullable: true },
+            gender: {
+              type: "string",
+              enum: ["male", "female", "other"],
+              nullable: true,
+            },
+            address: { type: "string", maxLength: 255, nullable: true },
+            profile_picture: {
+              type: "string",
+              nullable: true,
+              description: "Stored filename, not a URL",
+            },
+            designation: { type: "string", maxLength: 100, nullable: true },
+            department: { type: "string", maxLength: 100, nullable: true },
+            department_id: { type: "integer", nullable: true },
+            manager_id: { type: "integer", nullable: true },
+            start_date: { type: "string", format: "date", nullable: true },
+            github_url: { type: "string", format: "uri", nullable: true },
+            discord_username: { type: "string", nullable: true },
+            tech_stack: {
+              type: "array",
+              items: { type: "string" },
+              nullable: true,
+            },
           },
         },
         UploadResponse: {
@@ -1254,7 +1317,9 @@ const options = {
                   schema: {
                     oneOf: [
                       { $ref: "#/components/schemas/LoginResponse" },
-                      { $ref: "#/components/schemas/RequiresTwoFactorResponse" },
+                      {
+                        $ref: "#/components/schemas/RequiresTwoFactorResponse",
+                      },
                     ],
                   },
                 },
@@ -1416,7 +1481,9 @@ const options = {
               description: "OK",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/PaginatedLoginHistory" },
+                  schema: {
+                    $ref: "#/components/schemas/PaginatedLoginHistory",
+                  },
                 },
               },
             },
@@ -1451,7 +1518,9 @@ const options = {
               description: "OK",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/PaginatedLoginHistory" },
+                  schema: {
+                    $ref: "#/components/schemas/PaginatedLoginHistory",
+                  },
                 },
               },
             },
@@ -1500,7 +1569,9 @@ const options = {
               description: "OK",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/PaginatedLoginHistory" },
+                  schema: {
+                    $ref: "#/components/schemas/PaginatedLoginHistory",
+                  },
                 },
               },
             },
@@ -1533,7 +1604,9 @@ const options = {
             200: {
               description: "OK",
               content: {
-                "application/json": { schema: { $ref: "#/components/schemas/TwoFactorStatus" } },
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/TwoFactorStatus" },
+                },
               },
             },
           },
@@ -1550,12 +1623,18 @@ const options = {
             200: {
               description: "OK",
               content: {
-                "application/json": { schema: { $ref: "#/components/schemas/TwoFactorSetup" } },
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/TwoFactorSetup" },
+                },
               },
             },
             400: {
               description: "2FA is already enabled",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
           },
         },
@@ -1564,20 +1643,33 @@ const options = {
         post: {
           tags: ["Auth"],
           summary: "Confirm setup and turn 2FA on",
-          description: "Verifies the code against the secret from POST /2fa/setup, then enables 2FA and generates one-time backup codes.",
+          description:
+            "Verifies the code against the secret from POST /2fa/setup, then enables 2FA and generates one-time backup codes.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
-            content: { "application/json": { schema: { $ref: "#/components/schemas/TwoFactorEnableInput" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TwoFactorEnableInput" },
+              },
+            },
           },
           responses: {
             200: {
               description: "2FA enabled",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/BackupCodesResponse" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/BackupCodesResponse" },
+                },
+              },
             },
             400: {
               description: "2FA already enabled, or invalid verification code",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
           },
         },
@@ -1586,24 +1678,41 @@ const options = {
         delete: {
           tags: ["Auth"],
           summary: "Turn 2FA off",
-          description: "Requires both the account password and a current authenticator code. Also revokes all trusted devices.",
+          description:
+            "Requires both the account password and a current authenticator code. Also revokes all trusted devices.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
-            content: { "application/json": { schema: { $ref: "#/components/schemas/TwoFactorDisableInput" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TwoFactorDisableInput" },
+              },
+            },
           },
           responses: {
             200: {
               description: "2FA disabled",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/MessageResponse" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/MessageResponse" },
+                },
+              },
             },
             400: {
               description: "2FA not enabled, or invalid authenticator code",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
             401: {
               description: "Invalid password",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
           },
         },
@@ -1615,16 +1724,28 @@ const options = {
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
-            content: { "application/json": { schema: { $ref: "#/components/schemas/TwoFactorCodeInput" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TwoFactorCodeInput" },
+              },
+            },
           },
           responses: {
             200: {
               description: "OK",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/BackupCodesResponse" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/BackupCodesResponse" },
+                },
+              },
             },
             400: {
               description: "2FA not enabled, or invalid authenticator code",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
           },
         },
@@ -1639,7 +1760,10 @@ const options = {
               description: "OK",
               content: {
                 "application/json": {
-                  schema: { type: "array", items: { $ref: "#/components/schemas/TrustedDevice" } },
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/TrustedDevice" },
+                  },
                 },
               },
             },
@@ -1648,12 +1772,17 @@ const options = {
         delete: {
           tags: ["Auth"],
           summary: "Revoke all trusted devices",
-          description: "Future logins from any device will require a 2FA code again.",
+          description:
+            "Future logins from any device will require a 2FA code again.",
           security: [{ bearerAuth: [] }],
           responses: {
             200: {
               description: "OK",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/RevokedCount" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/RevokedCount" },
+                },
+              },
             },
           },
         },
@@ -1664,16 +1793,29 @@ const options = {
           summary: "Revoke a single trusted device",
           security: [{ bearerAuth: [] }],
           parameters: [
-            { name: "deviceId", in: "path", required: true, schema: { type: "integer" } },
+            {
+              name: "deviceId",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
           ],
           responses: {
             200: {
               description: "Trusted device removed",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/MessageResponse" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/MessageResponse" },
+                },
+              },
             },
             404: {
               description: "Trusted device not found",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
           },
         },
@@ -1685,20 +1827,36 @@ const options = {
           security: [],
           requestBody: {
             required: true,
-            content: { "application/json": { schema: { $ref: "#/components/schemas/TempTokenWithCodeInput" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TempTokenWithCodeInput" },
+              },
+            },
           },
           responses: {
             200: {
               description: "Authenticated",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/LoginResponse" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/LoginResponse" },
+                },
+              },
             },
             400: {
               description: "Invalid authenticator code",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
             401: {
               description: "Invalid or expired temp token",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
           },
         },
@@ -1711,20 +1869,36 @@ const options = {
           security: [],
           requestBody: {
             required: true,
-            content: { "application/json": { schema: { $ref: "#/components/schemas/TempTokenWithCodeInput" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TempTokenWithCodeInput" },
+              },
+            },
           },
           responses: {
             200: {
               description: "Authenticated",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/LoginResponse" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/LoginResponse" },
+                },
+              },
             },
             400: {
               description: "Invalid backup code",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
             401: {
               description: "Invalid or expired temp token",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
           },
         },
@@ -1733,20 +1907,33 @@ const options = {
         post: {
           tags: ["Auth"],
           summary: "Email a one-time verification code as a 2FA fallback",
-          description: "Code expires in 10 minutes. Requires the tempToken from the initial login attempt.",
+          description:
+            "Code expires in 10 minutes. Requires the tempToken from the initial login attempt.",
           security: [],
           requestBody: {
             required: true,
-            content: { "application/json": { schema: { $ref: "#/components/schemas/TempTokenInput" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TempTokenInput" },
+              },
+            },
           },
           responses: {
             200: {
               description: "Code sent",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/MessageResponse" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/MessageResponse" },
+                },
+              },
             },
             401: {
               description: "Invalid or expired temp token",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
           },
         },
@@ -1758,20 +1945,36 @@ const options = {
           security: [],
           requestBody: {
             required: true,
-            content: { "application/json": { schema: { $ref: "#/components/schemas/TempTokenWithCodeInput" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TempTokenWithCodeInput" },
+              },
+            },
           },
           responses: {
             200: {
               description: "Authenticated",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/LoginResponse" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/LoginResponse" },
+                },
+              },
             },
             400: {
               description: "Invalid or expired verification code",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
             401: {
               description: "Invalid or expired temp token",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
             },
           },
         },
