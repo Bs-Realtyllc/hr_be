@@ -7,6 +7,7 @@ import * as passwordResetTokenRepo from '../repositories/passwordResetToken.repo
 import * as otpRepo from '../repositories/otpCode.repository';
 import * as loginHistoryRepo from '../repositories/loginHistory.repository';
 import * as twoFactorService from './twoFactor.service';
+import * as notificationPreferenceService from './notificationPreference.service';
 import * as authDto from '../dtos/auth.dto';
 import type { LoginInput, ChangePasswordInput, ForgotPasswordInput, ResetPasswordInput } from '../dtos/auth.dto';
 import AppError from '../pkg/AppError';
@@ -38,6 +39,60 @@ export async function sendResetEmail(name: string, to: string, resetLink: string
       <p><a href="${resetLink}" style="color:#4f46e5;font-weight:bold">Reset My Password</a></p>
       <p>If you didn't request this, you can safely ignore this email.</p>
       <p style="color:#888;font-size:12px">HR Platform</p>
+    `,
+  });
+}
+
+export async function sendNewLoginAlertEmail(name: string, to: string, ipAddress: string, userAgent: string) {
+  const transporter = nodemailer.createTransport({
+    host: process.env.MAIL_HOST,
+    port: Number(process.env.MAIL_PORT) || 587,
+    secure: process.env.MAIL_SECURE === 'true',
+    auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+  });
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM || process.env.MAIL_USER,
+    to,
+    subject: 'HR Platform — New Login Detected',
+    html: `
+      <p>Hi ${name},</p>
+      <p>Your account was just signed into from a device or location we haven't seen before.</p>
+      <p><strong>IP address:</strong> ${ipAddress}<br/><strong>Device/browser:</strong> ${userAgent}</p>
+      <p>If this was you, no action is needed. If you don't recognize this, change your password immediately.</p>
+      <p style="color:#888;font-size:12px">HR Platform Security</p>
+    `,
+  });
+}
+
+async function notifyNewLoginIfNeeded(employee: { id: number; name: string; email: string }, ipAddress: string, userAgent: string) {
+  if (!process.env.MAIL_HOST) return;
+  try {
+    const enabled = await notificationPreferenceService.isEnabled(employee.id, 'new_login_detected');
+    if (!enabled) return;
+    await sendNewLoginAlertEmail(employee.name, employee.email, ipAddress, userAgent);
+  } catch (err: any) {
+    console.error(`[auth] Failed to send new-login alert for employee ${employee.id}:`, err.message);
+  }
+}
+
+export async function sendPasswordChangedEmail(name: string, to: string) {
+  const transporter = nodemailer.createTransport({
+    host: process.env.MAIL_HOST,
+    port: Number(process.env.MAIL_PORT) || 587,
+    secure: process.env.MAIL_SECURE === 'true',
+    auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+  });
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM || process.env.MAIL_USER,
+    to,
+    subject: 'HR Platform — Your Password Was Changed',
+    html: `
+      <p>Hi ${name},</p>
+      <p>This confirms your HR Platform account password was just changed.</p>
+      <p>If you didn't make this change, contact an admin immediately.</p>
+      <p style="color:#888;font-size:12px">HR Platform Security</p>
     `,
   });
 }
@@ -111,6 +166,12 @@ export async function login(
       }
     }
 
+    const userAgentValue = userAgent || 'unknown';
+    const seenBefore = await loginHistoryRepo.hasPriorSuccessfulLogin(emp!.id, ipAddress, userAgentValue);
+    if (!seenBefore) {
+      notifyNewLoginIfNeeded({ id: emp!.id, name: emp!.name, email: emp!.email }, ipAddress, userAgentValue);
+    }
+
     const { two_factor_enabled, ...authFields } = emp!;
     const user = authDto.toLoginResponse(authFields);
     const token = jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: '2d' });
@@ -149,6 +210,10 @@ export async function completeTwoFactorLogin(
 
   const emp = await employeeRepo.findAuthById(employeeId);
   if (!emp) throw new AppError('Employee not found or inactive.', 404);
+
+  // Reaching this point means the device wasn't trusted and the 2FA challenge
+  // was just passed, so this is by definition a new-device login worth alerting on.
+  notifyNewLoginIfNeeded({ id: emp.id, name: emp.name, email: emp.email }, ipAddress || 'unknown', userAgent || 'unknown');
 
   const user = authDto.toLoginResponse(emp);
   const token = jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: '2d' });
@@ -217,6 +282,20 @@ export async function changePassword(userId: number, { current_password, new_pas
 
   const hash = await bcrypt.hash(new_password, 10);
   await employeeRepo.updatePasswordHash(userId, hash);
+
+  if (process.env.MAIL_HOST) {
+    notifyPasswordChangedIfNeeded(userId).catch((err: any) =>
+      console.error(`[auth] Failed to send password-changed email for employee ${userId}:`, err.message),
+    );
+  }
+}
+
+async function notifyPasswordChangedIfNeeded(userId: number) {
+  const enabled = await notificationPreferenceService.isEnabled(userId, 'password_changed');
+  if (!enabled) return;
+  const emp = await employeeRepo.findAuthById(userId);
+  if (!emp) return;
+  await sendPasswordChangedEmail(emp.name, emp.email);
 }
 
 export async function forgotPassword({ email }: ForgotPasswordInput) {

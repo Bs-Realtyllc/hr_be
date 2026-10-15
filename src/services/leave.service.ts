@@ -2,10 +2,59 @@ import * as leaveRepo from '../repositories/leave.repository';
 import * as employeeRepo from '../repositories/employee.repository';
 import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
 import * as emailSettingsRepo from '../repositories/emailSettings.repository';
+import * as notificationPreferenceService from './notificationPreference.service';
 import AppError from '../pkg/AppError';
 import type { LeaveCreateInput, LeaveUpdateInput, LeaveCreateInputViaMail } from '../dtos/leave.dto';
 import { toMonthlySalary, calculateLeaveDeduction } from '../pkg/payrollCalculator';
 import { buildLeaveEmailSubject, buildLeaveEmailHtml } from './leaveEmailTemplate';
+import { sendPlatformMail } from '../pkg/mailer';
+
+async function notifyLeaveStatusIfNeeded(employeeId: number, status: 'approved' | 'rejected', leaveType: string, startDate: string, endDate: string) {
+  if (!process.env.MAIL_HOST) return;
+  try {
+    const enabled = await notificationPreferenceService.isEnabled(employeeId, 'leave_request');
+    if (!enabled) return;
+    const emp = await employeeRepo.findById(employeeId);
+    if (!emp) return;
+    const verb = status === 'approved' ? 'approved' : 'rejected';
+    await sendPlatformMail(
+      emp.email,
+      `HR Platform — Leave Request ${verb === 'approved' ? 'Approved' : 'Rejected'}`,
+      `<p>Hi ${emp.name},</p>
+       <p>Your ${leaveType} leave request for <strong>${startDate}</strong> to <strong>${endDate}</strong> has been ${verb}.</p>
+       <p style="color:#888;font-size:12px">HR Platform</p>`,
+    );
+  } catch (err: any) {
+    console.error(`[leave] Failed to send leave ${status} email for employee ${employeeId}:`, err.message);
+  }
+}
+
+// Every employee with role 'lead' gets notified, regardless of manager_id —
+// there's no reporting-chain targeting here, just a role check.
+async function notifyApproversOfNewLeaveRequest(employeeId: number, leaveType: string, startDate: string, endDate: string) {
+  if (!process.env.MAIL_HOST) return;
+  try {
+    const [requester, leads] = await Promise.all([
+      employeeRepo.findById(employeeId),
+      employeeRepo.findLeads(),
+    ]);
+    if (!requester) return;
+
+    for (const lead of leads) {
+      const enabled = await notificationPreferenceService.isEnabled(lead.id, 'leave_request_submitted');
+      if (!enabled) continue;
+      await sendPlatformMail(
+        lead.email,
+        'HR Platform — New Leave Request Needs Review',
+        `<p>Hi ${lead.name},</p>
+         <p>${requester.name} submitted a ${leaveType} leave request for <strong>${startDate}</strong> to <strong>${endDate}</strong>, pending your review.</p>
+         <p style="color:#888;font-size:12px">HR Platform</p>`,
+      );
+    }
+  } catch (err: any) {
+    console.error(`[leave] Failed to notify leads of new leave request from employee ${employeeId}:`, err.message);
+  }
+}
 
 interface AuthUser {
   id: number;
@@ -48,6 +97,7 @@ export async function create(
   if (emailParams.to) {
     sendEmailAsync(leaveId, data.employee_id, emailParams.to, emailParams.cc, emailParams.bcc);
   }
+  notifyApproversOfNewLeaveRequest(data.employee_id, data.leave_type, data.start_date, data.end_date);
   return leaveId;
 }
 
@@ -91,6 +141,7 @@ export async function approve(id: string, user: AuthUser) {
   await applyLeaveDeductionIfNeeded(leave, days, year);
   await leaveRepo.approve(id, user.id);
   await leaveRepo.incrementBalanceTaken(leave.employee_id, leave.leave_type, year, days);
+  notifyLeaveStatusIfNeeded(leave.employee_id, 'approved', leave.leave_type, leave.start_date, leave.end_date);
 }
 
 export async function reject(id: string, user: AuthUser) {
@@ -110,6 +161,7 @@ export async function reject(id: string, user: AuthUser) {
   }
 
   await leaveRepo.reject(id, user.id);
+  notifyLeaveStatusIfNeeded(leave.employee_id, 'rejected', leave.leave_type, leave.start_date, leave.end_date);
 }
 
 export async function report() {

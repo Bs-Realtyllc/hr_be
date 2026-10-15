@@ -1,4 +1,4 @@
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql, and } from 'drizzle-orm';
 import { db } from '../config/database';
 import { loginHistory, employees } from '../models';
 
@@ -45,6 +45,24 @@ export async function findByEmployeeId(employeeId: number, { page, limit }: Pagi
   ]);
 
   return { entries, total: countResult[0]?.count ?? 0 };
+}
+
+// ipAddress/userAgent are the same defaulted ('unknown'/null-coalesced) strings
+// the login flow already stores, so this is a plain equality match against history.
+export async function hasPriorSuccessfulLogin(employeeId: number, ipAddress: string, userAgent: string) {
+  const rows = await db
+    .select({ id: loginHistory.id })
+    .from(loginHistory)
+    .where(
+      and(
+        eq(loginHistory.employee_id, employeeId),
+        eq(loginHistory.success, true),
+        eq(loginHistory.ip_address, ipAddress),
+        eq(loginHistory.user_agent, userAgent),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
 }
 
 export async function findAll({ page, limit }: Pagination) {

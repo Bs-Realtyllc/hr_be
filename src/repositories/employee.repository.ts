@@ -137,6 +137,13 @@ export async function findByEmail(email: string) {
   return rows[0] || null;
 }
 
+export async function findLeads() {
+  return db
+    .select({ id: employees.id, name: employees.name, email: employees.email })
+    .from(employees)
+    .where(and(eq(employees.role, "lead"), ACTIVE_ROSTER));
+}
+
 export async function findBySecondaryEmail(email: string) {
   const rows = await baseQuery()
     .where(eq(employees.secondary_email, email))

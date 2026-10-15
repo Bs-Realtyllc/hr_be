@@ -3,12 +3,14 @@ import * as employeeRepo from "../repositories/employee.repository";
 import * as leaveRepo from "../repositories/leave.repository";
 import * as payrollAdjustmentRepo from "../repositories/payrollAdjustment.repository";
 import * as employeeTaxRepo from "../repositories/employeeTax.repository";
+import * as notificationPreferenceService from "./notificationPreference.service";
 import AppError from "../pkg/AppError";
 import { estimateAnnualTax, toAnnualSalary } from "../pkg/taxCalculator";
 import {
   toMonthlySalary,
   calculateYearEndLeaveBonus,
 } from "../pkg/payrollCalculator";
+import { sendPlatformMail } from "../pkg/mailer";
 
 export function withTaxEstimate(r: any) {
   const annualSalary = toAnnualSalary(r.salary, r.pay_frequency);
@@ -49,6 +51,29 @@ export async function updateSalary(
   actorId: number | null,
 ) {
   await employeeRepo.updateSalary(id, salary, payFrequency, actorId);
+  if (salary != null) {
+    notifySalaryUpdatedIfNeeded(id);
+  }
+}
+
+async function notifySalaryUpdatedIfNeeded(employeeId: string) {
+  if (!process.env.MAIL_HOST) return;
+  try {
+    const enabled = await notificationPreferenceService.isEnabled(Number(employeeId), "employee_updates");
+    if (!enabled) return;
+    const emp = await employeeRepo.findById(employeeId);
+    if (!emp) return;
+    await sendPlatformMail(
+      emp.email,
+      "HR Platform — Your Compensation Was Updated",
+      `<p>Hi ${emp.name},</p>
+       <p>Your salary/pay details on the HR Platform were just updated by an admin.</p>
+       <p>Check the Payroll section of your profile for the current figures.</p>
+       <p style="color:#888;font-size:12px">HR Platform</p>`,
+    );
+  } catch (err: any) {
+    console.error(`[payroll] Failed to send salary-updated email for ${employeeId}:`, err.message);
+  }
 }
 
 export async function resetPassword(id: string, password: string) {

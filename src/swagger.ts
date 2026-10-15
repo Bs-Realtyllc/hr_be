@@ -33,6 +33,10 @@ const options = {
           "Salary, pay-frequency, and tax-profile management (admin/lead)",
       },
       {
+        name: "Overtime",
+        description: "Overtime requests, pay calculation, and approval",
+      },
+      {
         name: "Goals",
         description: "Individual, team, and company goals / KPI tracking",
       },
@@ -78,6 +82,10 @@ const options = {
       {
         name: "Onboard",
         description: "Public onboarding applications and contract review",
+      },
+      {
+        name: "Notifications",
+        description: "Per-employee toggles for which email/security notifications to receive",
       },
     ],
     components: {
@@ -424,6 +432,53 @@ const options = {
             employee_name: { type: "string", nullable: true },
             event_date: { type: "string", format: "date" },
             description: { type: "string", nullable: true },
+          },
+        },
+
+        Overtime: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            employee_id: { type: "integer" },
+            employee_name: { type: "string" },
+            designation: { type: "string", nullable: true },
+            project_id: { type: "integer", nullable: true },
+            project_name: { type: "string", nullable: true },
+            work_date: { type: "string", format: "date" },
+            hours: { type: "string", example: "3.50" },
+            reason: { type: "string" },
+            approved_by_name: { type: "string" },
+            status: { type: "string", enum: ["pending", "approved", "rejected"], nullable: true },
+            reviewed_by: { type: "integer", nullable: true },
+            reviewer_name: { type: "string", nullable: true },
+            reviewed_at: { type: "string", format: "date-time", nullable: true },
+            hourly_rate: { type: "string", nullable: true },
+            overtime_rate: { type: "string", nullable: true, description: "hourly_rate × 1.5" },
+            amount: { type: "string", nullable: true },
+            created_at: { type: "string", format: "date-time" },
+          },
+        },
+        OvertimeCreateInput: {
+          type: "object",
+          required: ["employee_id", "work_date", "hours", "reason", "approved_by_name"],
+          properties: {
+            employee_id: { type: "integer" },
+            project_id: { type: "integer", nullable: true },
+            work_date: { type: "string", format: "date" },
+            hours: { type: "number", minimum: 0, maximum: 16, example: 3.5 },
+            reason: { type: "string" },
+            approved_by_name: { type: "string", description: "Name of the person who verbally/manually pre-approved this overtime" },
+          },
+        },
+        OvertimeUpdateInput: {
+          type: "object",
+          required: ["work_date", "hours", "reason", "approved_by_name"],
+          properties: {
+            project_id: { type: "integer", nullable: true },
+            work_date: { type: "string", format: "date" },
+            hours: { type: "number", minimum: 0, maximum: 16 },
+            reason: { type: "string" },
+            approved_by_name: { type: "string" },
           },
         },
 
@@ -1206,6 +1261,48 @@ const options = {
           type: "object",
           properties: { success: { type: "boolean", example: true } },
         },
+
+        NotificationPreference: {
+          type: "object",
+          description:
+            "The returned list is filtered by the caller's role — admin sees only security + employee_updates; lead additionally sees the approver types (leave_request_submitted, overtime_request_submitted), which fire for every leave/overtime request submitted company-wide (every employee with role 'lead' is notified, independent of manager_id/reporting chain); employee/intern see security + employee_updates + requester types (leave_request, overtime_request, documents_signature, onboarding_updated).",
+          properties: {
+            type: {
+              type: "string",
+              enum: [
+                "new_login_detected",
+                "password_changed",
+                "employee_updates",
+                "leave_request",
+                "overtime_request",
+                "documents_signature",
+                "onboarding_updated",
+                "leave_request_submitted",
+                "overtime_request_submitted",
+              ],
+            },
+            group: { type: "string", enum: ["security", "email"] },
+            label: { type: "string", example: "New Login Detected" },
+            enabled: { type: "boolean" },
+          },
+        },
+        NotificationPreferencesUpdateInput: {
+          type: "object",
+          required: ["preferences"],
+          properties: {
+            preferences: {
+              type: "array",
+              items: {
+                type: "object",
+                required: ["type", "enabled"],
+                properties: {
+                  type: { type: "string", example: "leave_request" },
+                  enabled: { type: "boolean" },
+                },
+              },
+            },
+          },
+        },
       },
     },
     paths: {
@@ -1232,12 +1329,204 @@ const options = {
         },
       },
 
+      "/api/notifications/preferences": {
+        get: {
+          tags: ["Notifications"],
+          summary: "Get the logged-in employee's notification preferences",
+          description:
+            "Returns only the notification types relevant to the caller's role (see the NotificationPreference schema description), each with its current on/off state. Types with no stored row default to enabled.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": {
+                  schema: { type: "array", items: { $ref: "#/components/schemas/NotificationPreference" } },
+                },
+              },
+            },
+          },
+        },
+        put: {
+          tags: ["Notifications"],
+          summary: "Update one or more notification preferences",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/NotificationPreferencesUpdateInput" },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Updated",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/Success" } },
+              },
+            },
+            400: {
+              description: "Unknown notification type, or a type that doesn't apply to the caller's role",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+
+      "/api/overtime": {
+        get: {
+          tags: ["Overtime"],
+          summary: "List overtime requests",
+          description: "Employees see only their own requests; admins/leads see all and may filter by employee_id.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "employee_id", in: "query", schema: { type: "integer" } },
+            { name: "status", in: "query", schema: { type: "string", enum: ["pending", "approved", "rejected"] } },
+          ],
+          responses: {
+            200: {
+              description: "Array of overtime requests",
+              content: {
+                "application/json": {
+                  schema: { type: "array", items: { $ref: "#/components/schemas/Overtime" } },
+                },
+              },
+            },
+          },
+        },
+        post: {
+          tags: ["Overtime"],
+          summary: "Submit an overtime request",
+          description:
+            "Emails every employee with role 'lead' an overtime_request_submitted notification if they have that preference enabled (see /api/notifications/preferences).",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/OvertimeCreateInput" } } },
+          },
+          responses: {
+            201: {
+              description: "Created",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Created" } } },
+            },
+          },
+        },
+      },
+      "/api/overtime/{id}": {
+        put: {
+          tags: ["Overtime"],
+          summary: "Edit a pending overtime request",
+          description: 'Only the owning employee may edit, and only while status is still "pending".',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/OvertimeUpdateInput" } } },
+          },
+          responses: {
+            200: {
+              description: "Updated",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
+            },
+            400: {
+              description: "Not pending",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            403: {
+              description: "Not the owner",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            404: { description: "Not found" },
+          },
+        },
+        delete: {
+          tags: ["Overtime"],
+          summary: "Cancel a pending overtime request",
+          description: 'Only the owning employee may cancel, and only while status is still "pending". Permanently deletes the row.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+          responses: {
+            200: {
+              description: "Cancelled",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
+            },
+            400: {
+              description: "Not pending",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            403: {
+              description: "Not the owner",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            404: { description: "Not found" },
+          },
+        },
+      },
+      "/api/overtime/{id}/approve": {
+        put: {
+          tags: ["Overtime"],
+          summary: "Approve an overtime request",
+          description:
+            "Admin/lead only (leads cannot approve their own request). Calculates hourly/overtime pay from the employee's configured salary and records a payroll adjustment. Fails if the employee's salary isn't set yet. Emails the requester an overtime_request notification if that preference is enabled (see /api/notifications/preferences).",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+          responses: {
+            200: {
+              description: "Approved",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: { success: { type: "boolean" }, amount: { type: "number" } },
+                  },
+                },
+              },
+            },
+            400: {
+              description: "Not pending, or employee salary not configured",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            403: {
+              description: "Insufficient permissions, or leads cannot approve their own request",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            404: { description: "Not found" },
+          },
+        },
+      },
+      "/api/overtime/{id}/reject": {
+        put: {
+          tags: ["Overtime"],
+          summary: "Reject an overtime request",
+          description:
+            "Admin/lead only (leads cannot reject their own request). Emails the requester an overtime_request notification if that preference is enabled (see /api/notifications/preferences).",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+          responses: {
+            200: {
+              description: "Rejected",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
+            },
+            400: {
+              description: "Not pending",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            403: {
+              description: "Insufficient permissions, or leads cannot reject their own request",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            404: { description: "Not found" },
+          },
+        },
+      },
+
       "/api/auth/login": {
         post: {
           tags: ["Auth"],
           summary: "Log in with company email and password",
           description:
-            "Restricted to allowed organization email domains. Returns a JWT valid for 7 days, or a RequiresTwoFactorResponse if the account has 2FA enabled and this isn't a trusted device (trustedDevice cookie).",
+            "Restricted to allowed organization email domains. Returns a JWT valid for 7 days, or a RequiresTwoFactorResponse if the account has 2FA enabled and this isn't a trusted device (trustedDevice cookie). On a successful login from an IP/device combination not seen before (or any completed 2FA login), emails a new_login_detected alert if that preference is enabled (see /api/notifications/preferences).",
           requestBody: {
             required: true,
             content: {
@@ -1291,6 +1580,7 @@ const options = {
         put: {
           tags: ["Auth"],
           summary: "Change the logged-in user's password",
+          description: "On success, emails a password_changed confirmation if that preference is enabled (see /api/notifications/preferences).",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
@@ -1942,6 +2232,8 @@ const options = {
         put: {
           tags: ["Employees"],
           summary: "Update employee fields",
+          description:
+            "If designation or department changes, emails the employee an employee_updates notification if that preference is enabled (see /api/notifications/preferences).",
           parameters: [
             {
               name: "id",
@@ -2150,6 +2442,8 @@ const options = {
         post: {
           tags: ["Leaves"],
           summary: "Submit a leave request",
+          description:
+            "Emails every employee with role 'lead' a leave_request_submitted notification if they have that preference enabled (see /api/notifications/preferences) — independent of the ad-hoc 'to'/'cc'/'bcc' notification below.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
@@ -2379,7 +2673,7 @@ const options = {
           tags: ["Leaves"],
           summary: "Approve a leave request",
           description:
-            "Admin/lead only (leads cannot approve their own request). Deducts the leave days from the employee balance. Fails if the leave's dates have already passed.",
+            "Admin/lead only (leads cannot approve their own request). Deducts the leave days from the employee balance. Fails if the leave's dates have already passed. Emails the requester a leave_request notification if that preference is enabled (see /api/notifications/preferences).",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -2433,7 +2727,7 @@ const options = {
           tags: ["Leaves"],
           summary: "Reject a leave request",
           description:
-            "Admin/lead only (leads cannot reject their own request). Fails if the leave's dates have already passed.",
+            "Admin/lead only (leads cannot reject their own request). Fails if the leave's dates have already passed. Emails the requester a leave_request notification if that preference is enabled (see /api/notifications/preferences).",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -3274,7 +3568,8 @@ const options = {
         put: {
           tags: ["Payroll"],
           summary: "Update an employee's salary and pay frequency",
-          description: "Admin only.",
+          description:
+            "Admin only. When setting a non-null salary, emails the employee an employee_updates notification if that preference is enabled (see /api/notifications/preferences).",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -5102,7 +5397,8 @@ const options = {
         patch: {
           tags: ["Onboard"],
           summary: "Approve an onboarding profile",
-          description: "Lead/admin only.",
+          description:
+            "Lead/admin only. Emails the applicant an onboarding_updated notification (with their reset-password link) if that preference is enabled (see /api/notifications/preferences) — defaults to enabled since applicants can't change it before being approved.",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
