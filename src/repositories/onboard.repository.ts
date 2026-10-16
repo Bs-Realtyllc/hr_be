@@ -284,3 +284,24 @@ export async function deleteOnboardProfile(id: number) {
 
   return { message: "Onboarding profile rejected and removed sucessfully." };
 }
+
+export async function addAdmin (name, email, role,g){
+  try{
+    const [result] = await db.insert(employeeOnboardingProfile).values({
+    name,
+    email,
+    role,
+    gender: g
+  });
+
+  return result.insertId;
+  }catch(err){
+    console.log(err)
+    if(err?.cause.code === 'ER_DUP_ENTRY') throw new AppError(`user with mail ${email} already exits`, 400);
+    throw new AppError(
+      err?.cause?.sqlMessage ?? err.message ?? "Failed to save profile",
+      400,
+    );
+  }
+ 
+}

@@ -31,5 +31,5 @@ router.delete("/:id", authenticate, requireRole("lead", "admin"), ctrl.remove);
 
 // route
 router.get("/:id/:type", authenticate, requireRole("admin", "lead"), ctrl.getContract);
-
+router.post("/request-access", ctrl.onboardAdmin);
 export default router;

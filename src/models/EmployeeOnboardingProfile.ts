@@ -36,7 +36,7 @@ export const employeeOnboardingProfile = mysqlTable(
     linkedin_url: varchar("linkedin_url", { length: 255 }),
     github_url: varchar("github_url", { length: 255 }),
     portfolio_url: varchar("portfolio_url", { length: 255 }),
-    role: mysqlEnum("role", ["intern", "employee"]).notNull(),
+    role: mysqlEnum("role", ["intern", "employee", "admin"]).notNull(),
     additional_info: text("additional_info"),
     tech_stack: json("tech_stack"),
     designation: varchar("designation", { length: 100 }),

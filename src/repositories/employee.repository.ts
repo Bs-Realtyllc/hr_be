@@ -39,6 +39,7 @@ const BASE_COLUMNS = {
   id: employees.id,
   name: employees.name,
   email: employees.email,
+  phone: employees.phone,
   secondary_email: employees.secondary_email,
   designation_id: employees.designation_id,
   designation: designations.title,
@@ -373,18 +374,22 @@ export async function seedLeaveBalances(
 }
 
 const EMPLOYEES_TABLE_FIELDS = [
+  "dob",
+  "address",
   "name",
+  "gender",
   "email",
   "secondary_email",
+  "phone",
+  "profile_picture",
+  "designation",
+  "department",
+  "department_id",
   "manager_id",
   "start_date",
-  "dob",
-  "gender",
   "github_url",
-  "address",
   "discord_username",
-  "panNo",
-  "role",
+  "tech_stack"
 ];
 
 export async function update(

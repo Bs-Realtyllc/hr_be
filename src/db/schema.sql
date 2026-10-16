@@ -6,7 +6,6 @@ CREATE TABLE
     email VARCHAR(150) UNIQUE NOT NULL,
     phone VARCHAR(20),
     emergency_contact VARCHAR(150),
-    profile_picture VARCHAR(255),
     designation VARCHAR(100),
     department VARCHAR(100),
     manager_id INT,
