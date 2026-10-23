@@ -87,6 +87,11 @@ const options = {
         description: "Public onboarding applications and contract review",
       },
       {
+        name: "Clock",
+        description:
+          "Daily clock-in/out, pause/resume tracking, today's team status, and paginated attendance history.",
+      },
+      {
         name: "Notifications",
         description: "Per-employee toggles for which email/security notifications to receive",
       },
@@ -102,141 +107,312 @@ const options = {
         },
       },
       schemas: {
+        EmployeeRole: {
+          type: "string",
+          enum: ["admin", "lead", "employee", "intern"],
+        },
+
+        EmployeeStatus: {
+          type: "string",
+          enum: ["onboarding", "active", "on_leave", "probation", "terminated"],
+        },
+
+        SuccessResponse: {
+          type: "object",
+          properties: { success: { type: "boolean", example: true } },
+        },
+        PolicyAcknowledgement: {
+          type: "object",
+          description:
+            "A policy acknowledgement row plus policy details. Only employee_id, policy_id, and the three policy_* fields are known from the query; id and acknowledged_at are guessed (see note).",
+          properties: {
+            id: { type: "integer", example: 31 },
+            employee_id: { type: "integer", example: 7 },
+            policy_id: { type: "integer", example: 3 },
+            acknowledged_at: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+            },
+            policy_title: { type: "string", example: "Code of Conduct" },
+            policy_type: { type: "string", example: "company" },
+            policy_category: { type: "string", example: "HR" },
+          },
+        },
+
         Employee: {
           type: "object",
           properties: {
-            id: { type: "integer" },
-            name: { type: "string", example: "Jane Doe" },
-            email: {
+            id: { type: "integer", example: 7 },
+            name: { type: "string", example: "Sita Sharma" },
+            email: { type: "string", format: "email" },
+            secondary_email: {
               type: "string",
               format: "email",
-              example: "jane@company.com",
+              nullable: true,
             },
-            phone: { type: "string", example: "+977 98XXXXXXXX" },
-            emergency_contact: { type: "string" },
-            designation: { type: "string", example: "Senior Backend Engineer" },
-            department: { type: "string", example: "Engineering" },
+            phone: { type: "string", nullable: true },
+            designation_id: { type: "integer", nullable: true },
+            designation: {
+              type: "string",
+              nullable: true,
+              example: "Software Engineer",
+            },
+            department_id: { type: "integer", nullable: true },
+            department: {
+              type: "string",
+              nullable: true,
+              example: "Engineering",
+            },
             manager_id: { type: "integer", nullable: true },
             manager_name: { type: "string", nullable: true },
-            start_date: {
-              type: "string",
-              format: "date",
-              example: "2023-01-15",
-            },
-            timezone: { type: "string", example: "Asia/Kathmandu" },
-            work_hours: { type: "string", example: "9 AM - 5 PM" },
-            tech_stack: {
-              type: "array",
-              items: { type: "string" },
-              example: ["Go", "React", "MySQL"],
-            },
-            role: {
-              type: "string",
-              enum: ["admin", "lead", "employee", "intern"],
-              example: "employee",
-            },
+            start_date: { type: "string", format: "date", nullable: true },
+            dob: { type: "string", format: "date", nullable: true },
+            gender: { type: "string", nullable: true },
+            github_url: { type: "string", nullable: true },
+            address: { type: "string", nullable: true },
             discord_username: { type: "string", nullable: true },
-            salary: { type: "number", nullable: true },
+            panNo: { type: "string", nullable: true },
+            role: { $ref: "#/components/schemas/EmployeeRole" },
+            status: { $ref: "#/components/schemas/EmployeeStatus" },
+            profile_picture: {
+              type: "string",
+              nullable: true,
+              description: "Filename of the uploaded document.",
+            },
+            citizenship_front: {
+              type: "string",
+              nullable: true,
+              description: "Filename of the uploaded document.",
+            },
+            citizenship_back: {
+              type: "string",
+              nullable: true,
+              description: "Filename of the uploaded document.",
+            },
+          },
+        },
+
+        EmployeeNameItem: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 7 },
+            name: { type: "string", example: "Sita Sharma" },
+          },
+        },
+
+        EmployeeCreateRequest: {
+          type: "object",
+          required: ["name", "email"],
+          description:
+            "Department and designation are given by name and are created if they don't exist yet.",
+          properties: {
+            name: { type: "string" },
+            email: { type: "string", format: "email" },
+            secondary_email: {
+              type: "string",
+              format: "email",
+              nullable: true,
+            },
+            manager_id: { type: "integer", minimum: 1, nullable: true },
+            start_date: { type: "string", format: "date", nullable: true },
+            designation: { type: "string", nullable: true },
+            department: { type: "string", nullable: true },
+            status: { $ref: "#/components/schemas/EmployeeStatus" },
+            role: {
+              $ref: "#/components/schemas/EmployeeRole",
+              description: "Defaults to `employee`.",
+            },
+            gender: { type: "string", nullable: true },
+            github_url: { type: "string", nullable: true },
+          },
+        },
+
+        EmployeeCreatedResponse: {
+          type: "object",
+          properties: {
+            id: {
+              type: "object",
+              description:
+                "Currently holds the whole created employee, not a bare id (see note).",
+              properties: {
+                id: { type: "integer" },
+                name: { type: "string" },
+                email: { type: "string", format: "email" },
+                role: { $ref: "#/components/schemas/EmployeeRole" },
+              },
+            },
+          },
+        },
+
+        EmployeeUpdateRequest: {
+          type: "object",
+          minProperties: 1,
+          description:
+            "Send only the fields to change. An empty body returns 400.",
+          properties: {
+            name: { type: "string" },
+            email: { type: "string", format: "email" },
+            secondary_email: {
+              type: "string",
+              format: "email",
+              nullable: true,
+            },
+            phone: { type: "string", nullable: true },
+            dob: { type: "string", format: "date", nullable: true },
+            gender: { type: "string", nullable: true },
+            address: { type: "string", nullable: true },
+            github_url: { type: "string", nullable: true },
+            discord_username: { type: "string", nullable: true },
+            manager_id: {
+              type: "integer",
+              minimum: 1,
+              nullable: true,
+              description: "Rejected if it would create a reporting cycle.",
+            },
+            start_date: { type: "string", format: "date", nullable: true },
+            designation: {
+              type: "string",
+              nullable: true,
+              description: "Title; created if new.",
+            },
+            department: {
+              type: "string",
+              nullable: true,
+              description: "Name; created if new.",
+            },
+            education_level: { type: "string", nullable: true },
+            institution_name: { type: "string", nullable: true },
+            field_of_study: { type: "string", nullable: true },
+            graduation_date: { type: "string", format: "date", nullable: true },
+            previous_experience: { type: "string", nullable: true },
+            areas_of_interest: { type: "string", nullable: true },
+            linkedin_url: { type: "string", nullable: true },
+            portfolio_url: { type: "string", nullable: true },
+          },
+        },
+
+        EmployeeBulkRow: {
+          type: "object",
+          required: ["name", "email", "status"],
+          description:
+            "`manager_id`, `designation_id`, and `department_id` must not be present on any row.",
+          properties: {
+            name: { type: "string" },
+            email: { type: "string", format: "email" },
+            status: { $ref: "#/components/schemas/EmployeeStatus" },
+            role: { $ref: "#/components/schemas/EmployeeRole" },
+            secondary_email: {
+              type: "string",
+              format: "email",
+              nullable: true,
+            },
+            start_date: { type: "string", format: "date", nullable: true },
+            gender: { type: "string", nullable: true },
+            github_url: { type: "string", nullable: true },
+          },
+        },
+
+        EmployeeBulkCreateRequest: {
+          type: "object",
+          required: ["employeesToAdd"],
+          properties: {
+            employeesToAdd: {
+              type: "array",
+              minItems: 1,
+              items: { $ref: "#/components/schemas/EmployeeBulkRow" },
+            },
+          },
+        },
+
+        EmployeeBulkCreateResponse: {
+          type: "object",
+          properties: {
+            data: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "integer" },
+                  name: { type: "string" },
+                  email: { type: "string", format: "email" },
+                  role: { $ref: "#/components/schemas/EmployeeRole" },
+                },
+              },
+            },
+          },
+        },
+
+        PayrollAdjustmentItem: {
+          type: "object",
+          properties: {
+            title: {
+              type: "string",
+              example: "Leave Deduction — 2 day(s) beyond sick balance",
+            },
+            type: {
+              type: "string",
+              enum: ["overtime_pay", "leave_deduction", "leave_bonus"],
+              description:
+                "Other adjustment types may exist; only these three are summed.",
+            },
+            amount: {
+              type: "number",
+              description: "Negative for deductions.",
+              example: -3000,
+            },
+          },
+        },
+
+        PayrollSummary: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            name: { type: "string" },
+            designation: { type: "string", nullable: true },
+            department: { type: "string", nullable: true },
+            salary: {
+              type: "string",
+              nullable: true,
+              description:
+                "Current salary (decimal string). null if none is set.",
+            },
             pay_frequency: {
               type: "string",
               enum: ["monthly", "biweekly", "weekly"],
               nullable: true,
             },
-            profile_picture: { type: "string", nullable: true },
-            is_active: { type: "boolean" },
-            status: {
-              type: "string",
-              enum: [
-                "onboarding",
-                "active",
-                "on_leave",
-                "probation",
-                "terminated",
-              ],
+            start_date: { type: "string", format: "date", nullable: true },
+            working_days_this_month: {
+              type: "integer",
+              description: "Mon-Fri days in the current month.",
+              example: 22,
             },
-            gender: {
-              type: "string",
-              enum: ["male", "female", "other", "prefer_not_to_say"],
-              nullable: true,
+            leave_days_this_month: {
+              type: "integer",
+              description: "Approved leave on weekdays in the current month.",
+              example: 2,
             },
-            permanent_address: { type: "string", nullable: true },
-            education_level: { type: "string", nullable: true },
-            institution_name: { type: "string", nullable: true },
-            field_of_study: { type: "string", nullable: true },
-            graduation_date: { type: "string", format: "date", nullable: true },
-            previous_experience: { type: "string", nullable: true },
-            areas_of_interest: { type: "string", nullable: true },
-            linkedin_url: { type: "string", nullable: true },
-            github_url: { type: "string", nullable: true },
-            portfolio_url: { type: "string", nullable: true },
-            emergency_contact_name: { type: "string", nullable: true },
-          },
-        },
-        EmployeeInput: {
-          type: "object",
-          required: ["name", "email"],
-          properties: {
-            name: { type: "string", example: "Jane Doe" },
-            email: { type: "string", format: "email" },
-            phone: { type: "string" },
-            emergency_contact: { type: "string" },
-            emergency_contact_name: { type: "string", nullable: true },
-            designation: { type: "string" },
-            department: { type: "string" },
-            manager_id: { type: "integer", nullable: true },
-            start_date: { type: "string", format: "date" },
-            timezone: { type: "string", default: "UTC" },
-            work_hours: { type: "string", default: "9 AM - 5 PM" },
-            tech_stack: { type: "array", items: { type: "string" } },
-            role: {
-              type: "string",
-              enum: ["admin", "lead", "employee", "intern"],
-              default: "employee",
+            present_days: { type: "integer", example: 20 },
+            daily_rate: {
+              type: "integer",
+              description: "salary / working days, rounded.",
+              example: 2273,
             },
-            status: {
-              type: "string",
-              enum: ["onboarding", "active"],
-              default: "active",
+            expected_pay: { type: "integer", example: 45455 },
+            overtime_pay: { type: "integer", example: 0 },
+            leave_deduction: { type: "integer", example: 0 },
+            leave_bonus: { type: "integer", example: 0 },
+            net_pay: {
+              type: "integer",
               description:
-                "Create only — 'onboarding' creates a pending applicant (is_active = false) awaiting approval via PUT /{id}/approve or PUT /{id}/reject.",
+                "expected_pay + overtime_pay + leave_deduction + leave_bonus.",
+              example: 45455,
             },
-            discord_username: {
-              type: "string",
-              description:
-                "Update only — matched against Discord standup submissions",
+            adjustments: {
+              type: "array",
+              items: { $ref: "#/components/schemas/PayrollAdjustmentItem" },
             },
-            gender: {
-              type: "string",
-              enum: ["male", "female", "other", "prefer_not_to_say"],
-              nullable: true,
-            },
-            permanent_address: { type: "string", nullable: true },
-            education_level: { type: "string", nullable: true },
-            institution_name: { type: "string", nullable: true },
-            field_of_study: { type: "string", nullable: true },
-            graduation_date: { type: "string", format: "date", nullable: true },
-            previous_experience: { type: "string", nullable: true },
-            areas_of_interest: { type: "string", nullable: true },
-            linkedin_url: { type: "string", nullable: true },
-            github_url: { type: "string", nullable: true },
-            portfolio_url: { type: "string", nullable: true },
-          },
-        },
-        EmployeePayrollSummary: {
-          type: "object",
-          properties: {
-            id: { type: "integer" },
-            name: { type: "string" },
-            designation: { type: "string" },
-            department: { type: "string" },
-            salary: { type: "number", nullable: true },
-            pay_frequency: { type: "string", nullable: true },
-            start_date: { type: "string", format: "date" },
-            working_days_this_month: { type: "integer" },
-            leave_days_this_month: { type: "integer" },
-            present_days: { type: "integer" },
-            daily_rate: { type: "integer" },
-            expected_pay: { type: "integer" },
           },
         },
         LeaveRequest: {
@@ -298,16 +474,137 @@ const options = {
             year: { type: "integer" },
           },
         },
+        LeaveReportRow: {
+          type: "object",
+          properties: {
+            employee_id: { type: "integer", example: 7 },
+            employee_name: { type: "string", example: "Sita Sharma" },
+            total_leaves: {
+              type: "number",
+              description:
+                "Total allocated leave days for the current year, summed across leave types.",
+              example: 105,
+            },
+            taken_previous_month: {
+              type: "integer",
+              description:
+                "Approved leave days that fall in the previous calendar month.",
+              example: 2,
+            },
+            taken_this_month: {
+              type: "integer",
+              description:
+                "Approved leave days that fall in the current calendar month.",
+              example: 1,
+            },
+            remaining_leaves: {
+              type: "number",
+              description:
+                "total_leaves minus total taken for the current year.",
+              example: 98,
+            },
+          },
+        },
+
+        LeaveMailRequest: {
+          type: "object",
+          required: ["from", "leave_type", "start_date", "end_date"],
+          description:
+            "Fields other than `from` are inferred and passed straight to the leave insert. Confirm against leave.dto.ts.",
+          properties: {
+            from: {
+              type: "string",
+              format: "email",
+              description:
+                "Sender's email. Must match an existing employee's primary email.",
+              example: "sita@example.com",
+            },
+            leave_type: { type: "string", example: "sick" },
+            start_date: {
+              type: "string",
+              format: "date",
+              example: "2026-10-25",
+            },
+            end_date: { type: "string", format: "date", example: "2026-10-26" },
+            reason: { type: "string", nullable: true, example: "Fever" },
+          },
+        },
+
+        LeaveCreatedResponse: {
+          type: "object",
+          properties: { id: { type: "integer", example: 42 } },
+        },
+        StandupCreateRequest: {
+          type: "object",
+          required: [
+            "workedOn",
+            "completed",
+            "inProgress",
+            "nextUp",
+            "blockers",
+            "links",
+          ],
+          properties: {
+            employee_id: {
+              type: "integer",
+              minimum: 1,
+              example: 7,
+              description: "Coerced to a number server-side.",
+            },
+            workedOn: {
+              type: "string",
+              minLength: 1,
+              example: "Onboarding form validation",
+            },
+            completed: {
+              type: "string",
+              minLength: 1,
+              example: "Draft lookup endpoint",
+            },
+            inProgress: {
+              type: "string",
+              minLength: 1,
+              example: "Swagger docs for onboarding",
+            },
+            nextUp: {
+              type: "string",
+              minLength: 1,
+              example: "Leave module docs",
+            },
+            blockers: {
+              type: "string",
+              minLength: 1,
+              example: "none",
+              description: 'Use "none" if there are no blockers.',
+            },
+            links: {
+              type: "string",
+              minLength: 1,
+              example: "none",
+              description: 'Use "none" if there are no links or references.',
+            },
+            standup_date: {
+              type: "string",
+              format: "date",
+              nullable: true,
+              description: "Optional.",
+            },
+          },
+        },
+
         Standup: {
           type: "object",
           properties: {
             id: { type: "integer" },
             employee_id: { type: "integer" },
             employee_name: { type: "string" },
-            designation: { type: "string" },
-            yesterday: { type: "string" },
-            today: { type: "string" },
-            blockers: { type: "string", nullable: true },
+            designation: { type: "string", nullable: true },
+            workedOn: { type: "string" },
+            completed: { type: "string" },
+            inProgress: { type: "string" },
+            nextUp: { type: "string" },
+            blockers: { type: "string" },
+            links: { type: "string" },
             standup_date: { type: "string", format: "date" },
             created_at: { type: "string", format: "date-time" },
           },
@@ -1286,29 +1583,377 @@ const options = {
         OnboardProfile: {
           type: "object",
           properties: {
-            id: { type: "integer" },
-            name: { type: "string" },
-            dob: { type: "string", format: "date", nullable: true },
-            gender: { type: "string", nullable: true },
+            id: { type: "integer", example: 12 },
+            name: { type: "string", example: "Sita Sharma" },
             email: { type: "string", format: "email" },
+            gender: { type: "string", example: "female" },
+            dob: { type: "string", format: "date", nullable: true },
+            phone: { type: "string", nullable: true },
             current_address: { type: "string", nullable: true },
-            education_level: { type: "string", nullable: true },
-            institution_name: { type: "string", nullable: true },
-            field_of_study: { type: "string", nullable: true },
-            graduation_date: { type: "string", format: "date", nullable: true },
-            previous_experience: { type: "string", nullable: true },
-            areas_of_interest: { type: "string", nullable: true },
-            linkedin_url: { type: "string", nullable: true },
+            emergency_contact: { type: "string", nullable: true },
             github_url: { type: "string", nullable: true },
-            portfolio_url: { type: "string", nullable: true },
-            role: { type: "string", enum: ["intern", "employee"] },
-            additional_info: { type: "string", nullable: true },
-            nda_path: {
+            linkedin_url: { type: "string", nullable: true },
+            designation: { type: "string", nullable: true },
+            role: { type: "string", enum: ["intern", "employee", "admin"] },
+            tech_stack: {
+              type: "array",
+              items: { type: "string" },
+              nullable: true,
+            },
+            previous_experience: { type: "string", nullable: true },
+            nda_path: { type: "string", nullable: true },
+            citizenship_front_path: { type: "string", nullable: true },
+            citizenship_back_path: { type: "string", nullable: true },
+            pan_path: { type: "string", nullable: true },
+            passout_certificate_path: { type: "string", nullable: true },
+            photo_path: { type: "string", nullable: true },
+            source: {
               type: "string",
               nullable: true,
-              description: "Stored filename of the uploaded signed contract",
+              description: "Origin of a seeded draft, e.g. the job portal.",
             },
-            status: { type: "string", nullable: true },
+            source_application_id: { type: "string", nullable: true },
+            is_active: { type: "boolean", description: "false once approved." },
+          },
+        },
+        OnboardDraft: {
+          type: "object",
+          description: "Limited, pre-auth view of a job-portal-seeded draft.",
+          properties: {
+            name: { type: "string" },
+            linkedin_url: { type: "string", nullable: true },
+            github_url: { type: "string", nullable: true },
+            previous_experience: { type: "string", nullable: true },
+            role: {
+              type: "string",
+              enum: ["intern", "employee", "admin"],
+              description:
+                "Used by the frontend to warn if the wrong form is being filled.",
+            },
+          },
+        },
+
+        OnboardDraftResponse: {
+          type: "object",
+          required: ["found"],
+          properties: {
+            found: { type: "boolean" },
+            data: { $ref: "#/components/schemas/OnboardDraft" },
+          },
+        },
+
+        OnboardPayload: {
+          type: "object",
+          description:
+            "JSON object sent as a string in the multipart `payload` field. Align with your employeeOnboardingProfile model.",
+          required: ["name", "email", "role"],
+          properties: {
+            name: { type: "string" },
+            email: { type: "string", format: "email" },
+            gender: { type: "string" },
+            dob: { type: "string", format: "date" },
+            phone: { type: "string" },
+            current_address: { type: "string" },
+            emergency_contact: { type: "string" },
+            github_url: { type: "string" },
+            linkedin_url: { type: "string" },
+            designation: { type: "string" },
+            role: { $ref: "#/components/schemas/OnboardRole" },
+            tech_stack: { type: "array", items: { type: "string" } },
+            previous_experience: { type: "string" },
+          },
+        },
+
+        OnboardSubmitRequest: {
+          type: "object",
+          required: [
+            "payload",
+            "contract",
+            "citizenshipFront",
+            "citizenshipBack",
+            "panCard",
+            "passoutCertificate",
+            "passportPhoto",
+          ],
+          properties: {
+            payload: {
+              type: "string",
+              description: "JSON-stringified OnboardPayload.",
+              example:
+                '{"name":"Sita Sharma","email":"sita@example.com","role":"intern"}',
+            },
+            contract: {
+              type: "string",
+              format: "binary",
+              description: "Signed NDA/contract.",
+            },
+            citizenshipFront: { type: "string", format: "binary" },
+            citizenshipBack: { type: "string", format: "binary" },
+            panCard: { type: "string", format: "binary" },
+            passoutCertificate: { type: "string", format: "binary" },
+            passportPhoto: { type: "string", format: "binary" },
+          },
+        },
+        ClockStatus: {
+          type: "string",
+          enum: ["idle", "running", "paused", "done"],
+          description:
+            "idle = no clock-in record for the date, running = clocked in, paused = a pause has no resume yet, done = clocked out.",
+        },
+
+        ClockRecord: {
+          type: "object",
+          description:
+            "A row from employee_daily_clock. Confirm columns against your drizzle model.",
+          properties: {
+            id: { type: "integer", example: 101 },
+            employeeId: { type: "integer", example: 7 },
+            clockDate: {
+              type: "string",
+              format: "date",
+              example: "2026-10-20",
+            },
+            clockIn: { type: "string", format: "date-time" },
+            clockOut: { type: "string", format: "date-time", nullable: true },
+          },
+        },
+
+        ClockPause: {
+          type: "object",
+          description:
+            "A row from employee_clock_pauses. Confirm columns against your drizzle model.",
+          properties: {
+            id: { type: "integer", example: 55 },
+            clockId: { type: "integer", example: 101 },
+            pause: { type: "string", format: "date-time" },
+            resume: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+              description: "null while the clock is still paused.",
+            },
+            reason: { type: "string", nullable: true, example: "Lunch break" },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
+
+        ClockPauseReasonRequest: {
+          type: "object",
+          required: ["reason"],
+          properties: {
+            reason: {
+              type: "string",
+              minLength: 1,
+              example: "Lunch break",
+              description: "Must not be blank.",
+            },
+          },
+        },
+
+        ClockInResponse: {
+          type: "object",
+          properties: {
+            message: { type: "string", example: "clock in sucessfull" },
+            clockInTime: { type: "string", format: "date-time" },
+          },
+        },
+
+        ClockOutResponse: {
+          type: "object",
+          properties: {
+            message: { type: "string", example: "clock out sucessfull" },
+            result: { $ref: "#/components/schemas/ClockRecord" },
+          },
+        },
+
+        ClockPauseEntry: {
+          type: "object",
+          description: "Pause entry inside the current user's clock summary.",
+          properties: {
+            id: {
+              type: "integer",
+              nullable: true,
+              description:
+                "null when the day has no pauses (see note on GET /clock).",
+            },
+            pause: { type: "string", format: "date-time", nullable: true },
+            resume: { type: "string", format: "date-time", nullable: true },
+            reason: { type: "string", nullable: true },
+            pauseDuration: {
+              type: "integer",
+              nullable: true,
+              description:
+                "Seconds. Measured to the resume time, or to clock-out if never resumed. null while still paused and not clocked out.",
+            },
+          },
+        },
+
+        ClockSummary: {
+          type: "object",
+          properties: {
+            status: { $ref: "#/components/schemas/ClockStatus" },
+            clockIn: { type: "string", format: "date-time", nullable: true },
+            clockOut: { type: "string", format: "date-time", nullable: true },
+            totalPauseDuration: {
+              type: "integer",
+              description: "Total paused seconds for the date.",
+              example: 1800,
+            },
+            employeeId: { type: "integer", nullable: true },
+            pauses: {
+              type: "array",
+              items: { $ref: "#/components/schemas/ClockPauseEntry" },
+            },
+          },
+        },
+
+        ClockSummaryResponse: {
+          type: "object",
+          properties: { result: { $ref: "#/components/schemas/ClockSummary" } },
+        },
+
+        ClockPauseListResponse: {
+          type: "object",
+          properties: {
+            message: { type: "string", example: "Clock Paused Sucessfully" },
+            result: {
+              type: "array",
+              items: { $ref: "#/components/schemas/ClockPause" },
+              description: "All pause rows for the day's clock record.",
+            },
+          },
+        },
+
+        ClockResumeResponse: {
+          type: "object",
+          properties: {
+            result: {
+              type: "array",
+              items: { $ref: "#/components/schemas/ClockPause" },
+              description: "All pause rows for the day's clock record.",
+            },
+          },
+        },
+
+        ClockTodayPause: {
+          type: "object",
+          description:
+            "Pause entry in the team view. pauseDuration is not included here.",
+          properties: {
+            pause: { type: "string", format: "date-time" },
+            resume: { type: "string", format: "date-time", nullable: true },
+            reason: { type: "string", nullable: true },
+          },
+        },
+
+        ClockTodayEntry: {
+          type: "object",
+          properties: {
+            employeeId: { type: "integer" },
+            name: { type: "string" },
+            email: { type: "string", format: "email" },
+            address: { type: "string", nullable: true },
+            profilePicture: { type: "string", nullable: true },
+            phone: { type: "string", nullable: true },
+            clockId: { type: "integer" },
+            clockIn: { type: "string", format: "date-time" },
+            clockOut: { type: "string", format: "date-time", nullable: true },
+            clockDate: { type: "string", format: "date" },
+            pauses: {
+              type: "array",
+              items: { $ref: "#/components/schemas/ClockTodayPause" },
+            },
+            status: { type: "string", enum: ["running", "paused", "done"] },
+          },
+        },
+
+        ClockTodayResponse: {
+          type: "object",
+          properties: {
+            result: {
+              type: "array",
+              items: { $ref: "#/components/schemas/ClockTodayEntry" },
+            },
+          },
+        },
+
+        AttendancePause: {
+          type: "object",
+          properties: {
+            clockId: { type: "integer" },
+            pause: { type: "string", format: "date-time" },
+            resume: { type: "string", format: "date-time", nullable: true },
+            reason: { type: "string", nullable: true },
+            pauseDuration: {
+              type: "integer",
+              nullable: true,
+              description: "Seconds.",
+            },
+          },
+        },
+
+        AttendanceRecord: {
+          type: "object",
+          properties: {
+            clockId: { type: "integer" },
+            employeeId: { type: "integer" },
+            name: { type: "string" },
+            email: { type: "string", format: "email" },
+            address: { type: "string", nullable: true },
+            profilePicture: { type: "string", nullable: true },
+            phone: { type: "string", nullable: true },
+            clockIn: { type: "string", format: "date-time" },
+            clockOut: { type: "string", format: "date-time", nullable: true },
+            clockDate: { type: "string", format: "date" },
+            pauses: {
+              type: "array",
+              items: { $ref: "#/components/schemas/AttendancePause" },
+            },
+            totalPauseDuration: {
+              type: "integer",
+              description: "Sum of pauseDuration in seconds.",
+              example: 1800,
+            },
+          },
+        },
+
+        AttendancePagination: {
+          type: "object",
+          properties: {
+            page: { type: "integer", example: 1 },
+            limit: { type: "integer", example: 20 },
+            total: {
+              type: "integer",
+              description: "Total matching clock records.",
+              example: 134,
+            },
+            totalPages: { type: "integer", example: 7 },
+          },
+        },
+
+        AttendanceResponse: {
+          type: "object",
+          properties: {
+            data: {
+              type: "array",
+              items: { $ref: "#/components/schemas/AttendanceRecord" },
+            },
+            pagination: { $ref: "#/components/schemas/AttendancePagination" },
+          },
+        },
+
+        AdminAccessRequest: {
+          type: "object",
+          required: ["name", "email", "role"],
+          properties: {
+            name: { type: "string", example: "Ram Thapa" },
+            email: { type: "string", format: "email" },
+            role: { type: "string", enum: ["admin"] },
+            gender: {
+              type: "string",
+              description: "Defaults to prefer_not_to_say.",
+              example: "prefer_not_to_say",
+            },
           },
         },
 
@@ -2328,19 +2973,30 @@ const options = {
         },
       },
 
-      "/api/employees": {
+      "/employees": {
         get: {
           tags: ["Employees"],
-          summary: "List all active employees",
+          summary: "List employees",
+          description:
+            "Any authenticated user. Returns everyone except terminated employees (onboarding employees are included), sorted by name.",
+          security: [{ bearerAuth: [] }],
           responses: {
             200: {
-              description: "Array of employees",
+              description: "Employees",
               content: {
                 "application/json": {
                   schema: {
                     type: "array",
                     items: { $ref: "#/components/schemas/Employee" },
                   },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
                 },
               },
             },
@@ -2348,28 +3004,47 @@ const options = {
         },
         post: {
           tags: ["Employees"],
-          summary: "Create a new employee",
+          summary: "Create an employee",
           description:
-            "Also seeds default leave balances (sick 12, bereavement 3, maternity 60, paternity 30) for the current year.",
+            "Admin or lead. Seeds this year's leave balances and sends a welcome email if MAIL_HOST is configured.",
+          security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/EmployeeInput" },
+                schema: { $ref: "#/components/schemas/EmployeeCreateRequest" },
               },
             },
           },
           responses: {
             201: {
-              description: "Employee created",
+              description: "Created",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/Created" },
+                  schema: {
+                    $ref: "#/components/schemas/EmployeeCreatedResponse",
+                  },
                 },
               },
             },
-            500: {
-              description: "DB error",
+            400: {
+              description: "Invalid body (e.g. bad manager_id)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },
@@ -2379,15 +3054,47 @@ const options = {
           },
         },
       },
-      "/api/employees/onboarding": {
+
+      "/employees/names": {
         get: {
           tags: ["Employees"],
-          summary: "List pending applicants awaiting approval",
+          summary: "List employee names",
           description:
-            "Admin only. Returns employees created with status = 'onboarding' (is_active = false).",
+            "Any authenticated user. Id and name of every non-terminated employee, sorted by name.",
+          security: [{ bearerAuth: [] }],
           responses: {
             200: {
-              description: "Array of pending applicants",
+              description: "Names",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/EmployeeNameItem" },
+                  },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/employees/onboarding": {
+        get: {
+          tags: ["Employees"],
+          summary: "List employees pending approval",
+          description: "Admin only. Employees whose status is `onboarding`.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Pending employees",
               content: {
                 "application/json": {
                   schema: {
@@ -2397,8 +3104,16 @@ const options = {
                 },
               },
             },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
             403: {
-              description: "Insufficient permissions",
+              description: "Forbidden (admin only)",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },
@@ -2408,10 +3123,62 @@ const options = {
           },
         },
       },
-      "/api/employees/{id}": {
+
+      "/employees/bulkAdd": {
+        post: {
+          tags: ["Employees"],
+          summary: "Create employees in bulk",
+          description:
+            "Any authenticated user (no role check). All rows are validated first and inserted in one transaction, so one bad row rejects the whole batch. Seeds leave balances for each and sends one BCC welcome email.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/EmployeeBulkCreateRequest",
+                },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description: "Created",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/EmployeeBulkCreateResponse",
+                  },
+                },
+              },
+            },
+            400: {
+              description:
+                "Empty list, row validation errors (one per line in the message), or a row includes manager_id / designation_id / department_id",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/employees/{id}": {
         get: {
           tags: ["Employees"],
-          summary: "Get employee by ID",
+          summary: "Get an employee",
+          description: "Any authenticated user.",
+          security: [{ bearerAuth: [] }],
           parameters: [
             {
               name: "id",
@@ -2429,14 +3196,30 @@ const options = {
                 },
               },
             },
-            404: { description: "Not found" },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
           },
         },
         put: {
           tags: ["Employees"],
-          summary: "Update employee fields",
+          summary: "Update an employee",
           description:
-            "If designation or department changes, emails the employee an employee_updates notification if that preference is enabled (see /api/notifications/preferences).",
+            "If designation or department changes, emails the employee an employee_updates notification if that preference is enabled (see /api/notifications/preferences). Admin or lead. Partial update. Department and designation are set by name (created if new).",
+            security: [{ bearerAuth: [] }],
           parameters: [
             {
               name: "id",
@@ -2449,7 +3232,7 @@ const options = {
             required: true,
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/EmployeeInput" },
+                schema: { $ref: "#/components/schemas/EmployeeUpdateRequest" },
               },
             },
           },
@@ -2458,12 +3241,28 @@ const options = {
               description: "Updated",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/Success" },
+                  schema: { $ref: "#/components/schemas/SuccessResponse" },
                 },
               },
             },
             400: {
-              description: "Nothing to update",
+              description: "Nothing to update, own-manager, or reporting cycle",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },
@@ -2474,7 +3273,10 @@ const options = {
         },
         delete: {
           tags: ["Employees"],
-          summary: "Soft-delete employee (sets is_active = false)",
+          summary: "Deactivate an employee",
+          description:
+            "Admin only. Sets status to `terminated` (soft delete). The employee then disappears from lists and can't log in.",
+          security: [{ bearerAuth: [] }],
           parameters: [
             {
               name: "id",
@@ -2488,19 +3290,37 @@ const options = {
               description: "Deactivated",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/Success" },
+                  schema: { $ref: "#/components/schemas/SuccessResponse" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
                 },
               },
             },
           },
         },
       },
-      "/api/employees/{id}/payroll-summary": {
+
+      "/employees/{id}/payroll-summary": {
         get: {
           tags: ["Employees"],
-          summary: "Payroll summary for an employee for the current month",
+          summary: "Current-month payroll summary",
           description:
-            "Computes working days, approved-leave days, present days, and expected pay based on salary ÷ working days.",
+            "Admin or lead. Working days, approved leave, expected pay, and adjustments for the current month.",
+          security: [{ bearerAuth: [] }],
           parameters: [
             {
               name: "id",
@@ -2511,12 +3331,86 @@ const options = {
           ],
           responses: {
             200: {
-              description: "Payroll summary",
+              description: "Summary",
               content: {
                 "application/json": {
-                  schema: {
-                    $ref: "#/components/schemas/EmployeePayrollSummary",
-                  },
+                  schema: { $ref: "#/components/schemas/PayrollSummary" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Employee not found or terminated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/employees/{id}/approve": {
+        put: {
+          tags: ["Employees"],
+          summary: "Approve an onboarding employee",
+          description:
+            "Admin only. Only employees with status `onboarding`. Sets status to `active`, generates a temporary password, and emails it (or logs it if MAIL_HOST is unset).",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Approved",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/SuccessResponse" },
+                },
+              },
+            },
+            400: {
+              description: "Employee is not in onboarding status",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
                 },
               },
             },
@@ -2531,47 +3425,14 @@ const options = {
           },
         },
       },
-      "/api/employees/{id}/approve": {
+
+      "/employees/{id}/reject": {
         put: {
           tags: ["Employees"],
-          summary: "Approve a pending applicant",
+          summary: "Reject an onboarding employee",
           description:
-            "Admin only. Sets is_active = true and status = 'active', generates a one-time password, and emails it to the employee's company email. Fails if the employee is not currently in 'onboarding' status.",
-          parameters: [
-            {
-              name: "id",
-              in: "path",
-              required: true,
-              schema: { type: "integer" },
-            },
-          ],
-          responses: {
-            200: {
-              description: "Approved",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/Success" },
-                },
-              },
-            },
-            400: {
-              description: "Employee is not a pending applicant",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/Error" },
-                },
-              },
-            },
-            404: { description: "Not found" },
-          },
-        },
-      },
-      "/api/employees/{id}/reject": {
-        put: {
-          tags: ["Employees"],
-          summary: "Reject a pending applicant",
-          description:
-            "Admin only. Permanently deletes the employee record. Only allowed while the employee is still in 'onboarding' status — never affects an active or terminated employee.",
+            "Admin only. Only employees with status `onboarding`. Permanently deletes the employee row, with an optional rejection email.",
+          security: [{ bearerAuth: [] }],
           parameters: [
             {
               name: "id",
@@ -2583,9 +3444,9 @@ const options = {
               name: "send_mail",
               in: "query",
               required: false,
-              description:
-                "If true, sends a rejection notice to the employee before deleting their record.",
               schema: { type: "boolean", default: false },
+              description:
+                "Send a rejection email. Only the exact value `true` enables it.",
             },
           ],
           responses: {
@@ -2593,23 +3454,94 @@ const options = {
               description: "Rejected and deleted",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/Success" },
+                  schema: { $ref: "#/components/schemas/SuccessResponse" },
                 },
               },
             },
             400: {
-              description: "Employee is not a pending applicant",
+              description: "Employee is not in onboarding status",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },
                 },
               },
             },
-            404: { description: "Not found" },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
           },
         },
       },
-
+      "/employees/{id}/acknowledgements": {
+        get: {
+          tags: ["Employees"],
+          summary: "List an employee's policy acknowledgements",
+          description:
+            "Admin only. Returns every policy acknowledgement recorded for the employee, with each policy's title, type, and category. Returns an empty array if there are none.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+              description: "Employee id",
+            },
+          ],
+          responses: {
+            200: {
+              description: "Acknowledgements",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      $ref: "#/components/schemas/PolicyAcknowledgement",
+                    },
+                  },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
       "/api/leaves": {
         get: {
           tags: ["Leaves"],
@@ -2979,6 +3911,87 @@ const options = {
           },
         },
       },
+      "/leaves/report": {
+        get: {
+          tags: ["Leaves"],
+          summary: "Leave report for all employees",
+          description:
+            "Admin only. For the current year, returns each employee's total allocated leaves, days taken in the previous and current month (approved leaves only, clipped to month boundaries), and remaining leaves.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Report rows, one per employee with a leave balance",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/LeaveReportRow" },
+                  },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/leaves/mail": {
+        post: {
+          tags: ["Leaves"],
+          summary: "Create a leave request from an email",
+          description:
+            "No authentication. The employee is looked up by the `from` email and the leave is created on their behalf. No notification email is sent from this path.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/LeaveMailRequest" },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description: "Leave request created",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/LeaveCreatedResponse" },
+                },
+              },
+            },
+            400: {
+              description: "Invalid body (DTO validation)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "No employee with that email",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
 
       "/api/standups": {
         get: {
@@ -3032,21 +4045,7 @@ const options = {
             required: true,
             content: {
               "application/json": {
-                schema: {
-                  type: "object",
-                  required: ["employee_id", "yesterday", "today"],
-                  properties: {
-                    employee_id: { type: "integer" },
-                    yesterday: { type: "string" },
-                    today: { type: "string" },
-                    blockers: { type: "string" },
-                    standup_date: {
-                      type: "string",
-                      format: "date",
-                      description: "Defaults to today if omitted",
-                    },
-                  },
-                },
+                schema: { $ref: "#/components/schemas/StandupCreateRequest" },
               },
             },
           },
@@ -5526,22 +6525,29 @@ const options = {
           },
         },
       },
-
-      "/api/onboard": {
+      "/onboard": {
         get: {
           tags: ["Onboard"],
-          summary: "List onboarding profiles",
+          summary: "List active onboarding profiles",
+          description:
+            "Admin only. Returns only profiles with is_active = true.",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
               name: "type",
               in: "query",
-              schema: { type: "string", enum: ["all", "intern", "employee"] },
+              required: false,
+              schema: {
+                type: "string",
+                enum: ["intern", "employee", "all"],
+                default: "all",
+              },
+              description: "Filter by role.",
             },
           ],
           responses: {
             200: {
-              description: "Array of onboarding profiles",
+              description: "List of onboarding profiles",
               content: {
                 "application/json": {
                   schema: {
@@ -5551,42 +6557,56 @@ const options = {
                 },
               },
             },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
           },
         },
         post: {
           tags: ["Onboard"],
-          summary: "Submit an onboarding application with signed contract",
+          summary: "Submit an onboarding profile with documents",
           description:
-            "Public endpoint. Multipart upload — accepts .pdf/.doc/.docx up to 10 MB.",
+            "Public (no auth). If a draft already exists for the email, it is completed instead of creating a new row. All six files are required; uploaded files are deleted if the DB write fails.",
           requestBody: {
             required: true,
             content: {
               "multipart/form-data": {
-                schema: {
-                  type: "object",
-                  required: ["payload", "contract"],
-                  properties: {
-                    payload: {
-                      type: "string",
-                      description: "JSON-stringified onboarding form fields",
-                    },
-                    contract: { type: "string", format: "binary" },
-                  },
-                },
+                schema: { $ref: "#/components/schemas/OnboardSubmitRequest" },
               },
             },
           },
           responses: {
             201: {
-              description: "Onboarding data added successfully",
+              description: "Profile saved",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/MessageResponse" },
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: {
+                        type: "string",
+                        example: "Onboarding data added sucessfully!",
+                      },
+                    },
+                  },
                 },
               },
             },
             400: {
-              description: "Missing contract or validation error",
+              description: "Missing file(s) or DB error (e.g. duplicate email)",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },
@@ -5596,7 +6616,80 @@ const options = {
           },
         },
       },
-      "/api/onboard/{id}/approve": {
+
+      "/onboard/draft": {
+        get: {
+          tags: ["Onboard"],
+          summary: "Look up a job-portal draft by email",
+          description:
+            "Public (no auth). Used to pre-fill the onboarding form. Returns `found: false` if the email is missing or has no active draft.",
+          parameters: [
+            {
+              name: "email",
+              in: "query",
+              required: true,
+              schema: { type: "string", format: "email" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Lookup result",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/OnboardDraftResponse" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/onboard/request-access": {
+        post: {
+          tags: ["Onboard"],
+          summary: "Request admin access",
+          description:
+            "Public (no auth). Creates a pending onboarding row with role `admin` for review. Only `admin` is accepted as role.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/AdminAccessRequest" },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description: "Request submitted",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: {
+                        type: "string",
+                        example: "Access request submitted.",
+                      },
+                      id: { type: "integer", example: 15 },
+                    },
+                  },
+                },
+              },
+            },
+            400: {
+              description:
+                "Missing fields, invalid email, disallowed role, or duplicate email",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/onboard/{id}/approve": {
         patch: {
           tags: ["Onboard"],
           summary: "Approve an onboarding profile",
@@ -5613,84 +6706,517 @@ const options = {
           ],
           responses: {
             200: {
-              description: "Approved",
+              description:
+                "Approved. The `id` field currently holds the whole approved profile object (see note).",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/Success" },
+                  schema: {
+                    type: "object",
+                    properties: {
+                      id: { $ref: "#/components/schemas/OnboardProfile" },
+                    },
+                  },
                 },
               },
             },
-            403: {
-              description: "Insufficient permissions",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/Error" },
-                },
-              },
-            },
-            404: { description: "Not found" },
-          },
-        },
-      },
-      "/api/onboard/{id}": {
-        delete: {
-          tags: ["Onboard"],
-          summary: "Disapprove/remove an onboarding profile",
-          description: "Lead/admin only.",
-          security: [{ bearerAuth: [] }],
-          parameters: [
-            {
-              name: "id",
-              in: "path",
-              required: true,
-              schema: { type: "integer" },
-            },
-          ],
-          responses: {
-            200: {
-              description: "Removed",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/Success" },
-                },
-              },
-            },
-            403: {
-              description: "Insufficient permissions",
+            401: {
+              description: "Unauthenticated",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },
                 },
               },
             },
-            404: { description: "Not found" },
-          },
-        },
-      },
-      "/api/onboard/{id}/contract": {
-        get: {
-          tags: ["Onboard"],
-          summary: "View the uploaded contract file for an onboarding profile",
-          security: [{ bearerAuth: [] }],
-          parameters: [
-            {
-              name: "id",
-              in: "path",
-              required: true,
-              schema: { type: "integer" },
-            },
-          ],
-          responses: {
-            200: {
-              description: "Contract file stream",
+            403: {
+              description: "Forbidden",
               content: {
-                "application/pdf": {
-                  schema: { type: "string", format: "binary" },
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
                 },
               },
             },
             404: {
-              description: "Contract not found",
+              description: "Profile not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/onboard/{id}": {
+        delete: {
+          tags: ["Onboard"],
+          summary: "Reject an onboarding profile",
+          description:
+            "Lead or admin. Permanently deletes the row and its uploaded files.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Rejected and removed",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: {
+                        type: "string",
+                        example:
+                          "Onboarding profile rejected and removed sucessfully.",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            400: {
+              description: "Delete failed",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Profile not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/onboard/{id}/{type}": {
+        get: {
+          tags: ["Onboard"],
+          summary: "View an uploaded onboarding document",
+          description:
+            "Admin or lead. Streams the file inline. `citizenship` returns the front image only.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+            {
+              name: "type",
+              in: "path",
+              required: true,
+              schema: {
+                type: "string",
+                enum: ["photo", "nda", "citizenship", "pan", "certificate"],
+              },
+            },
+          ],
+          responses: {
+            200: {
+              description: "File content",
+              content: {
+                "application/octet-stream": {
+                  schema: { type: "string", format: "binary" },
+                },
+              },
+            },
+            400: {
+              description: "Invalid file type",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "File or profile not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/clock/in": {
+        post: {
+          tags: ["Clock"],
+          summary: "Clock in for today",
+          description:
+            "Creates today's clock record for the authenticated user. Only one clock-in per day is allowed. Clock-in is restricted by server-local hour (from 8 AM; see note below).",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            201: {
+              description: "Clocked in",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ClockInResponse" },
+                },
+              },
+            },
+            400: {
+              description: "Outside the allowed clock-in hours",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            409: {
+              description: "Already clocked in today",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/clock": {
+        get: {
+          tags: ["Clock"],
+          summary: "Get my clock status for a date",
+          description:
+            "Returns the authenticated user's status, clock-in/out times, and pauses for the date. If there is no record, `status` is `idle` and the times are null. Days with no pauses return a single pause entry with all-null fields.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "date",
+              in: "query",
+              required: false,
+              schema: { type: "string", format: "date" },
+              description: "YYYY-MM-DD. Defaults to today (UTC date).",
+            },
+          ],
+          responses: {
+            200: {
+              description: "Clock summary",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ClockSummaryResponse" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/clock/out": {
+        post: {
+          tags: ["Clock"],
+          summary: "Clock out for today",
+          description:
+            "Sets today's clock-out time for the authenticated user.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Clocked out",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ClockOutResponse" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "No clock-in record for today",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            409: {
+              description: "Already clocked out today",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/clock/pause": {
+        post: {
+          tags: ["Clock"],
+          summary: "Pause the clock",
+          description:
+            "Starts a pause on today's clock record. A reason is required, and only one pause can be open at a time.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ClockPauseReasonRequest",
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Paused",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/ClockPauseListResponse",
+                  },
+                },
+              },
+            },
+            400: {
+              description: "Already paused, or reason is blank",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            409: {
+              description: "Already clocked out today",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/clock/resume": {
+        post: {
+          tags: ["Clock"],
+          summary: "Resume the clock",
+          description:
+            "Closes the currently open pause on today's clock record. No request body.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Resumed",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ClockResumeResponse" },
+                },
+              },
+            },
+            400: {
+              description:
+                "Clock is not paused, or resume time is before pause time",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            409: {
+              description: "Already clocked out today",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/clock/all": {
+        get: {
+          tags: ["Clock"],
+          summary: "Everyone's clock records for a date",
+          description:
+            "Returns every employee's clock record for the date, with pauses and a derived status. Any authenticated user can call it (no role check).",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "date",
+              in: "query",
+              required: false,
+              schema: { type: "string", format: "date" },
+              description: "YYYY-MM-DD. Defaults to today (UTC date).",
+            },
+          ],
+          responses: {
+            200: {
+              description: "Clock records",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ClockTodayResponse" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/clock/attendance": {
+        get: {
+          tags: ["Clock"],
+          summary: "Paginated attendance history",
+          description:
+            "Clock records for active employees, newest first by default, with each record's pauses and total pause time. Pagination counts clock records, not pauses. Any authenticated user can call it (no role check).",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "employeeId",
+              in: "query",
+              required: false,
+              schema: { type: "integer", minimum: 1 },
+              description: "Filter to one employee.",
+            },
+            {
+              name: "startDate",
+              in: "query",
+              required: false,
+              schema: { type: "string", format: "date" },
+              description: "Inclusive lower bound on clockDate.",
+            },
+            {
+              name: "endDate",
+              in: "query",
+              required: false,
+              schema: { type: "string", format: "date" },
+              description: "Inclusive upper bound on clockDate.",
+            },
+            {
+              name: "page",
+              in: "query",
+              required: false,
+              schema: { type: "integer", minimum: 1, default: 1 },
+            },
+            {
+              name: "limit",
+              in: "query",
+              required: false,
+              schema: {
+                type: "integer",
+                minimum: 1,
+                maximum: 100,
+                default: 20,
+              },
+              description: "Values above 100 are capped at 100.",
+            },
+            {
+              name: "sortDir",
+              in: "query",
+              required: false,
+              schema: {
+                type: "string",
+                enum: ["asc", "desc"],
+                default: "desc",
+              },
+              description: "Sorted by clock-in time.",
+            },
+          ],
+          responses: {
+            200: {
+              description: "Attendance page",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/AttendanceResponse" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },

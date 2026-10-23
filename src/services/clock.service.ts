@@ -103,8 +103,8 @@ function groupByClockId(rows: RawRow[]): GroupedClockRecord[] {
 
 export async function clockIn(empId: number) {
   const hour = new Date().getHours();
-  if (hour < 8 || hour >= 24) {
-    throw new AppError("Clock-in is only allowed between 8 AM and 5 PM.", 400);
+  if (hour < 8 || hour >= 12) {
+    throw new AppError("Clock-in is only allowed between 8 AM and 12 PM.", 400);
   }
   return await employeeDailyClockRepo.addClockIn(empId);
 }
