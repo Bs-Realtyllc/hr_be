@@ -3,6 +3,7 @@ import AppError from "../pkg/AppError";
 import path from "path";
 import fs from "fs";
 import * as employeeRepo from "../repositories/employee.repository";
+import * as notificationPreferenceService from "./notificationPreference.service";
 import nodemailer from "nodemailer";
 
 interface OnboardFilenames {
@@ -66,16 +67,16 @@ export async function create(
 export async function approve(onboardId: number) {
   const profile = await onboardRepo.approveOnboardProfile(onboardId);
   // console.log(profile);
-  if (process.env.MAIL_HOST) {
+  if (!process.env.MAIL_HOST) {
+    console.info(
+      `[auth] MAIL_HOST not set — Failed to send notification mail to ${profile.email}`,
+    );
+  } else if (await notificationPreferenceService.isEnabled(profile.id, 'onboarding_updated')) {
     try {
       await sendApproveMail(profile.name, profile.email, profile.role);
     } catch (mailErr: any) {
       console.error("[auth] Failed to send reset email:", mailErr.message);
     }
-  } else {
-    console.info(
-      `[auth] MAIL_HOST not set — Failed to send notification mail to ${profile.email}`,
-    );
   }
 
   const year = new Date().getFullYear();

@@ -7,7 +7,6 @@
 --
 -- Order matters: add the new employees columns and backfill them from the
 -- tables being dropped BEFORE dropping those tables.
-USE hr_platform;
 
 -- ── Step 1: additive columns on employees ───────────────────────────────────
 -- ALTER TABLE employees
@@ -127,20 +126,99 @@ CREATE TABLE IF NOT EXISTS
   );
 
 -- ── Step 11: drop the two self-referencing FKs before dropping the columns
--- they're on (exact names confirmed via SHOW CREATE TABLE employees) ────────
-ALTER TABLE employees
-DROP FOREIGN KEY fk_employees_created_by,
-DROP FOREIGN KEY fk_employees_updated_by;
+-- they're on (exact names confirmed via SHOW CREATE TABLE employees). MySQL has
+-- no DROP FOREIGN KEY IF EXISTS, so check information_schema first, per FK —
+-- the migration runner now records this file as applied once it succeeds and
+-- never re-executes it, but this guard lets that first successful pass happen
+-- regardless of which part of this file already landed on a given database ───
+SET @fk_exists := (
+  SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+  WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'employees'
+    AND CONSTRAINT_NAME = 'fk_employees_created_by' AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+);
+SET @sql := IF(@fk_exists > 0, 'ALTER TABLE employees DROP FOREIGN KEY fk_employees_created_by', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- ── Step 12: drop the columns with no place in the new shape
-ALTER TABLE employees
-DROP INDEX idx_employees_active_status,
-DROP COLUMN is_active,
-DROP COLUMN tech_stack,
-DROP COLUMN qualifications,
-DROP COLUMN termination_date,
-DROP COLUMN termination_reason,
-DROP COLUMN created_at,
-DROP COLUMN updated_at,
-DROP COLUMN created_by,
-DROP COLUMN updated_by;
+SET @fk_exists := (
+  SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+  WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'employees'
+    AND CONSTRAINT_NAME = 'fk_employees_updated_by' AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+);
+SET @sql := IF(@fk_exists > 0, 'ALTER TABLE employees DROP FOREIGN KEY fk_employees_updated_by', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ── Step 12: drop the columns with no place in the new shape. Guarded per
+-- item rather than as one combined ALTER — earlier manual/partial runs have
+-- already dropped some of these individually on some databases, so there's
+-- no single representative column that reliably indicates the whole group's
+-- state ──────────────────────────────────────────────────────────────────────
+SET @idx_exists := (
+  SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'employees'
+    AND INDEX_NAME = 'idx_employees_active_status'
+);
+SET @sql := IF(@idx_exists > 0, 'ALTER TABLE employees DROP INDEX idx_employees_active_status', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'employees' AND COLUMN_NAME = 'is_active'
+);
+SET @sql := IF(@col_exists > 0, 'ALTER TABLE employees DROP COLUMN is_active', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'employees' AND COLUMN_NAME = 'tech_stack'
+);
+SET @sql := IF(@col_exists > 0, 'ALTER TABLE employees DROP COLUMN tech_stack', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'employees' AND COLUMN_NAME = 'qualifications'
+);
+SET @sql := IF(@col_exists > 0, 'ALTER TABLE employees DROP COLUMN qualifications', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'employees' AND COLUMN_NAME = 'termination_date'
+);
+SET @sql := IF(@col_exists > 0, 'ALTER TABLE employees DROP COLUMN termination_date', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'employees' AND COLUMN_NAME = 'termination_reason'
+);
+SET @sql := IF(@col_exists > 0, 'ALTER TABLE employees DROP COLUMN termination_reason', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'employees' AND COLUMN_NAME = 'created_at'
+);
+SET @sql := IF(@col_exists > 0, 'ALTER TABLE employees DROP COLUMN created_at', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'employees' AND COLUMN_NAME = 'updated_at'
+);
+SET @sql := IF(@col_exists > 0, 'ALTER TABLE employees DROP COLUMN updated_at', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'employees' AND COLUMN_NAME = 'created_by'
+);
+SET @sql := IF(@col_exists > 0, 'ALTER TABLE employees DROP COLUMN created_by', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'employees' AND COLUMN_NAME = 'updated_by'
+);
+SET @sql := IF(@col_exists > 0, 'ALTER TABLE employees DROP COLUMN updated_by', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

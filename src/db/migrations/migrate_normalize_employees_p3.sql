@@ -45,7 +45,6 @@
 -- written during the burn-in period that reintroduced a raw `employees` read
 -- of a soon-to-be-dropped column.
 
-USE hr_platform;
 
 -- ALTER TABLE employees
 --   DROP COLUMN phone,

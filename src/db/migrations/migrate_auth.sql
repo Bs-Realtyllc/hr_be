@@ -1,5 +1,4 @@
 -- Run this migration on your database to add auth and payroll fields
-USE hr_platform;
 
 ALTER TABLE employees
   ADD COLUMN password_hash VARCHAR(255) NULL AFTER role,

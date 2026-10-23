@@ -37,4 +37,5 @@ export {employeeClockPauses} from './EmployeeClockPauses'
 export { loginHistory } from './LoginHistory';
 export { twoFactorEmailTokens } from './TwoFactorEmailToken';
 export { trustedDevices } from './TrustedDevice';
+export { notificationPreferences } from './NotificationPreference';
 

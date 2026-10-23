@@ -1,4 +1,3 @@
-USE hr_platform;
 
 ALTER TABLE employees
   ADD COLUMN two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE,

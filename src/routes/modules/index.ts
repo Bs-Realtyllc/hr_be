@@ -26,6 +26,7 @@ import formLayoutRoutes from './formLayout.routes'
 import onboardRoutes from './onboard.routes'
 import roadmapRoutes from './roadmap.routes'
 import clockRoutes from './clock.routes'
+import notificationPreferenceRoutes from './notificationPreference.routes'
 
 const modules: Array<{ path: string; router: Router }> = [
   { path: '/auth', router: authRoutes },
@@ -55,6 +56,7 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/onboard', router: onboardRoutes},
   { path: '/roadmap', router: roadmapRoutes },
   { path: '/clock', router: clockRoutes },
+  { path: '/notifications', router: notificationPreferenceRoutes },
 
 
 ];

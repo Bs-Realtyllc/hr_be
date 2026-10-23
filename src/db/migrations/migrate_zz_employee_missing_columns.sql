@@ -3,7 +3,6 @@
 -- gender/github_url were planned for employee_profile but the model
 -- instead keeps them on employees directly; panNo had no migration at all.
 
-USE hr_platform;
 
 ALTER TABLE employees
   ADD COLUMN gender ENUM('male','female','other','prefer_not_to_say') NULL AFTER name;

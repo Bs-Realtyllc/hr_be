@@ -2,7 +2,6 @@
 -- employees.status already has an 'onboarding' value (migrate_normalize_employees_p1.sql)
 -- that's never been wired up until now — no change needed to `employees` itself.
 
-USE hr_platform;
 
 -- ALTER TABLE employee_profile
 --   ADD COLUMN gender ENUM('male','female','other','prefer_not_to_say') NULL AFTER dob,

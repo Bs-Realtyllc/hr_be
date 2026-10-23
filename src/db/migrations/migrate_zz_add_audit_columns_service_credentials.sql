@@ -1,7 +1,6 @@
 -- Adds the standard audit columns to service_credentials as part of
 -- converting the Service Credentials domain to the BaseModel standard —
 -- see src/models/BaseModel.ts and instruction.md. Already has updated_at.
-USE hr_platform;
 
 ALTER TABLE service_credentials
   ADD COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP AFTER notes,

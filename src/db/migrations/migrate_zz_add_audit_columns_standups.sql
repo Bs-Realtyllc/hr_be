@@ -1,7 +1,6 @@
 -- Adds the standard audit columns to standups as part of converting the
 -- Standups domain to the BaseModel standard — see src/models/BaseModel.ts
 -- and instruction.md. standups already has created_at.
-USE hr_platform;
 
 ALTER TABLE standups
   ADD COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at,

@@ -1,7 +1,3 @@
-CREATE DATABASE IF NOT EXISTS hr_platform;
-
-USE hr_platform;
-
 CREATE TABLE
   IF NOT EXISTS employees (
     id INT PRIMARY KEY AUTO_INCREMENT,
