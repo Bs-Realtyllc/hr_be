@@ -113,7 +113,7 @@ export async function findAllActive() {
 }
 export async function findAllActiveNames() {
   const rows = await db
-    .select({ id: employees.id, name: employees.name })
+    .select({ id: employees.id, name: employees.name, role: employees.role })
     .from(employees)
     .where(ACTIVE_ROSTER)
     .orderBy(employees.name);
@@ -848,4 +848,16 @@ export async function createBulk(
     // const selectedDataId = selectedData.map((s) => s.id);
     return selectedData;
   });
+}
+
+export async function findEmailsByIds(ids: (number | string)[]) {
+  const numericIds = [...new Set(ids.map(Number))].filter(
+    (n) => Number.isInteger(n) && n > 0,
+  );
+  if (numericIds.length === 0) return [];
+
+  return db
+    .select({ id: employees.id, email: employees.email })
+    .from(employees)
+    .where(and(inArray(employees.id, numericIds), ACTIVE_ROSTER));
 }

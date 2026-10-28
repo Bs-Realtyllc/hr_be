@@ -1,5 +1,5 @@
-export function buildLeaveEmailSubject(): string {
-  return 'Leave Request';
+export function buildLeaveEmailSubject(leaveId: number, name:string): string {
+  return `[LEAVE-${leaveId}] Leave Request: ${name}`;
 }
 
 export function buildLeaveEmailHtml(leave: any, start: string, end: string, isSingleDay: boolean): string {

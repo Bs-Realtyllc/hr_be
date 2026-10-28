@@ -13,7 +13,7 @@ async function notifyLeaveStatusIfNeeded(employeeId: number, status: 'approved' 
   if (!process.env.MAIL_HOST) return;
   try {
     const enabled = await notificationPreferenceService.isEnabled(employeeId, 'leave_request');
-    if (!enabled) return;
+    if (enabled === false) return;
     const emp = await employeeRepo.findById(employeeId);
     if (!emp) return;
     const verb = status === 'approved' ? 'approved' : 'rejected';
@@ -88,19 +88,72 @@ export async function outThisWeek() {
   return leaveRepo.findOutInRange(monday.toISOString().split('T')[0], friday.toISOString().split('T')[0]);
 }
 
+interface EmailParams {
+  to?: string;
+  cc?: number[];
+  bcc?: number[];
+}
+
+async function resolveRecipients({ to, cc = [], bcc = [] }: EmailParams) {
+  if (!to) return null;
+
+  const ids = [...new Set([...cc, ...bcc])];
+  const rows = await employeeRepo.findEmailsByIds(ids);
+  const emailById = new Map(rows.map((r) => [r.id, r.email]));
+
+  const missing = ids.filter((id) => !emailById.has(id));
+  if (missing.length) {
+    throw new AppError(`Unknown employee id(s): ${missing.join(", ")}`, 400);
+  }
+
+  const joinEmails = (list: number[]) =>
+    [...new Set(list)].map((id) => emailById.get(id)!).join(",") || undefined;
+
+  console.log({
+    to: to,
+    cc: joinEmails(cc),
+    bcc: joinEmails(bcc),
+  })
+
+  return {
+    to: to,
+    cc: joinEmails(cc),
+    bcc: joinEmails(bcc),
+  };
+}
+
 export async function create(
   data: LeaveCreateInput,
   actorId: number | null,
-  emailParams: { to?: string; cc?: string; bcc?: string } = {}
+  emailParams: EmailParams = {},
 ) {
+  // validate recipients first so a bad id doesn't leave an orphan leave row
+  console.log('receipents', emailParams)
+  const recipients = await resolveRecipients(emailParams);
+
   const leaveId = await leaveRepo.create(data, actorId);
-  if (emailParams.to) {
-    sendEmailAsync(leaveId, data.employee_id, emailParams.to, emailParams.cc, emailParams.bcc);
+  // console.log(recipients)
+
+  if (recipients) {
+    // fire-and-forget, as before: errors are logged inside sendEmailAsync
+    sendEmailAsync(
+      leaveId,
+      actorId,
+      recipients.to,
+      recipients.cc,
+      recipients.bcc,
+    );
   }
-  notifyApproversOfNewLeaveRequest(data.employee_id, data.leave_type, data.start_date, data.end_date);
+
+  notifyApproversOfNewLeaveRequest(
+    actorId,
+    data.leave_type,
+    data.start_date,
+    data.end_date,
+  );
+
   return leaveId;
 }
-
 export async function update(id: string, updates: LeaveUpdateInput, userId: number) {
   const leave = await leaveRepo.findById(id);
   if (!leave) throw new AppError('Not found', 404);
@@ -118,10 +171,15 @@ export async function cancel(id: string, userId: number) {
 }
 
 export async function approve(id: string, user: AuthUser) {
-  if (!['admin', 'lead'].includes(user.role)) throw new AppError('Insufficient permissions', 403);
+  // if (!['admin', 'lead'].includes(user.role)) throw new AppError('Insufficient permissions', 403);
 
   const leave = await leaveRepo.findById(id);
   if (!leave) throw new AppError('Not found', 404);
+
+    if(leave.status === 'approved' || leave.status === 'rejected'){
+    throw new AppError(`Leave request has already been ${leave.status}`, 400)
+  }
+
 
   if (user.role === 'lead' && leave.employee_id === user.id) {
     throw new AppError('Team leads cannot approve their own leave requests', 403);
@@ -139,6 +197,7 @@ export async function approve(id: string, user: AuthUser) {
   const year = start.getFullYear();
 
   await applyLeaveDeductionIfNeeded(leave, days, year);
+  // console.log(id, )
   await leaveRepo.approve(id, user.id);
   await leaveRepo.incrementBalanceTaken(leave.employee_id, leave.leave_type, year, days);
   notifyLeaveStatusIfNeeded(leave.employee_id, 'approved', leave.leave_type, leave.start_date, leave.end_date);
@@ -224,11 +283,11 @@ async function applyLeaveDeductionIfNeeded(leave: any, days: number, year: numbe
 async function sendEmailAsync(leaveId: number, employeeId: number, to: string, cc?: string, bcc?: string) {
   const nodemailer = require('nodemailer');
   try {
-    const cfg = await emailSettingsRepo.findFullByEmployeeId(employeeId);
-    if (!cfg) {
-      console.error('[email] No config for employee', employeeId);
-      return;
-    }
+    // const cfg = await emailSettingsRepo.findFullByEmployeeId(employeeId);
+    // if (!cfg) {
+    //   console.error('[email] No config for employee', employeeId);
+    //   return;
+    // }
 
     const leave = await leaveRepo.findWithEmployeeById(leaveId);
     if (!leave) {
@@ -243,18 +302,22 @@ async function sendEmailAsync(leaveId: number, employeeId: number, to: string, c
 
     const html = buildLeaveEmailHtml(leave, start, end, isSingleDay);
 
-    const transporter = nodemailer.createTransport({
-      host: cfg.smtp_host,
-      port: cfg.smtp_port,
-      secure: cfg.smtp_port === 465,
-      auth: { user: cfg.smtp_user, pass: cfg.smtp_pass },
-    });
+  const transporter = nodemailer.createTransport({
+    host: process.env.MAIL_HOST,
+    port: Number(process.env.MAIL_PORT) || 587,
+    secure: process.env.MAIL_SECURE === "true",
+    auth: {
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASS,
+    },
+  });
+
     await transporter.sendMail({
-      from: `"${(leave as any).employee_name}" <${cfg.smtp_from || cfg.smtp_user}>`,
+      from: process.env.MAIL_FROM || process.env.MAIL_USER,
       to,
-      cc: cc || undefined,
-      bcc: bcc || undefined,
-      subject: buildLeaveEmailSubject(),
+      cc: cc,
+      bcc: bcc,
+      subject: buildLeaveEmailSubject(leaveId, leave.employee_name),
       html,
     });
     console.log('[email] Leave notification sent for leave', leaveId);
@@ -284,4 +347,51 @@ export async function createViaMail(data:LeaveCreateInputViaMail) {
   const leaveId = await leaveRepo.create(newData, id);
   return leaveId
 
+}
+//approve Via mail only
+export async function approveViaMail(id: string) {
+  const leave = await leaveRepo.findById(id);
+  if (!leave) throw new AppError('Not found', 404);
+
+  if(leave.status === 'approved' || leave.status === 'rejected'){
+    throw new AppError(`Leave request has already been ${leave.status}`, 400)
+  }
+
+  const user = await employeeRepo.findByEmail('admin@gitgi.com')
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (new Date(leave.end_date) < today) {
+    throw new AppError('Cannot approve a leave request whose dates have already passed.', 400);
+  }
+
+  const start = new Date(leave.start_date);
+  const end = new Date(leave.end_date);
+  const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const year = start.getFullYear();
+
+  await applyLeaveDeductionIfNeeded(leave, days, year);
+  await leaveRepo.approve(id, user.id);
+  await leaveRepo.incrementBalanceTaken(leave.employee_id, leave.leave_type, year, days);
+  notifyLeaveStatusIfNeeded(leave.employee_id, 'approved', leave.leave_type, leave.start_date, leave.end_date);
+}
+//reject Via mail only
+export async function rejectViaMail(id: string) {
+  const leave = await leaveRepo.findById(id);
+  if (!leave) throw new AppError('Not found', 404);
+
+  if(leave.status === 'approved' || leave.status === 'rejected'){
+    throw new AppError(`Leave request has already been ${leave.status}`, 400)
+  }
+
+  const user = await employeeRepo.findByEmail('admin@gitgi.com')
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (new Date(leave.end_date) < today) {
+    throw new AppError('Cannot approve a leave request whose dates have already passed.', 400);
+  }
+
+  await leaveRepo.reject(id, user.id);
+  notifyLeaveStatusIfNeeded(leave.employee_id, 'rejected', leave.leave_type, leave.start_date, leave.end_date);
 }

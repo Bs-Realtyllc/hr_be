@@ -31,8 +31,8 @@ export const outThisWeek = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const create = asyncHandler(async (req: any, res: Response) => {
-  const { to, cc, bcc } = req.body;
   // console.log("working",req.body)
+  const { to, cc, bcc } = req.body;
   const input = leaveDto.toCreateInput(req.body);
   const id = await leaveService.create(input, req.user?.id ?? null, {
     to,
@@ -69,4 +69,14 @@ export const createViaMail = asyncHandler(async (req: any, res: Response) => {
   // console.log(input)
    const id = await leaveService.createViaMail(input);
   res.status(201).json({ id });
+});
+
+export const approveViaMail = asyncHandler(async (req: any, res: Response) => {
+  await leaveService.approveViaMail(req.params.id);
+  res.json({ success: true });
+});
+
+export const rejectViaMail = asyncHandler(async (req: any, res: Response) => {
+  await leaveService.rejectViaMail(req.params.id);
+  res.json({ success: true });
 });
