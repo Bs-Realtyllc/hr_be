@@ -128,7 +128,6 @@ export async function create(
   emailParams: EmailParams = {},
 ) {
   // validate recipients first so a bad id doesn't leave an orphan leave row
-  console.log('receipents', emailParams)
   const recipients = await resolveRecipients(emailParams);
 
   const leaveId = await leaveRepo.create(data, actorId);
