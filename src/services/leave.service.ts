@@ -109,11 +109,6 @@ async function resolveRecipients({ to, cc = [], bcc = [] }: EmailParams) {
   const joinEmails = (list: number[]) =>
     [...new Set(list)].map((id) => emailById.get(id)!).join(",") || undefined;
 
-  console.log({
-    to: to,
-    cc: joinEmails(cc),
-    bcc: joinEmails(bcc),
-  })
 
   return {
     to: to,
@@ -357,6 +352,9 @@ export async function approveViaMail(id: string) {
   }
 
   const user = await employeeRepo.findByEmail('admin@gitgi.com')
+  if(!user){
+    throw new AppError(`Couldn't approve request via mail. Please accept manually by logging in.`)
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -370,9 +368,11 @@ export async function approveViaMail(id: string) {
   const year = start.getFullYear();
 
   await applyLeaveDeductionIfNeeded(leave, days, year);
-  await leaveRepo.approve(id, user.id);
+  const updatedLeave = await leaveRepo.approve(id, user.id);
   await leaveRepo.incrementBalanceTaken(leave.employee_id, leave.leave_type, year, days);
   notifyLeaveStatusIfNeeded(leave.employee_id, 'approved', leave.leave_type, leave.start_date, leave.end_date);
+
+  return updatedLeave;
 }
 //reject Via mail only
 export async function rejectViaMail(id: string) {

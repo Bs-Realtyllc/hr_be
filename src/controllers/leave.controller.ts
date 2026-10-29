@@ -72,8 +72,8 @@ export const createViaMail = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const approveViaMail = asyncHandler(async (req: any, res: Response) => {
-  await leaveService.approveViaMail(req.params.id);
-  res.json({ success: true });
+  const updatedLeave = await leaveService.approveViaMail(req.params.id);
+  res.json(updatedLeave);
 });
 
 export const rejectViaMail = asyncHandler(async (req: any, res: Response) => {
