@@ -164,11 +164,29 @@ export async function findWithEmployeeById(id: number | string) {
   return rows[0] || null;
 }
 
-export async function approve(id: number | string, reviewerId: number = null) {
-  await db
-    .update(leaveRequests)
-    .set({ status: 'approved', reviewed_by: reviewerId, reviewed_at: new Date(), updated_by: reviewerId })
-    .where(eq(leaveRequests.id, Number(id)));
+export async function approve(id: number | string, reviewerId: number | null = null) {
+  const leaveId = Number(id);
+
+  return db.transaction(async (tx) => {
+    const [result] = await tx
+      .update(leaveRequests)
+      .set({
+        status: 'approved',
+        reviewed_by: reviewerId,
+        reviewed_at: new Date(),
+        updated_by: reviewerId,
+      })
+      .where(eq(leaveRequests.id, leaveId));
+
+    if (result.affectedRows === 0) return null;
+
+    const [row] = await tx
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.id, leaveId));
+
+    return row ?? null;
+  });
 }
 
 export async function approveExternally(id: number | string) {
