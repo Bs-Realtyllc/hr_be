@@ -164,7 +164,7 @@ export async function findWithEmployeeById(id: number | string) {
   return rows[0] || null;
 }
 
-export async function approve(id: number | string, reviewerId: number) {
+export async function approve(id: number | string, reviewerId: number = null) {
   await db
     .update(leaveRequests)
     .set({ status: 'approved', reviewed_by: reviewerId, reviewed_at: new Date(), updated_by: reviewerId })
@@ -191,7 +191,7 @@ export async function findApprovedForEmployeeInRange(employeeId: number | string
   return rows[0] || null;
 }
 
-export async function reject(id: number | string, reviewerId: number) {
+export async function reject(id: number | string, reviewerId: number = null) {
   await db
     .update(leaveRequests)
     .set({ status: 'rejected', reviewed_by: reviewerId, reviewed_at: new Date(), updated_by: reviewerId })

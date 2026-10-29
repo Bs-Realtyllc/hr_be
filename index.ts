@@ -89,7 +89,13 @@ app.use(
   ),
 );
 
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || true,
+    credentials: true,
+  }),
+);
+app.use(cookieParser())
 
 const uploadsDir = path.join(process.cwd(), "uploads");
 //for profile images -- no auth
