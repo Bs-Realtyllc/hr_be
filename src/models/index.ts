@@ -38,4 +38,9 @@ export { loginHistory } from './LoginHistory';
 export { twoFactorEmailTokens } from './TwoFactorEmailToken';
 export { trustedDevices } from './TrustedDevice';
 export { notificationPreferences } from './NotificationPreference';
+export { inboxCategories, inboxChannels, inboxChannelMembers } from './InboxChannel';
+export { inboxMessages } from './InboxMessage';
+export { inboxMessageReactions } from './InboxReaction';
+export { inboxDmMessages } from './InboxDmMessage';
+export { inboxVoicePresence, inboxPresence } from './InboxPresence';
 

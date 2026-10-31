@@ -1,4 +1,5 @@
 import "dotenv/config";
+import http from "http";
 import path from "path";
 import express from "express";
 import cors from "cors";
@@ -7,6 +8,7 @@ import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
 import morgan from "morgan";
 import { enqueueAccessLog } from "./src/pkg/requestLogQueue";
+import { attachInboxSocket } from "./src/ws/inboxSocket";
 
 import { sql } from "drizzle-orm";
 import swaggerSpec from "./src/swagger";
@@ -89,13 +91,12 @@ app.use(
   ),
 );
 
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || true,
-    credentials: true,
-  }),
-);
-app.use(cookieParser())
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:6001',
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-trace-id'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+}));
 
 const uploadsDir = path.join(process.cwd(), "uploads");
 //for profile images -- no auth
@@ -138,7 +139,14 @@ async function start() {
     process.exit(1);
   }
 
-  app.listen(ENV.PORT, () => {
+  const httpServer = http.createServer(app);
+
+  /* Attach Socket.IO for Inbox real-time events */
+  const io = attachInboxSocket(httpServer);
+  app.set('io', io);
+  console.log(`✔ Inbox WebSocket     →  ws://localhost:${ENV.PORT}/ws/inbox`);
+
+  httpServer.listen(ENV.PORT, () => {
     console.log(`✔ Backend running     →  http://localhost:${ENV.PORT}`);
     console.log(
       `✔ Swagger UI          →  http://localhost:${ENV.PORT}/api/swagger`,

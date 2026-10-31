@@ -7,6 +7,7 @@ export const pool = mysql.createPool({
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'hr_platform',
+  socketPath: process.env.DB_SOCKET_PATH,
   waitForConnections: true,
   connectionLimit: 10,
   timezone: '+00:00',

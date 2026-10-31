@@ -27,6 +27,7 @@ import onboardRoutes from './onboard.routes'
 import roadmapRoutes from './roadmap.routes'
 import clockRoutes from './clock.routes'
 import notificationPreferenceRoutes from './notificationPreference.routes'
+import inboxRoutes from './inbox.routes'
 
 const modules: Array<{ path: string; router: Router }> = [
   { path: '/auth', router: authRoutes },
@@ -57,6 +58,7 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/roadmap', router: roadmapRoutes },
   { path: '/clock', router: clockRoutes },
   { path: '/notifications', router: notificationPreferenceRoutes },
+  { path: '/inbox',         router: inboxRoutes },
 
 
 ];
