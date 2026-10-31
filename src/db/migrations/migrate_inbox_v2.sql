@@ -28,9 +28,8 @@ CREATE TABLE IF NOT EXISTS inbox_notification_prefs (
 );
 
 -- Add required_role to channels so admins can restrict access
-ALTER TABLE inbox_channels
-  ADD COLUMN IF NOT EXISTS required_role ENUM('admin','lead','employee','intern') NOT NULL DEFAULT 'intern',
-  ADD COLUMN IF NOT EXISTS is_archived   TINYINT(1)                               NOT NULL DEFAULT 0;
+ALTER TABLE inbox_channels ADD COLUMN IF NOT EXISTS required_role ENUM('admin','lead','employee','intern') NOT NULL DEFAULT 'intern';
+ALTER TABLE inbox_channels ADD COLUMN IF NOT EXISTS is_archived   TINYINT(1) NOT NULL DEFAULT 0;
 
 -- Seed all existing employees into all existing channels as members
 INSERT IGNORE INTO inbox_channel_members (channel_id, employee_id)

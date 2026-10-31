@@ -13,9 +13,8 @@ INSERT IGNORE INTO inbox_categories (id, name, position) VALUES
   (2, 'Voice Channels', 1);
 
 -- Add category_id and is_private to inbox_channels
-ALTER TABLE inbox_channels
-  ADD COLUMN IF NOT EXISTS category_id INT DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS is_private  TINYINT NOT NULL DEFAULT 0;
+ALTER TABLE inbox_channels ADD COLUMN IF NOT EXISTS category_id INT DEFAULT NULL;
+ALTER TABLE inbox_channels ADD COLUMN IF NOT EXISTS is_private  TINYINT NOT NULL DEFAULT 0;
 
 -- Migrate existing channels to default categories
 UPDATE inbox_channels SET category_id = 1 WHERE type IN ('text', 'announcement') AND category_id IS NULL;
