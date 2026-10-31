@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS inbox_saved_messages (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- reply_to fields on inbox_messages (in case not yet added)
-ALTER TABLE inbox_messages
-  ADD COLUMN IF NOT EXISTS reply_to_id      INT DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS reply_to_content VARCHAR(500) DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS reply_to_author  VARCHAR(100) DEFAULT NULL;
+ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS reply_to_id      INT DEFAULT NULL;
+ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS reply_to_content VARCHAR(500) DEFAULT NULL;
+ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS reply_to_author  VARCHAR(100) DEFAULT NULL;
