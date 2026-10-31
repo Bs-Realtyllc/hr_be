@@ -284,7 +284,7 @@ export const forwardMessage = asyncHandler(async (req: any, res: Response) => {
 
 export const uploadDmAudio = asyncHandler(async (req: any, res: Response) => {
   if (!req.file) throw Object.assign(new Error('No audio file uploaded'), { status: 400 });
-  const key = await uploadAudioToMinio(req.file.buffer, req.file.originalname, req.file.mimetype);
+  const key = await uploadAudioToMinio(req.file.buffer, req.file.mimetype);
   const apiBase  = process.env.API_BASE_URL ?? `${req.protocol}://${req.get('host')}/api`;
   const proxyUrl = `${apiBase}/inbox/audio/${encodeURIComponent(key)}`;
   res.json({ key, presignedUrl: proxyUrl });
@@ -324,26 +324,3 @@ export const updatePresence = asyncHandler(async (req: any, res: Response) => {
   res.json(result);
 });
 
-/* ── Audio upload (DM) ───────────────────────────────────── */
-
-export const uploadDmAudio = asyncHandler(async (req: any, res: Response) => {
-  if (!req.file) throw Object.assign(new Error('No audio file uploaded'), { status: 400 });
-  const key = await uploadAudioToMinio(req.file.buffer, req.file.mimetype);
-  const host = `${req.protocol}://${req.get('host')}`;
-  const proxyUrl = `${host}/api/inbox/audio/${encodeURIComponent(key)}`;
-  res.status(201).json({ key, presignedUrl: proxyUrl });
-});
-
-/* ── Audio stream (proxy from MinIO) ─────────────────────── */
-
-export const streamAudio = asyncHandler(async (req: any, res: Response) => {
-  const key = req.params.key as string;
-  if (!key || key.includes('..') || key.includes('/'))
-    throw Object.assign(new Error('Invalid audio key'), { status: 400 });
-  const { stream, size, contentType } = await streamAudioFromMinio(key);
-  res.setHeader('Content-Type', contentType);
-  res.setHeader('Content-Length', size);
-  res.setHeader('Accept-Ranges', 'bytes');
-  res.setHeader('Cache-Control', 'private, max-age=3600');
-  stream.pipe(res);
-});
