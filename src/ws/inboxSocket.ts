@@ -3,6 +3,7 @@ import { Server as SocketServer, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import * as repo from '../repositories/inbox.repository';
 import * as inboxService from '../services/inbox.service';
+import { hydrateAudioUrl, getDmMessageById } from '../repositories/inbox.mongo.repository';
 
 interface AuthPayload { id: number; name: string; role: string; }
 
@@ -107,7 +108,7 @@ export function attachInboxSocket(httpServer: HttpServer) {
     });
 
     /* ── message:send ────────────────────────────────────────── */
-    socket.on('message:send', async (data: { channelId: number; content: string; replyToId?: number }) => {
+    socket.on('message:send', async (data: { channelId: number; content: string; replyToId?: string }) => {
       try {
         /* Enforce per-member write permissions for private channels */
         const memberRole = await repo.getMemberRole(user.id, data.channelId);
@@ -123,7 +124,7 @@ export function attachInboxSocket(httpServer: HttpServer) {
     });
 
     /* ── message:edit ────────────────────────────────────────── */
-    socket.on('message:edit', async (data: { messageId: number; content: string; channelId: number }) => {
+    socket.on('message:edit', async (data: { messageId: string; content: string; channelId: number }) => {
       try {
         const result = await inboxService.editMessage(user, data.messageId, data.content);
         io.to(`channel:${data.channelId}`).emit('message:edited', result);
@@ -133,7 +134,7 @@ export function attachInboxSocket(httpServer: HttpServer) {
     });
 
     /* ── message:delete ──────────────────────────────────────── */
-    socket.on('message:delete', async (data: { messageId: number; channelId: number }) => {
+    socket.on('message:delete', async (data: { messageId: string; channelId: number }) => {
       try {
         await inboxService.deleteMessage(user, data.messageId);
         io.to(`channel:${data.channelId}`).emit('message:deleted', { id: data.messageId });
@@ -143,7 +144,7 @@ export function attachInboxSocket(httpServer: HttpServer) {
     });
 
     /* ── reaction:toggle ─────────────────────────────────────── */
-    socket.on('reaction:toggle', async (data: { messageId: number; emoji: string; channelId: number }) => {
+    socket.on('reaction:toggle', async (data: { messageId: string; emoji: string; channelId: number }) => {
       try {
         const result = await inboxService.toggleReaction(user, data.messageId, data.emoji);
         io.to(`channel:${data.channelId}`).emit('reaction:updated', result);
@@ -188,15 +189,18 @@ export function attachInboxSocket(httpServer: HttpServer) {
     socket.on('dm:send', async (data: { toUserId: number; content: string }) => {
       try {
         const result = await inboxService.sendDm(user, data.toUserId, data.content);
+        const hydratedContent = await hydrateAudioUrl(data.content);
         const payload = {
           id: result.id,
           from: user.id,
           from_name: user.name,
           to: data.toUserId,
-          content: data.content,
+          content: hydratedContent,
           created_at: new Date().toISOString(),
         };
         io.to(`user:${data.toUserId}`).emit('dm:new', payload);
+        /* Notify sender's other open tabs — the sending tab ignores it via myIdRef guard */
+        io.to(`user:${user.id}`).emit('dm:new', payload);
         socket.emit('dm:sent', { localTs: data.content, id: result.id });
       } catch (err: any) {
         socket.emit('error', { code: err.status ?? 500, message: err.message });
@@ -204,25 +208,30 @@ export function attachInboxSocket(httpServer: HttpServer) {
     });
 
     /* ── dm:edit ─────────────────────────────────────────────── */
-    socket.on('dm:edit', async (data: { messageId: number; content: string }) => {
+    socket.on('dm:edit', async (data: { messageId: string; content: string }) => {
       try {
+        const dm = await getDmMessageById(data.messageId);
         const result = await inboxService.editDm(user, data.messageId, data.content);
-        /* Notify the sender's other tabs */
-        socket.emit('dm:edited', result);
-        /* We'd need the partner id to notify the recipient — look it up */
-        /* For now emit to the sender's own user room so other tabs update */
         io.to(`user:${user.id}`).emit('dm:edited', result);
+        if (dm) {
+          const partnerId = dm.from_employee_id === user.id ? dm.to_employee_id : dm.from_employee_id;
+          io.to(`user:${partnerId}`).emit('dm:edited', result);
+        }
       } catch (err: any) {
         socket.emit('error', { code: err.status ?? 500, message: err.message });
       }
     });
 
     /* ── dm:delete ───────────────────────────────────────────── */
-    socket.on('dm:delete', async (data: { messageId: number }) => {
+    socket.on('dm:delete', async (data: { messageId: string }) => {
       try {
+        const dm = await getDmMessageById(data.messageId);
         await inboxService.deleteDm(user, data.messageId);
-        socket.emit('dm:deleted', { id: data.messageId });
         io.to(`user:${user.id}`).emit('dm:deleted', { id: data.messageId });
+        if (dm) {
+          const partnerId = dm.from_employee_id === user.id ? dm.to_employee_id : dm.from_employee_id;
+          io.to(`user:${partnerId}`).emit('dm:deleted', { id: data.messageId });
+        }
       } catch (err: any) {
         socket.emit('error', { code: err.status ?? 500, message: err.message });
       }

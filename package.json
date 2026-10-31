@@ -9,7 +9,8 @@
     "migrate": "node dist/src/db/migrate.js",
     "seed:roadmap": "node dist/src/db/seed/run-roadmap-seed.js",
     "create-admin": "node dist/src/db/create-admin.js",
-    "generate:openapi": "npm run build && node scripts/generate-openapi.js"
+    "generate:openapi": "npm run build && node scripts/generate-openapi.js",
+    "setup:minio": "tsx scripts/setup-minio.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -23,6 +24,8 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "livekit-server-sdk": "^2.19.2",
+    "minio": "^8.0.7",
+    "mongoose": "^8.24.7",
     "morgan": "^1.12.1",
     "multer": "^2.1.1",
     "mysql2": "^3.6.0",

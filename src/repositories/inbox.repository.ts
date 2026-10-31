@@ -616,6 +616,29 @@ export async function getSavedMessages(employeeId: number) {
   return (rows[0] as any[]) ?? [];
 }
 
+/* ── Employee helpers (used by inbox.service for denormalization) ── */
+
+export async function getEmployeeDesignation(employeeId: number): Promise<string> {
+  const rows: any[] = await db.execute(sql`
+    SELECT d.title
+    FROM employees e
+    LEFT JOIN designations d ON e.designation_id = d.id
+    WHERE e.id = ${employeeId}
+  `);
+  return ((rows[0] as any[])?.[0]?.title as string) ?? '';
+}
+
+export async function getEmployeesByIds(ids: number[]): Promise<{ id: number; name: string; designation: string }[]> {
+  if (ids.length === 0) return [];
+  const rows: any[] = await db.execute(sql`
+    SELECT e.id, e.name, COALESCE(d.title, '') AS designation
+    FROM employees e
+    LEFT JOIN designations d ON e.designation_id = d.id
+    WHERE e.id IN (${sql.raw(ids.join(','))})
+  `);
+  return (rows[0] as any[]) ?? [];
+}
+
 /* ── Forward message ─────────────────────────────────────── */
 
 export async function forwardToChannel(fromEmployeeId: number, sourceMessageId: number, targetChannelId: number, content: string) {

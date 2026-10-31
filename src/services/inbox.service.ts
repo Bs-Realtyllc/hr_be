@@ -1,5 +1,6 @@
 import { AccessToken } from 'livekit-server-sdk';
-import * as repo from '../repositories/inbox.repository';
+import * as repo       from '../repositories/inbox.repository';
+import * as mongoRepo  from '../repositories/inbox.mongo.repository';
 
 interface AuthUser { id: number; name: string; role: string; }
 
@@ -146,14 +147,14 @@ export async function getVoiceToken(user: AuthUser, channelId: number) {
 
 export async function getMessages(channelId: number, limit = 50, before?: string) {
   const beforeDate = before ? new Date(before) : undefined;
-  return repo.listMessages(channelId, limit, beforeDate);
+  return mongoRepo.listChannelMessages(channelId, limit, beforeDate);
 }
 
 export async function sendMessage(
   user: AuthUser,
   channelId: number,
   content: string,
-  replyToId?: number,
+  replyToId?: string,
 ) {
   const trimmed = content.trim();
   if (!trimmed) throw Object.assign(new Error('Message cannot be empty'), { status: 400 });
@@ -166,71 +167,93 @@ export async function sendMessage(
     throw Object.assign(new Error('Only admins/leads can post in announcement channels'), { status: 403 });
   }
 
-  const id = await repo.insertMessage({
-    channel_id: channelId,
-    employee_id: user.id,
-    content: trimmed,
-    reply_to_id: replyToId,
+  const authorDesignation = await repo.getEmployeeDesignation(user.id).catch(() => '');
+
+  let replyToContent: string | undefined;
+  let replyToAuthor:  string | undefined;
+  if (replyToId) {
+    const parent = await mongoRepo.getChannelMessageById(replyToId);
+    if (parent) { replyToContent = parent.content; replyToAuthor = parent.author_name ?? undefined; }
+  }
+
+  const id = await mongoRepo.insertChannelMessage({
+    channelId, employeeId: user.id, authorName: user.name, authorDesignation,
+    content: trimmed, replyToId, replyToContent, replyToAuthor,
   });
 
-  return await repo.getFullMessageById(id) ?? { id };
+  return mongoRepo.getFullChannelMessageById(id) ?? { id };
 }
 
-export async function editMessage(user: AuthUser, messageId: number, content: string) {
+export async function editMessage(user: AuthUser, messageId: string, content: string) {
   const trimmed = content.trim();
   if (!trimmed) throw Object.assign(new Error('Content cannot be empty'), { status: 400 });
-
-  const msg = await repo.getMessageById(messageId);
+  const msg = await mongoRepo.getChannelMessageById(messageId);
   if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
   if (msg.employee_id !== user.id) throw Object.assign(new Error('You can only edit your own messages'), { status: 403 });
-
-  await repo.updateMessageContent(messageId, trimmed, user.id);
+  await mongoRepo.updateChannelMessageContent(messageId, user.id, trimmed);
   return { id: messageId, content: trimmed, is_edited: 1 };
 }
 
-export async function deleteMessage(user: AuthUser, messageId: number) {
-  const msg = await repo.getMessageById(messageId);
+export async function deleteMessage(user: AuthUser, messageId: string) {
+  const msg = await mongoRepo.getChannelMessageById(messageId);
   if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
   const isAdmin = user.role === 'admin';
   if (!isAdmin && msg.employee_id !== user.id) {
     throw Object.assign(new Error('You can only delete your own messages'), { status: 403 });
   }
-  await repo.softDeleteMessage(messageId, user.id, isAdmin);
+  await mongoRepo.softDeleteChannelMessage(messageId, user.id, isAdmin);
   return { id: messageId };
 }
 
-export async function togglePin(user: AuthUser, messageId: number) {
+export async function togglePin(user: AuthUser, messageId: string) {
   if (!['admin', 'lead'].includes(user.role)) {
     throw Object.assign(new Error('Admins/leads only'), { status: 403 });
   }
-  const msg = await repo.getMessageById(messageId);
+  const msg = await mongoRepo.getChannelMessageById(messageId);
   if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
   const pinned = !msg.is_pinned;
-  await repo.togglePin(messageId, pinned);
+  await mongoRepo.togglePinChannelMessage(messageId, !!pinned);
   return { id: messageId, is_pinned: pinned };
 }
 
 /* ── Reactions ────────────────────────────────────────────── */
 
-export async function toggleReaction(user: AuthUser, messageId: number, emoji: string) {
+export async function toggleReaction(user: AuthUser, messageId: string, emoji: string) {
   if (!emoji || emoji.length > 12) throw Object.assign(new Error('Invalid emoji'), { status: 400 });
-  const msg = await repo.getMessageById(messageId);
+  const msg = await mongoRepo.getChannelMessageById(messageId);
   if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
-  await repo.toggleReaction(messageId, user.id, emoji);
-  const reactions = await repo.getReactionsForMessage(messageId);
+  await mongoRepo.toggleReactionChannelMessage(messageId, user.id, emoji);
+  const reactions = await mongoRepo.getReactionsForChannelMessage(messageId);
   return { message_id: messageId, reactions };
 }
 
 /* ── Direct Messages ──────────────────────────────────────── */
 
 export async function getDmConversations(user: AuthUser) {
-  return repo.listDmConversations(user.id);
+  const conversations = await mongoRepo.listDmConversations(user.id);
+  if (conversations.length === 0) return [];
+
+  const partnerIds = conversations.map((c: any) => c.partner_id);
+  const empList    = await repo.getEmployeesByIds(partnerIds);
+  const empMap     = new Map(empList.map((e: any) => [e.id, e]));
+
+  return conversations.map((c: any) => {
+    const emp = empMap.get(c.partner_id) ?? {};
+    return {
+      partner_id:          c.partner_id,
+      partner_name:        (emp as any).name        ?? `Employee ${c.partner_id}`,
+      partner_designation: (emp as any).designation ?? '',
+      last_message:        c.last_message,
+      last_at:             c.last_at,
+      unread:              c.unread,
+    };
+  });
 }
 
 export async function getDmMessages(user: AuthUser, partnerId: number, limit = 50, before?: string) {
   const beforeDate = before ? new Date(before) : undefined;
-  await repo.markDmMessagesRead(partnerId, user.id);
-  return repo.listDmMessages(user.id, partnerId, limit, beforeDate);
+  await mongoRepo.markDmMessagesRead(partnerId, user.id);
+  return mongoRepo.listDmMessages(user.id, partnerId, limit, beforeDate);
 }
 
 export async function sendDm(user: AuthUser, toEmployeeId: number, content: string) {
@@ -238,19 +261,24 @@ export async function sendDm(user: AuthUser, toEmployeeId: number, content: stri
   if (!trimmed) throw Object.assign(new Error('Message cannot be empty'), { status: 400 });
   if (trimmed.length > 4000) throw Object.assign(new Error('Message too long (max 4000 chars)'), { status: 400 });
   if (user.id === toEmployeeId) throw Object.assign(new Error('Cannot DM yourself'), { status: 400 });
-  const id = await repo.insertDmMessage({ from_employee_id: user.id, to_employee_id: toEmployeeId, content: trimmed });
+  const id = await mongoRepo.insertDmMessage({
+    fromEmployeeId: user.id,
+    toEmployeeId,
+    content: trimmed,
+    authorName: user.name,
+  });
   return { id };
 }
 
-export async function editDm(user: AuthUser, messageId: number, content: string) {
+export async function editDm(user: AuthUser, messageId: string, content: string) {
   const trimmed = content.trim();
   if (!trimmed) throw Object.assign(new Error('Content cannot be empty'), { status: 400 });
-  await repo.updateDmContent(messageId, user.id, trimmed);
+  await mongoRepo.updateDmContent(messageId, user.id, trimmed);
   return { id: messageId, content: trimmed, is_edited: 1 };
 }
 
-export async function deleteDm(user: AuthUser, messageId: number) {
-  await repo.softDeleteDm(messageId, user.id);
+export async function deleteDm(user: AuthUser, messageId: string) {
+  await mongoRepo.softDeleteDm(messageId, user.id);
   return { id: messageId };
 }
 
@@ -278,33 +306,34 @@ export async function getVoicePresence() {
 /* ── Pinned messages ─────────────────────────────────────── */
 
 export async function getPinnedMessages(channelId: number) {
-  return repo.getPinnedMessages(channelId);
+  return mongoRepo.getPinnedChannelMessages(channelId);
 }
 
 /* ── Save / unsave messages ──────────────────────────────── */
 
-export async function saveMessage(user: AuthUser, messageId: number) {
-  const msg = await repo.getMessageById(messageId);
+export async function saveMessage(user: AuthUser, messageId: string) {
+  const msg = await mongoRepo.getChannelMessageById(messageId);
   if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
-  await repo.saveMessage(user.id, messageId);
+  await mongoRepo.saveChannelMessage(user.id, messageId);
   return { id: messageId, saved: true };
 }
 
-export async function unsaveMessage(user: AuthUser, messageId: number) {
-  await repo.unsaveMessage(user.id, messageId);
+export async function unsaveMessage(user: AuthUser, messageId: string) {
+  await mongoRepo.unsaveChannelMessage(user.id, messageId);
   return { id: messageId, saved: false };
 }
 
 export async function getSavedMessages(user: AuthUser) {
-  return repo.getSavedMessages(user.id);
+  return mongoRepo.getSavedChannelMessages(user.id);
 }
 
 /* ── Forward message ─────────────────────────────────────── */
 
-export async function forwardMessage(user: AuthUser, messageId: number, targetId: number, targetType: 'channel' | 'dm') {
-  const msg = await repo.getMessageById(messageId);
-  if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
-  const forwarded = `↩ ${msg.content}`;
+export async function forwardMessage(user: AuthUser, messageId: string, targetId: number, targetType: 'channel' | 'dm') {
+  const channelMsg = await mongoRepo.getChannelMessageById(messageId);
+  const dmMsg      = channelMsg ? null : await mongoRepo.getDmMessageById(messageId);
+  if (!channelMsg && !dmMsg) throw Object.assign(new Error('Message not found'), { status: 404 });
+  const forwarded = `↩ ${(channelMsg ?? dmMsg)!.content}`;
   if (targetType === 'channel') {
     const ch = await repo.findChannelById(targetId);
     if (!ch) throw Object.assign(new Error('Target channel not found'), { status: 404 });
@@ -316,11 +345,12 @@ export async function forwardMessage(user: AuthUser, messageId: number, targetId
       if (!memberRole) throw Object.assign(new Error('You are not a member of this channel'), { status: 403 });
       if (memberRole === 'readonly') throw Object.assign(new Error('You are read-only in this channel'), { status: 403 });
     }
-    const id = await repo.forwardToChannel(user.id, messageId, targetId, forwarded);
+    const authorDesignation = await repo.getEmployeeDesignation(user.id).catch(() => '');
+    const id = await mongoRepo.forwardChannelMessageToChannel(user.id, user.name, authorDesignation, forwarded, targetId);
     return { id, forwarded: true };
   }
   if (user.id === targetId) throw Object.assign(new Error('Cannot forward to yourself'), { status: 400 });
-  const id = await repo.forwardToDm(user.id, forwarded, targetId);
+  const id = await mongoRepo.forwardDmMessage(user.id, user.name, forwarded, targetId);
   return { id, forwarded: true };
 }
 

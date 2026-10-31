@@ -59,3 +59,39 @@ export const upload = multer({
   fileFilter,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });
+
+/* ── Audio upload (DM voice messages) ──────────────────────── */
+
+const audioStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.join(process.cwd(), 'uploads/audio');
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = file.mimetype === 'audio/webm' ? '.webm'
+              : file.mimetype === 'audio/ogg'  ? '.ogg'
+              : file.mimetype === 'audio/mpeg' ? '.mp3'
+              : '.webm';
+    cb(null, `audio-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+  },
+});
+
+const audioFileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
+  const allowed = ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/x-m4a'];
+  if (allowed.includes(file.mimetype)) cb(null, true);
+  else cb(new Error('Only audio files are allowed'));
+};
+
+export const uploadAudio = multer({
+  storage: audioStorage,
+  fileFilter: audioFileFilter,
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB
+});
+
+/* Memory storage variant — streams directly to MinIO, no local disk write */
+export const uploadAudioMemory = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: audioFileFilter,
+  limits: { fileSize: 25 * 1024 * 1024 },
+});

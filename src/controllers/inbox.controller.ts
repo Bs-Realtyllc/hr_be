@@ -126,7 +126,7 @@ export const sendMessage = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const editMessage = asyncHandler(async (req: any, res: Response) => {
-  const messageId = parseInt(req.params.messageId, 10);
+  const messageId = req.params.messageId as string;
   const { content } = req.body;
   const result = await inboxService.editMessage(req.user, messageId, content);
 
@@ -137,7 +137,7 @@ export const editMessage = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const deleteMessage = asyncHandler(async (req: any, res: Response) => {
-  const messageId = parseInt(req.params.messageId, 10);
+  const messageId = req.params.messageId as string;
   const result = await inboxService.deleteMessage(req.user, messageId);
 
   const io = req.app.get('io');
@@ -147,7 +147,7 @@ export const deleteMessage = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const togglePin = asyncHandler(async (req: any, res: Response) => {
-  const messageId = parseInt(req.params.messageId, 10);
+  const messageId = req.params.messageId as string;
   const result = await inboxService.togglePin(req.user, messageId);
   res.json(result);
 });
@@ -155,7 +155,7 @@ export const togglePin = asyncHandler(async (req: any, res: Response) => {
 /* ── Reactions ────────────────────────────────────────────── */
 
 export const toggleReaction = asyncHandler(async (req: any, res: Response) => {
-  const messageId = parseInt(req.params.messageId, 10);
+  const messageId = req.params.messageId as string;
   const { emoji } = req.body;
   const result = await inboxService.toggleReaction(req.user, messageId, emoji);
 
@@ -195,14 +195,14 @@ export const sendDm = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const editDm = asyncHandler(async (req: any, res: Response) => {
-  const messageId = parseInt(req.params.messageId, 10);
+  const messageId = req.params.messageId as string;
   const { content } = req.body;
   const result = await inboxService.editDm(req.user, messageId, content);
   res.json(result);
 });
 
 export const deleteDm = asyncHandler(async (req: any, res: Response) => {
-  const messageId = parseInt(req.params.messageId, 10);
+  const messageId = req.params.messageId as string;
   const result = await inboxService.deleteDm(req.user, messageId);
   res.json(result);
 });
@@ -251,13 +251,13 @@ export const getPinnedMessages = asyncHandler(async (req: any, res: Response) =>
 /* ── Save / unsave ───────────────────────────────────────── */
 
 export const saveMessage = asyncHandler(async (req: any, res: Response) => {
-  const messageId = parseInt(req.params.messageId, 10);
+  const messageId = req.params.messageId as string;
   const result = await inboxService.saveMessage(req.user, messageId);
   res.status(201).json(result);
 });
 
 export const unsaveMessage = asyncHandler(async (req: any, res: Response) => {
-  const messageId = parseInt(req.params.messageId, 10);
+  const messageId = req.params.messageId as string;
   const result = await inboxService.unsaveMessage(req.user, messageId);
   res.json(result);
 });
@@ -270,7 +270,7 @@ export const getSavedMessages = asyncHandler(async (req: any, res: Response) => 
 /* ── Forward message ─────────────────────────────────────── */
 
 export const forwardMessage = asyncHandler(async (req: any, res: Response) => {
-  const messageId  = parseInt(req.params.messageId, 10);
+  const messageId  = req.params.messageId as string;
   const { targetId, targetType } = req.body;
   const result = await inboxService.forwardMessage(req.user, messageId, Number(targetId), targetType);
 
@@ -278,6 +278,38 @@ export const forwardMessage = asyncHandler(async (req: any, res: Response) => {
   if (io && targetType === 'channel') io.to(`channel:${targetId}`).emit('message:new', { channel_id: targetId });
 
   res.status(201).json(result);
+});
+
+/* ── DM Audio upload ─────────────────────────────────────── */
+
+export const uploadDmAudio = asyncHandler(async (req: any, res: Response) => {
+  if (!req.file) throw Object.assign(new Error('No audio file uploaded'), { status: 400 });
+  const key = await uploadAudioToMinio(req.file.buffer, req.file.originalname, req.file.mimetype);
+  const apiBase  = process.env.API_BASE_URL ?? `${req.protocol}://${req.get('host')}/api`;
+  const proxyUrl = `${apiBase}/inbox/audio/${encodeURIComponent(key)}`;
+  res.json({ key, presignedUrl: proxyUrl });
+});
+
+/* ── Audio proxy (streams MinIO → browser, no CORS issues) ── */
+
+export const streamAudio = asyncHandler(async (req: any, res: Response) => {
+  const key = req.params.key as string;
+  if (!key || key.includes('..') || key.includes('/')) {
+    throw Object.assign(new Error('Invalid audio key'), { status: 400 });
+  }
+  try {
+    const { stream, size, contentType } = await streamAudioFromMinio(key);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', size);
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    stream.pipe(res);
+  } catch (err: any) {
+    if (err?.code === 'NoSuchKey' || err?.message?.includes('NoSuchKey')) {
+      throw Object.assign(new Error('Audio not found'), { status: 404 });
+    }
+    throw err;
+  }
 });
 
 /* ── User Presence ───────────────────────────────────────── */

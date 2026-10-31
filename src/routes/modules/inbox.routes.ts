@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authenticate } from '../../middleware/auth';
+import { uploadAudioMemory } from '../../middleware/uplod';
 import * as ctrl from '../../controllers/inbox.controller';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -42,6 +43,8 @@ router.post('/messages/:messageId/reactions',          ctrl.toggleReaction);
 
 /* ── Direct messages ──────────────────────────────────────── */
 router.get('/dms',                                     ctrl.getDmConversations);
+router.post('/dms/audio',                              uploadAudioMemory.single('audio'), ctrl.uploadDmAudio);
+router.get('/audio/:key',                              ctrl.streamAudio);
 router.get('/dms/:partnerId/messages',                 ctrl.getDmMessages);
 router.post('/dms/:partnerId/messages',                ctrl.sendDm);
 router.patch('/dm-messages/:messageId',                ctrl.editDm);

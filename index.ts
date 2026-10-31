@@ -9,6 +9,8 @@ import swaggerUi from "swagger-ui-express";
 import morgan from "morgan";
 import { enqueueAccessLog } from "./src/pkg/requestLogQueue";
 import { attachInboxSocket } from "./src/ws/inboxSocket";
+import { connectMongo } from "./src/config/mongodb";
+import { ensureAudioBucket } from "./src/config/minio";
 
 import { sql } from "drizzle-orm";
 import swaggerSpec from "./src/swagger";
@@ -138,6 +140,11 @@ async function start() {
     console.error(`  Error    : ${err.message}`);
     process.exit(1);
   }
+
+  await connectMongo();
+  await ensureAudioBucket().catch((err: Error) =>
+    console.warn("[minio] Bucket init skipped:", err.message),
+  );
 
   const httpServer = http.createServer(app);
 
