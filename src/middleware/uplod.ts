@@ -79,7 +79,8 @@ const audioStorage = multer.diskStorage({
 
 const audioFileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
   const allowed = ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/x-m4a'];
-  if (allowed.includes(file.mimetype)) cb(null, true);
+  const baseMime = file.mimetype.split(';')[0].trim();
+  if (allowed.includes(baseMime)) cb(null, true);
   else cb(new Error('Only audio files are allowed'));
 };
 
