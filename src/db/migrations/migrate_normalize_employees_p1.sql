@@ -119,18 +119,18 @@ CREATE TABLE IF NOT EXISTS employee_compensation_history (
 );
 
 -- ── Document metadata (replaces bare filename columns) ──────────────────────
-CREATE TABLE IF NOT EXISTS employee_documents (
-  id            INT PRIMARY KEY AUTO_INCREMENT,
-  employee_id   INT NOT NULL,
-  doc_type      ENUM('profile_picture', 'citizenship_front', 'citizenship_back') NOT NULL,
-  filename      VARCHAR(255) NOT NULL,
-  uploaded_by   INT NULL,
-  uploaded_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  is_current    BOOLEAN DEFAULT TRUE,
-  KEY idx_employee_documents_current (employee_id, doc_type, is_current),
-  FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
-  FOREIGN KEY (uploaded_by) REFERENCES employees(id) ON DELETE SET NULL
-);
+-- CREATE TABLE IF NOT EXISTS employee_documents (
+--   id            INT PRIMARY KEY AUTO_INCREMENT,
+--   employee_id   INT NOT NULL,
+--   doc_type      ENUM('profile_picture', 'citizenship_front', 'citizenship_back') NOT NULL,
+--   filename      VARCHAR(255) NOT NULL,
+--   uploaded_by   INT NULL,
+--   uploaded_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--   is_current    BOOLEAN DEFAULT TRUE,
+--   KEY idx_employee_documents_current (employee_id, doc_type, is_current),
+--   FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+--   FOREIGN KEY (uploaded_by) REFERENCES employees(id) ON DELETE SET NULL
+-- );
 
 -- ── New columns on employees (nullable, additive — no default disruption) ──
 -- status/termination_* expand the current is_active boolean into a real lifecycle;

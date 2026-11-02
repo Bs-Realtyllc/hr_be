@@ -27,7 +27,7 @@ export interface ClockRow {
   name: string;
   email: string;
   address: string | null;
-  profilePicture: string | null;
+  // profilePicture: string | null;
   phone: string | null;
   clockIn: Date;
   clockOut: Date | null;
@@ -66,13 +66,17 @@ export async function getPauseRow(clockId: number) {
   return row;
 }
 
+interface coordsType {
+  lat: number;
+  lng: number;
+}
 
-export async function addClockIn(empId: number) {
+export async function addClockIn(empId: number, coords: coordsType) {
   // console.log(empId)
   try {
     const [result] = await db
       .insert(employeeDailyClock)
-      .values({ employeeId: empId, clockDate:new Date().toISOString().split('T')[0] });
+      .values({ employeeId: empId, clockDate:new Date().toISOString().split('T')[0], clockInLat: coords.lat, clockInLng: coords.lng });
     const [row] = await db
       .select()
       .from(employeeDailyClock)
@@ -172,7 +176,7 @@ const result = await db
     name: employees.name,
     email: employees.email,
     address: employees.address,
-    profilePicture: employees.profile_picture,
+    // profilePicture: employees.profile_picture,
     phone: employees.phone,
     clockId: employeeDailyClock.id,
     clockIn: employeeDailyClock.clockIn,
@@ -234,7 +238,7 @@ export async function getAttendance(
       name: employees.name,
       email: employees.email,
       address: employees.address,
-      profilePicture: employees.profile_picture,
+      // profilePicture: employees.profile_picture,
       phone: employees.phone,
       clockIn: employeeDailyClock.clockIn,
       clockOut: employeeDailyClock.clockOut,

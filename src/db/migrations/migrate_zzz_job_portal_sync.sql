@@ -14,3 +14,10 @@ ALTER TABLE employee_onboarding_profile ADD COLUMN source_application_id VARCHAR
 
 ALTER TABLE employee_onboarding_profile ADD UNIQUE KEY uq_onboarding_source_application (source_application_id);
 ALTER TABLE employee_onboarding_profile ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE;
+
+
+-- latitiude and longitude in employee clock in
+
+ALTER TABLE employee_daily_clock
+  ADD COLUMN clock_in_lat DECIMAL(9,6) NULL AFTER clock_date,
+  ADD COLUMN clock_in_lng DECIMAL(9,6) NULL AFTER clock_in_lat;
