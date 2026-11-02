@@ -17,7 +17,7 @@ interface RawRow {
   name: string;
   email: string;
   address: string;
-  profilePicture: string | null;
+  // profilePicture: string | null;
   phone: string | null;
   clockId: number;
   clockIn: Date | string;
@@ -34,7 +34,7 @@ interface GroupedClockRecord {
   name: string;
   email: string;
   address: string;
-  profilePicture: string | null;
+  // profilePicture: string | null;
   phone: string | null;
   clockId: number;
   clockIn: Date | string;
@@ -63,7 +63,7 @@ function groupByClockId(rows: RawRow[]): GroupedClockRecord[] {
       name,
       email,
       address,
-      profilePicture,
+      // profilePicture,
       phone,
       clockId,
       clockIn,
@@ -81,7 +81,7 @@ function groupByClockId(rows: RawRow[]): GroupedClockRecord[] {
         name,
         email,
         address,
-        profilePicture,
+        // profilePicture,
         phone,
         clockId,
         clockIn,
@@ -100,14 +100,40 @@ function groupByClockId(rows: RawRow[]): GroupedClockRecord[] {
   return Array.from(map.values());
 }
 
+function parseCoordinates(lat: unknown, lng: unknown) {
+  // both missing: location is optional (remove this block if it's required)
+  // if (lat == null && lng == null) return null;
 
-export async function clockIn(empId: number) {
+  // one without the other is a client bug
+  if (lat == null || lng == null) {
+    throw new AppError('Both latitude and longitude are required', 400);
+  }
+
+  const la = typeof lat === 'string' ? Number(lat) : lat;
+  const ln = typeof lng === 'string' ? Number(lng) : lng;
+
+  if (typeof la !== 'number' || !Number.isFinite(la) || la < -90 || la > 90) {
+    throw new AppError('Invalid latitude', 400);
+  }
+  if (typeof ln !== 'number' || !Number.isFinite(ln) || ln < -180 || ln > 180) {
+    throw new AppError('Invalid longitude', 400);
+  }
+
+  // match the DECIMAL(9,6) column
+  return { lat: Number(la.toFixed(6)), lng: Number(ln.toFixed(6)) };
+}
+
+export async function clockIn(empId: number, lat: number, lng: number) {
   const hour = new Date().getHours();
-  // console.log(hour)
+  // no backend validation for now
   // if (hour < 8 || hour >= 12) {
   //   throw new AppError("Clock-in is only allowed between 8 AM and 12 PM.", 400);
   // }
-  return await employeeDailyClockRepo.addClockIn(empId);
+
+  //latitude and longitude validation:
+  const coords = parseCoordinates(lat, lng);
+
+  return await employeeDailyClockRepo.addClockIn(empId,coords);
 }
 
 export async function getClock(empId: number, date: string) {
@@ -236,13 +262,24 @@ export async function getAttendance(query: AttendanceQuery) {
  
   // groupByClockId is no longer needed here — the repo already returns
   // one entry per clock record with its pauses embedded, correctly paginated.
-  const result = data.map((record) => {
-    const totalPauseDuration = record.pauses.reduce(
-      (sum, p) => sum + (p.pauseDuration ?? 0),
-      0,
-    );
-    return { ...record, totalPauseDuration };
-  });
+
+   const now = Date.now();
+   const result = data.map((record) => {
+     const totalPauseDuration = record.pauses.reduce(
+       (sum, p) => sum + (p.pauseDuration ?? 0),
+       0,
+     );
+
+     const start = new Date(record.clockIn).getTime();
+     const end = record.clockOut ? new Date(record.clockOut).getTime() : now;
+     const grossSeconds = Math.floor((end - start) / 1000);
+     const totalClockInDuration = Math.max(
+       0,
+       grossSeconds - totalPauseDuration,
+     );
+
+     return { ...record, totalPauseDuration, totalClockInDuration };
+   });
  
   return {
     data: result,

@@ -19,7 +19,7 @@ export const employees = mysqlTable("employees", {
   secondary_email: varchar("secondary_email", { length: 150 }).unique(),
   phone: varchar("phone", { length: 20 }),
   emergency_contact: varchar("emergency_contact", { length: 150 }),
-  profile_picture: varchar("profile_picture", { length: 255 }),
+  // profile_picture: varchar("profile_picture", { length: 255 }),
   designation: varchar("designation", { length: 100 }),
   designation_id: int("designation_id"),
   department: varchar("department", { length: 100 }),

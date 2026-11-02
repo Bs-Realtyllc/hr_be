@@ -5,6 +5,7 @@ import {
   time,
   text,
   date,
+  decimal,
   unique,
 } from "drizzle-orm/mysql-core";
 import { sql } from "drizzle-orm";
@@ -24,6 +25,18 @@ export const employeeDailyClock = mysqlTable(
     clockOut: timestamp("clock_out").default(sql`NULL`),
 
     clockDate: date("clock_date", { mode: "string" }).default(sql`CURDATE()`),
+
+     clockInLat: decimal("clock_in_lat", {
+      precision: 9,
+      scale: 6,
+      mode: "number",
+    }),
+
+    clockInLng: decimal("clock_in_lng", {
+      precision: 9,
+      scale: 6,
+      mode: "number",
+    }),
 
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 
