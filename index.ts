@@ -93,8 +93,10 @@ app.use(
   ),
 );
 
+// credentials: true + an explicit/reflected origin (never "*") is required for the
+// browser to actually send back the trustedDevice cookie set by the 2FA login flow.
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:6001',
+  origin: process.env.FRONTEND_URL || true,
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'x-trace-id'],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

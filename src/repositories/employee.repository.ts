@@ -389,7 +389,6 @@ const EMPLOYEES_TABLE_FIELDS = [
   "start_date",
   "github_url",
   "discord_username",
-  "tech_stack"
 ];
 
 export async function update(

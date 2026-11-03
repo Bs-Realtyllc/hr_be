@@ -207,7 +207,6 @@ export async function approveOnboardProfile(id: number) {
       github_url: profile.github_url,
       designation: profile.designation,
       role: profile.role,
-      tech_stack: profile.tech_stack,
       status: "onboarding",
       start_date: new Date().toISOString().split('T')[0]
     });
