@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "5",
-      "when": 1793643274130,
+      "when": 1793718227070,
       "tag": "0000_baseline",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1793643608091,
-      "tag": "0001_offboarding",
       "breakpoints": true
     }
   ]

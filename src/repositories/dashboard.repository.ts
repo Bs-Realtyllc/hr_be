@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../config/database';
-import { employees, leaveRequests, overtimeRequests, standups, projects } from '../models';
+import { employees, leaveRequests, overtimeRequests, standups, projects } from '../../drizzle/schema';
 
 async function scalarCount(query: any): Promise<number> {
   const result: any = await db.execute(query);

@@ -16,7 +16,7 @@ import {
   buildRejectionEmailSubject,
   buildRejectionEmailHtml,
 } from "./onboardingEmailTemplate";
-import { NewEmployee } from "../models/Employee";
+import { NewEmployee } from "../../drizzle/schema";
 
 //send email after sucessfull entry
 export async function sendApproveMail(name: string, to: string, role: string) {

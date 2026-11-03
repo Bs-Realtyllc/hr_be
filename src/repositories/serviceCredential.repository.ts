@@ -1,18 +1,18 @@
 import { eq } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import { db } from '../config/database';
-import { serviceCredentials } from '../models';
+import { serviceCredentials } from '../../drizzle/schema';
 
 export async function findByEmployeeId(employeeId: number | string) {
   return db
     .select({
-      service_name: serviceCredentials.service_name,
+      service_name: serviceCredentials.serviceName,
       username: serviceCredentials.username,
       notes: serviceCredentials.notes,
-      updated_at: serviceCredentials.updated_at,
+      updated_at: serviceCredentials.updatedAt,
     })
     .from(serviceCredentials)
-    .where(eq(serviceCredentials.employee_id, Number(employeeId)));
+    .where(eq(serviceCredentials.employeeId, Number(employeeId)));
 }
 
 export async function upsert(

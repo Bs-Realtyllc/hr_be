@@ -1,6 +1,20 @@
-import { eq, and, sql, desc, getTableColumns } from 'drizzle-orm';
+import { eq, and, sql, desc } from 'drizzle-orm';
 import { db } from '../config/database';
-import { payrollAdjustments, employees, designations } from '../models';
+import { payrollAdjustments, employees, designations } from '../../drizzle/schema';
+
+const payrollAdjustmentsColumns = {
+  id: payrollAdjustments.id,
+  employee_id: payrollAdjustments.employeeId,
+  type: payrollAdjustments.type,
+  title: payrollAdjustments.title,
+  amount: payrollAdjustments.amount,
+  year: payrollAdjustments.year,
+  month: payrollAdjustments.month,
+  reference_type: payrollAdjustments.referenceType,
+  reference_id: payrollAdjustments.referenceId,
+  notes: payrollAdjustments.notes,
+  created_at: payrollAdjustments.createdAt,
+};
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
@@ -18,32 +32,32 @@ export async function create({
   notes,
 }: any) {
   const result = await db.insert(payrollAdjustments).values({
-    employee_id,
+    employeeId: employee_id,
     type,
     title,
     amount: String(amount),
     year,
     month: month ?? null,
-    reference_type: reference_type ?? null,
-    reference_id: reference_id ?? null,
+    referenceType: reference_type ?? null,
+    referenceId: reference_id ?? null,
     notes: notes ?? null,
-    created_at: new Date(),
+    createdAt: new Date(),
   } as any);
   return insertedId(result);
 }
 
 export async function findForEmployeePeriod(employeeId: number | string, year: number, month: number) {
   return db
-    .select()
+    .select(payrollAdjustmentsColumns)
     .from(payrollAdjustments)
     .where(
       and(
-        eq(payrollAdjustments.employee_id, Number(employeeId)),
+        eq(payrollAdjustments.employeeId, Number(employeeId)),
         eq(payrollAdjustments.year, year),
         sql`(${payrollAdjustments.month} = ${month} OR ${payrollAdjustments.month} IS NULL)`
       )
     )
-    .orderBy(desc(payrollAdjustments.created_at));
+    .orderBy(desc(payrollAdjustments.createdAt));
 }
 
 export async function findAll({
@@ -56,21 +70,21 @@ export async function findAll({
   month?: number | null;
 }) {
   const conditions = [];
-  if (employeeId) conditions.push(eq(payrollAdjustments.employee_id, Number(employeeId)));
+  if (employeeId) conditions.push(eq(payrollAdjustments.employeeId, Number(employeeId)));
   if (year) conditions.push(eq(payrollAdjustments.year, year));
   if (month) conditions.push(eq(payrollAdjustments.month, month));
 
   return db
     .select({
-      ...getTableColumns(payrollAdjustments),
+      ...payrollAdjustmentsColumns,
       employee_name: employees.name,
       designation: designations.title,
     })
     .from(payrollAdjustments)
-    .innerJoin(employees, eq(payrollAdjustments.employee_id, employees.id))
-    .leftJoin(designations, eq(employees.designation_id, designations.id))
+    .innerJoin(employees, eq(payrollAdjustments.employeeId, employees.id))
+    .leftJoin(designations, eq(employees.designationId, designations.id))
     .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(payrollAdjustments.created_at));
+    .orderBy(desc(payrollAdjustments.createdAt));
 }
 
 export async function summaryForPeriod(year: number, month: number) {
@@ -92,7 +106,7 @@ export async function existsBonusForYear(employeeId: number | string, year: numb
     .from(payrollAdjustments)
     .where(
       and(
-        eq(payrollAdjustments.employee_id, Number(employeeId)),
+        eq(payrollAdjustments.employeeId, Number(employeeId)),
         eq(payrollAdjustments.type, 'leave_bonus'),
         eq(payrollAdjustments.year, year)
       )

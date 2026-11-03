@@ -6,7 +6,7 @@ import {
   employees,
   designations,
   employeeDocuments,
-} from "../models";
+} from "../../drizzle/schema";
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
@@ -28,83 +28,83 @@ export async function findWithNames({
   endDate?: string;
 }) {
   const conditions = [];
-  if (employeeId) conditions.push(eq(standups.employee_id, Number(employeeId)));
+  if (employeeId) conditions.push(eq(standups.employeeId, Number(employeeId)));
   if (date) {
-    conditions.push(eq(standups.standup_date, date));
+    conditions.push(eq(standups.standupDate, date));
   } else {
-    if (startDate) conditions.push(gte(standups.standup_date, startDate));
-    if (endDate) conditions.push(lte(standups.standup_date, endDate));
+    if (startDate) conditions.push(gte(standups.standupDate, startDate));
+    if (endDate) conditions.push(lte(standups.standupDate, endDate));
   }
 
   return db
     .select({
       id: standups.id,
-      employee_id: standups.employee_id,
+      employee_id: standups.employeeId,
       workedOn: standups.workedOn,
       completed: standups.completed,
       inProgress: standups.inProgress,
       nextUp: standups.nextUp,
       blockers: standups.blockers,
       links: standups.links,
-      standup_date: standups.standup_date,
-      created_at: standups.created_at,
+      standup_date: standups.standupDate,
+      created_at: standups.createdAt,
       employee_name: author.name,
       designation: authorDesignation.title,
       profile_picture: authorDoc.filename,
     })
     .from(standups)
-    .innerJoin(author, eq(standups.employee_id, author.id))
+    .innerJoin(author, eq(standups.employeeId, author.id))
     .leftJoin(
       authorDesignation,
-      eq(author.designation_id, authorDesignation.id),
+      eq(author.designationId, authorDesignation.id),
     )
     .leftJoin(
       authorDoc,
       and(
-        eq(authorDoc.emp_id, author.id),
+        eq(authorDoc.empId, author.id),
         eq(authorDoc.name, "profile_picture"),
       ),
     )
     .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(standups.standup_date), desc(standups.created_at))
+    .orderBy(desc(standups.standupDate), desc(standups.createdAt))
     .limit(200);
 }
 
 export async function findToday(today: string, employeeId?: number | string) {
-  const conditions = [eq(standups.standup_date, today)];
-  if (employeeId) conditions.push(eq(standups.employee_id, Number(employeeId)));
+  const conditions = [eq(standups.standupDate, today)];
+  if (employeeId) conditions.push(eq(standups.employeeId, Number(employeeId)));
 
   return db
     .select({
       id: standups.id,
-      employee_id: standups.employee_id,
+      employee_id: standups.employeeId,
       workedOn: standups.workedOn,
       completed: standups.completed,
       inProgress: standups.inProgress,
       nextUp: standups.nextUp,
       blockers: standups.blockers,
       links: standups.links,
-      standup_date: standups.standup_date,
-      created_at: standups.created_at,
+      standup_date: standups.standupDate,
+      created_at: standups.createdAt,
       employee_name: author.name,
       designation: authorDesignation.title,
       profile_picture: authorDoc.filename,
     })
     .from(standups)
-    .innerJoin(author, eq(standups.employee_id, author.id))
+    .innerJoin(author, eq(standups.employeeId, author.id))
     .leftJoin(
       authorDesignation,
-      eq(author.designation_id, authorDesignation.id),
+      eq(author.designationId, authorDesignation.id),
     )
     .leftJoin(
       authorDoc,
       and(
-        eq(authorDoc.emp_id, author.id),
+        eq(authorDoc.empId, author.id),
         eq(authorDoc.name, "profile_picture"),
       ),
     )
     .where(and(...conditions))
-    .orderBy(desc(standups.created_at));
+    .orderBy(desc(standups.createdAt));
 }
 
 export async function upsert(
@@ -124,17 +124,17 @@ export async function upsert(
   const result = await db
     .insert(standups)
     .values({
-      employee_id,
+      employeeId: employee_id,
       workedOn,
       completed,
       inProgress,
       nextUp,
       blockers,
       links,
-      standup_date: date,
-      created_by: actorId,
-      updated_by: actorId,
-      created_at: new Date(),
+      standupDate: date,
+      createdBy: actorId,
+      updatedBy: actorId,
+      createdAt: new Date(),
     } as any)
     .onDuplicateKeyUpdate({
       set: {
@@ -145,7 +145,7 @@ export async function upsert(
         nextUp,
         blockers,
         links,
-        updated_by: actorId,
+        updatedBy: actorId,
       },
     });
   return insertedId(result);

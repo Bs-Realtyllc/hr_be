@@ -1,6 +1,6 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../config/database';
-import { employees, employeeCompensationHistory, employeeTaxProfiles, departments, designations } from '../models';
+import { employees, employeeCompensationHistory, employeeTaxProfiles, departments, designations } from '../../drizzle/schema';
 
 const ACTIVE_ROSTER = sql`${employees.status} NOT IN ('onboarding', 'terminated')`;
 
@@ -14,17 +14,17 @@ export async function findAllWithProfile(id: number | string | null | undefined,
       role: employees.role,
       panNo: employees.panNo,
       salary: employeeCompensationHistory.salary,
-      pay_frequency: employeeCompensationHistory.pay_frequency,
+      pay_frequency: employeeCompensationHistory.payFrequency,
       amount: employeeTaxProfiles.amount,
-      tax_amount: employeeTaxProfiles.tax_amount,
-      tax_perc: employeeTaxProfiles.tax_perc,
+      tax_amount: employeeTaxProfiles.taxAmount,
+      tax_perc: employeeTaxProfiles.taxPerc,
     })
     .from(employees)
-    .leftJoin(designations, eq(employees.designation_id, designations.id))
-    .leftJoin(departments, eq(employees.department_id, departments.id))
+    .leftJoin(designations, eq(employees.designationId, designations.id))
+    .leftJoin(departments, eq(employees.departmentId, departments.id))
     .leftJoin(
       employeeCompensationHistory,
-      and(eq(employeeCompensationHistory.employee_id, employees.id), sql`${employeeCompensationHistory.effective_to} IS NULL`)
+      and(eq(employeeCompensationHistory.employeeId, employees.id), sql`${employeeCompensationHistory.effectiveTo} IS NULL`)
     )
     .leftJoin(
       employeeTaxProfiles,

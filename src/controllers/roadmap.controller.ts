@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { projects, projectTodos } from '../models';
+import { projects, projectTodos } from '../../drizzle/schema';
 import { eq, isNotNull, sql } from 'drizzle-orm';
 import asyncHandler from '../middleware/asyncHandler';
 
@@ -9,7 +9,7 @@ export const getRoadmap = asyncHandler(async (_req: Request, res: Response) => {
   const projectRows = await db
     .select()
     .from(projects)
-    .where(isNotNull(projects.roadmap_key));
+    .where(isNotNull(projects.roadmapKey));
 
   // Compute todo progress for each project in parallel
   const items = await Promise.all(
@@ -17,22 +17,22 @@ export const getRoadmap = asyncHandler(async (_req: Request, res: Response) => {
       const [summaryRow] = await db
         .select({
           total: sql<number>`COUNT(*)`,
-          completed: sql<number>`SUM(CASE WHEN ${projectTodos.is_complete} = 1 THEN 1 ELSE 0 END)`,
+          completed: sql<number>`SUM(CASE WHEN ${projectTodos.isComplete} = 1 THEN 1 ELSE 0 END)`,
         })
         .from(projectTodos)
-        .where(eq(projectTodos.project_id, project.id));
+        .where(eq(projectTodos.projectId, project.id));
 
       const total = Number(summaryRow?.total ?? 0);
       const completed = Number(summaryRow?.completed ?? 0);
       const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
 
       return {
-        key: project.roadmap_key,
+        key: project.roadmapKey,
         title: project.name,
         description: project.description ?? '',
-        label: project.roadmap_label ?? project.expected_end_date ?? null,
-        deadline: project.expected_end_date ?? null,
-        link: project.public_link ?? null,
+        label: project.roadmapLabel ?? project.expectedEndDate ?? null,
+        deadline: project.expectedEndDate ?? null,
+        link: project.publicLink ?? null,
         progress: percentage,
         total_todos: total,
         completed_todos: completed,

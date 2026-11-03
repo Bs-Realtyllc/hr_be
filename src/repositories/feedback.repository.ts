@@ -1,7 +1,18 @@
-import { eq, and, sql, desc, getTableColumns } from 'drizzle-orm';
+import { eq, and, sql, desc } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { feedbackNotes, employees, designations, projects } from '../models';
+import { feedbackNotes, employees, designations, projects } from '../../drizzle/schema';
+
+const feedbackNotesColumns = {
+  id: feedbackNotes.id,
+  from_employee_id: feedbackNotes.fromEmployeeId,
+  to_employee_id: feedbackNotes.toEmployeeId,
+  feedback_type: feedbackNotes.feedbackType,
+  visibility: feedbackNotes.visibility,
+  message: feedbackNotes.message,
+  project_id: feedbackNotes.projectId,
+  created_at: feedbackNotes.createdAt,
+};
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
@@ -22,14 +33,14 @@ export async function findFeed({
   type?: string;
 }) {
   const conditions = [];
-  if (scope === 'received') conditions.push(eq(feedbackNotes.to_employee_id, Number(employeeId)));
-  if (scope === 'sent') conditions.push(eq(feedbackNotes.from_employee_id, Number(employeeId)));
+  if (scope === 'received') conditions.push(eq(feedbackNotes.toEmployeeId, Number(employeeId)));
+  if (scope === 'sent') conditions.push(eq(feedbackNotes.fromEmployeeId, Number(employeeId)));
   if (scope === 'public') conditions.push(eq(feedbackNotes.visibility, 'public'));
-  if (type) conditions.push(eq(feedbackNotes.feedback_type, type as any));
+  if (type) conditions.push(eq(feedbackNotes.feedbackType, type as any));
 
   return db
     .select({
-      ...getTableColumns(feedbackNotes),
+      ...feedbackNotesColumns,
       from_name: sender.name,
       from_designation: senderDesignation.title,
       to_name: recipient.name,
@@ -37,30 +48,30 @@ export async function findFeed({
       project_name: projects.name,
     })
     .from(feedbackNotes)
-    .innerJoin(sender, eq(feedbackNotes.from_employee_id, sender.id))
-    .leftJoin(senderDesignation, eq(sender.designation_id, senderDesignation.id))
-    .innerJoin(recipient, eq(feedbackNotes.to_employee_id, recipient.id))
-    .leftJoin(recipientDesignation, eq(recipient.designation_id, recipientDesignation.id))
-    .leftJoin(projects, eq(feedbackNotes.project_id, projects.id))
+    .innerJoin(sender, eq(feedbackNotes.fromEmployeeId, sender.id))
+    .leftJoin(senderDesignation, eq(sender.designationId, senderDesignation.id))
+    .innerJoin(recipient, eq(feedbackNotes.toEmployeeId, recipient.id))
+    .leftJoin(recipientDesignation, eq(recipient.designationId, recipientDesignation.id))
+    .leftJoin(projects, eq(feedbackNotes.projectId, projects.id))
     .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(feedbackNotes.created_at))
+    .orderBy(desc(feedbackNotes.createdAt))
     .limit(200);
 }
 
 export async function findById(id: number | string) {
-  const rows = await db.select().from(feedbackNotes).where(eq(feedbackNotes.id, Number(id))).limit(1);
+  const rows = await db.select(feedbackNotesColumns).from(feedbackNotes).where(eq(feedbackNotes.id, Number(id))).limit(1);
   return rows[0] || null;
 }
 
 export async function create(data: any) {
   const result = await db.insert(feedbackNotes).values({
-    from_employee_id: data.from_employee_id,
-    to_employee_id: data.to_employee_id,
-    feedback_type: data.feedback_type,
+    fromEmployeeId: data.from_employee_id,
+    toEmployeeId: data.to_employee_id,
+    feedbackType: data.feedback_type,
     visibility: data.visibility,
     message: data.message,
-    project_id: data.project_id,
-    created_at: new Date(),
+    projectId: data.project_id,
+    createdAt: new Date(),
   } as any);
   return insertedId(result);
 }

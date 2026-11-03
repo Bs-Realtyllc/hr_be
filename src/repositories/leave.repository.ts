@@ -1,7 +1,31 @@
-import { eq, and, sql, desc, getTableColumns } from 'drizzle-orm';
+import { eq, and, sql, desc } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { leaveRequests, leaveBalances, employees, designations, departments, employeeDocuments } from '../models';
+import { leaveRequests, leaveBalances, employees, designations, departments, employeeDocuments } from '../../drizzle/schema';
+
+const leaveBalancesColumns = {
+  id: leaveBalances.id,
+  employee_id: leaveBalances.employeeId,
+  leave_type: leaveBalances.leaveType,
+  total: leaveBalances.total,
+  taken: leaveBalances.taken,
+  year: leaveBalances.year,
+};
+const leaveRequestsColumns = {
+  id: leaveRequests.id,
+  employee_id: leaveRequests.employeeId,
+  leave_type: leaveRequests.leaveType,
+  start_date: leaveRequests.startDate,
+  end_date: leaveRequests.endDate,
+  reason: leaveRequests.reason,
+  status: leaveRequests.status,
+  reviewed_by: leaveRequests.reviewedBy,
+  reviewed_at: leaveRequests.reviewedAt,
+  created_at: leaveRequests.createdAt,
+  updated_at: leaveRequests.updatedAt,
+  created_by: leaveRequests.createdBy,
+  updated_by: leaveRequests.updatedBy,
+};
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
@@ -14,45 +38,45 @@ const requesterDepartment = alias(departments, 'lr_employee_dept');
 const requesterDoc = alias(employeeDocuments, 'lr_employee_doc');
 
 export async function findAllLeaveRequests() {
-  return db.select().from(leaveRequests);
+  return db.select(leaveRequestsColumns).from(leaveRequests);
 }
 
 export async function findWithNames({ employeeId, status }: { employeeId?: number | string; status?: string }) {
   const conditions = [];
-  if (employeeId) conditions.push(eq(leaveRequests.employee_id, Number(employeeId)));
+  if (employeeId) conditions.push(eq(leaveRequests.employeeId, Number(employeeId)));
   if (status) conditions.push(eq(leaveRequests.status, status as any));
 
   return db
     .select({
-      ...getTableColumns(leaveRequests),
+      ...leaveRequestsColumns,
       employee_name: requester.name,
       designation: requesterDesignation.title,
       reviewer_name: reviewer.name,
     })
     .from(leaveRequests)
-    .innerJoin(requester, eq(leaveRequests.employee_id, requester.id))
-    .leftJoin(requesterDesignation, eq(requester.designation_id, requesterDesignation.id))
-    .leftJoin(reviewer, eq(leaveRequests.reviewed_by, reviewer.id))
+    .innerJoin(requester, eq(leaveRequests.employeeId, requester.id))
+    .leftJoin(requesterDesignation, eq(requester.designationId, requesterDesignation.id))
+    .leftJoin(reviewer, eq(leaveRequests.reviewedBy, reviewer.id))
     .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(leaveRequests.created_at));
+    .orderBy(desc(leaveRequests.createdAt));
 }
 
 export async function findBalances(employeeId: number | string, year: number) {
   const rows = await db
-    .select()
+    .select(leaveBalancesColumns)
     .from(leaveBalances)
-    .where(and(eq(leaveBalances.employee_id, Number(employeeId)), eq(leaveBalances.year, year)));
+    .where(and(eq(leaveBalances.employeeId, Number(employeeId)), eq(leaveBalances.year, year)));
   return rows.map((r) => ({ ...r, remaining: (r.total ?? 0) - (r.taken ?? 0) }));
 }
 
 export async function findBalanceForType(employeeId: number | string, leaveType: string, year: number) {
   const rows = await db
-    .select()
+    .select(leaveBalancesColumns)
     .from(leaveBalances)
     .where(
       and(
-        eq(leaveBalances.employee_id, Number(employeeId)),
-        eq(leaveBalances.leave_type, leaveType as any),
+        eq(leaveBalances.employeeId, Number(employeeId)),
+        eq(leaveBalances.leaveType, leaveType as any),
         eq(leaveBalances.year, year)
       )
     )
@@ -77,13 +101,13 @@ export async function findBalanceTotalsForYear(year: number) {
 
 export async function findApprovedRangesForAllInRange(rangeStart: string, rangeEnd: string) {
   return db
-    .select({ employee_id: leaveRequests.employee_id, start_date: leaveRequests.start_date, end_date: leaveRequests.end_date })
+    .select({ employee_id: leaveRequests.employeeId, start_date: leaveRequests.startDate, end_date: leaveRequests.endDate })
     .from(leaveRequests)
     .where(
       and(
         eq(leaveRequests.status, 'approved'),
-        sql`${leaveRequests.start_date} <= ${rangeEnd}`,
-        sql`${leaveRequests.end_date} >= ${rangeStart}`
+        sql`${leaveRequests.startDate} <= ${rangeEnd}`,
+        sql`${leaveRequests.endDate} >= ${rangeStart}`
       )
     );
 }
@@ -94,14 +118,14 @@ export async function findOutToday(today: string) {
       name: requester.name,
       designation: requesterDesignation.title,
       profile_picture: requesterDoc.filename,
-      leave_type: leaveRequests.leave_type,
-      end_date: leaveRequests.end_date,
+      leave_type: leaveRequests.leaveType,
+      end_date: leaveRequests.endDate,
     })
     .from(leaveRequests)
-    .innerJoin(requester, eq(leaveRequests.employee_id, requester.id))
-    .leftJoin(requesterDesignation, eq(requester.designation_id, requesterDesignation.id))
-    .leftJoin(requesterDoc, and(eq(requesterDoc.emp_id, requester.id), eq(requesterDoc.name, 'profile_picture')))
-    .where(and(eq(leaveRequests.status, 'approved'), sql`${today} BETWEEN ${leaveRequests.start_date} AND ${leaveRequests.end_date}`));
+    .innerJoin(requester, eq(leaveRequests.employeeId, requester.id))
+    .leftJoin(requesterDesignation, eq(requester.designationId, requesterDesignation.id))
+    .leftJoin(requesterDoc, and(eq(requesterDoc.empId, requester.id), eq(requesterDoc.name, 'profile_picture')))
+    .where(and(eq(leaveRequests.status, 'approved'), sql`${today} BETWEEN ${leaveRequests.startDate} AND ${leaveRequests.endDate}`));
 }
 
 export async function findOutInRange(rangeStart: string, rangeEnd: string) {
@@ -109,18 +133,18 @@ export async function findOutInRange(rangeStart: string, rangeEnd: string) {
     .select({
       name: requester.name,
       designation: requesterDesignation.title,
-      leave_type: leaveRequests.leave_type,
-      start_date: leaveRequests.start_date,
-      end_date: leaveRequests.end_date,
+      leave_type: leaveRequests.leaveType,
+      start_date: leaveRequests.startDate,
+      end_date: leaveRequests.endDate,
     })
     .from(leaveRequests)
-    .innerJoin(requester, eq(leaveRequests.employee_id, requester.id))
-    .leftJoin(requesterDesignation, eq(requester.designation_id, requesterDesignation.id))
+    .innerJoin(requester, eq(leaveRequests.employeeId, requester.id))
+    .leftJoin(requesterDesignation, eq(requester.designationId, requesterDesignation.id))
     .where(
       and(
         eq(leaveRequests.status, 'approved'),
-        sql`${leaveRequests.start_date} <= ${rangeEnd}`,
-        sql`${leaveRequests.end_date} >= ${rangeStart}`
+        sql`${leaveRequests.startDate} <= ${rangeEnd}`,
+        sql`${leaveRequests.endDate} >= ${rangeStart}`
       )
     );
 }
@@ -130,35 +154,35 @@ export async function create(
   actorId: number | null = null
 ) {
   const result = await db.insert(leaveRequests).values({
-    employee_id,
-    leave_type,
-    start_date,
-    end_date,
+    employeeId: employee_id,
+    leaveType: leave_type,
+    startDate: start_date,
+    endDate: end_date,
     reason,
-    created_by: actorId,
-    updated_by: actorId,
-    created_at: new Date(),
+    createdBy: actorId,
+    updatedBy: actorId,
+    createdAt: new Date(),
   } as any);
   return insertedId(result);
 }
 
 export async function findById(id: number | string) {
-  const rows = await db.select().from(leaveRequests).where(eq(leaveRequests.id, Number(id))).limit(1);
+  const rows = await db.select(leaveRequestsColumns).from(leaveRequests).where(eq(leaveRequests.id, Number(id))).limit(1);
   return rows[0] || null;
 }
 
 export async function findWithEmployeeById(id: number | string) {
   const rows = await db
     .select({
-      ...getTableColumns(leaveRequests),
+      ...leaveRequestsColumns,
       employee_name: requester.name,
       designation: requesterDesignation.title,
       department: requesterDepartment.name,
     })
     .from(leaveRequests)
-    .innerJoin(requester, eq(leaveRequests.employee_id, requester.id))
-    .leftJoin(requesterDesignation, eq(requester.designation_id, requesterDesignation.id))
-    .leftJoin(requesterDepartment, eq(requester.department_id, requesterDepartment.id))
+    .innerJoin(requester, eq(leaveRequests.employeeId, requester.id))
+    .leftJoin(requesterDesignation, eq(requester.designationId, requesterDesignation.id))
+    .leftJoin(requesterDepartment, eq(requester.departmentId, requesterDepartment.id))
     .where(eq(leaveRequests.id, Number(id)))
     .limit(1);
   return rows[0] || null;
@@ -172,16 +196,16 @@ export async function approve(id: number | string, reviewerId: number | null = n
       .update(leaveRequests)
       .set({
         status: 'approved',
-        reviewed_by: reviewerId,
-        reviewed_at: new Date(),
-        updated_by: reviewerId,
+        reviewedBy: reviewerId,
+        reviewedAt: new Date(),
+        updatedBy: reviewerId,
       })
       .where(eq(leaveRequests.id, leaveId));
 
     if (result.affectedRows === 0) return null;
 
     const [row] = await tx
-      .select()
+      .select(leaveRequestsColumns)
       .from(leaveRequests)
       .where(eq(leaveRequests.id, leaveId));
 
@@ -190,7 +214,7 @@ export async function approve(id: number | string, reviewerId: number | null = n
 }
 
 export async function approveExternally(id: number | string) {
-  await db.update(leaveRequests).set({ status: 'approved', reviewed_at: new Date() }).where(eq(leaveRequests.id, Number(id)));
+  await db.update(leaveRequests).set({ status: 'approved', reviewedAt: new Date() }).where(eq(leaveRequests.id, Number(id)));
 }
 
 export async function findApprovedForEmployeeInRange(employeeId: number | string, startDate: string, endDate: string) {
@@ -199,10 +223,10 @@ export async function findApprovedForEmployeeInRange(employeeId: number | string
     .from(leaveRequests)
     .where(
       and(
-        eq(leaveRequests.employee_id, Number(employeeId)),
+        eq(leaveRequests.employeeId, Number(employeeId)),
         eq(leaveRequests.status, 'approved'),
-        eq(leaveRequests.start_date, startDate),
-        eq(leaveRequests.end_date, endDate)
+        eq(leaveRequests.startDate, startDate),
+        eq(leaveRequests.endDate, endDate)
       )
     )
     .limit(1);
@@ -212,7 +236,7 @@ export async function findApprovedForEmployeeInRange(employeeId: number | string
 export async function reject(id: number | string, reviewerId: number = null) {
   await db
     .update(leaveRequests)
-    .set({ status: 'rejected', reviewed_by: reviewerId, reviewed_at: new Date(), updated_by: reviewerId })
+    .set({ status: 'rejected', reviewedBy: reviewerId, reviewedAt: new Date(), updatedBy: reviewerId })
     .where(eq(leaveRequests.id, Number(id)));
 }
 
@@ -222,8 +246,8 @@ export async function incrementBalanceTaken(employeeId: number | string, leaveTy
     .set({ taken: sql`${leaveBalances.taken} + ${days}` })
     .where(
       and(
-        eq(leaveBalances.employee_id, Number(employeeId)),
-        eq(leaveBalances.leave_type, leaveType as any),
+        eq(leaveBalances.employeeId, Number(employeeId)),
+        eq(leaveBalances.leaveType, leaveType as any),
         eq(leaveBalances.year, year)
       )
     );
@@ -236,7 +260,7 @@ export async function update(
 ) {
   await db
     .update(leaveRequests)
-    .set({ leave_type, start_date, end_date, reason, updated_by: actorId })
+    .set({ leaveType: leave_type, startDate: start_date, endDate: end_date, reason, updatedBy: actorId })
     .where(eq(leaveRequests.id, Number(id)));
 }
 

@@ -2,10 +2,9 @@ import type { Config } from 'drizzle-kit';
 import 'dotenv/config';
 
 export default {
-  // Tracked separately from src/models/*.ts (the ORM query layer) — this file
-  // is drizzle-kit's own source of truth for migrations, seeded from a live
-  // introspection of prod so the baseline matches reality exactly, including
-  // FKs/indexes the hand-written app models don't declare.
+  // Single source of truth for both drizzle-kit migrations and the app's
+  // query layer (src/ imports its tables from here). Seeded from a live
+  // introspection of prod, so it carries the real FKs/indexes too.
   schema: './drizzle/schema.ts',
   out: './drizzle/migrations',
   dialect: 'mysql',

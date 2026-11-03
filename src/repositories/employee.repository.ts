@@ -1,5 +1,5 @@
 import { eq, and, sql, inArray } from "drizzle-orm";
-import { alias, mysqlTable, int, varchar, date } from "drizzle-orm/mysql-core";
+import { alias } from "drizzle-orm/mysql-core";
 import { db } from "../config/database";
 import {
   employees,
@@ -7,13 +7,13 @@ import {
   employeeDocuments,
   departments,
   designations,
-} from "../models";
+  leaveRequests,
+} from "../../drizzle/schema";
 import type {
   EmployeeCreateInput,
   EmployeeUpdateInput,
 } from "../dtos/employee.dto";
 import AppError from "../pkg/AppError";
-import { NewEmployee } from "../models/Employee";
 
 type Db = typeof db;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -40,21 +40,21 @@ const BASE_COLUMNS = {
   name: employees.name,
   email: employees.email,
   phone: employees.phone,
-  secondary_email: employees.secondary_email,
-  designation_id: employees.designation_id,
+  secondary_email: employees.secondaryEmail,
+  designation_id: employees.designationId,
   designation: designations.title,
-  department_id: employees.department_id,
+  department_id: employees.departmentId,
   department: departments.name,
-  manager_id: employees.manager_id,
-  start_date: employees.start_date,
+  manager_id: employees.managerId,
+  start_date: employees.startDate,
   dob: employees.dob,
   gender: employees.gender,
-  github_url: employees.github_url,
+  github_url: employees.githubUrl,
   address: employees.address,
-  discord_username: employees.discord_username,
+  discord_username: employees.discordUsername,
   panNo: employees.panNo,
   role: employees.role,
-  password_hash: employees.password_hash,
+  password_hash: employees.passwordHash,
   status: employees.status,
   profile_picture: docPic.filename,
   citizenship_front: docCf.filename,
@@ -65,15 +65,15 @@ function withDocJoins<T extends { leftJoin: any }>(query: T): T {
   return query
     .leftJoin(
       docPic,
-      and(eq(docPic.emp_id, employees.id), eq(docPic.name, "profile_picture")),
+      and(eq(docPic.empId, employees.id), eq(docPic.name, "profile_picture")),
     )
     .leftJoin(
       docCf,
-      and(eq(docCf.emp_id, employees.id), eq(docCf.name, "citizenship_front")),
+      and(eq(docCf.empId, employees.id), eq(docCf.name, "citizenship_front")),
     )
     .leftJoin(
       docCb,
-      and(eq(docCb.emp_id, employees.id), eq(docCb.name, "citizenship_back")),
+      and(eq(docCb.empId, employees.id), eq(docCb.name, "citizenship_back")),
     );
 }
 
@@ -82,10 +82,10 @@ function baseQuery() {
     db
       .select(BASE_COLUMNS)
       .from(employees)
-      .leftJoin(designations, eq(employees.designation_id, designations.id))
+      .leftJoin(designations, eq(employees.designationId, designations.id))
       .leftJoin(
         departments,
-        eq(employees.department_id, departments.id),
+        eq(employees.departmentId, departments.id),
       ) as any,
   );
 }
@@ -95,18 +95,11 @@ function baseQueryWithManager() {
     db
       .select({ ...BASE_COLUMNS, manager_name: manager.name })
       .from(employees)
-      .leftJoin(designations, eq(employees.designation_id, designations.id))
-      .leftJoin(departments, eq(employees.department_id, departments.id))
-      .leftJoin(manager, eq(employees.manager_id, manager.id)) as any,
+      .leftJoin(designations, eq(employees.designationId, designations.id))
+      .leftJoin(departments, eq(employees.departmentId, departments.id))
+      .leftJoin(manager, eq(employees.managerId, manager.id)) as any,
   );
 }
-
-const leaveRequests = mysqlTable("leave_requests", {
-  employee_id: int("employee_id"),
-  status: varchar("status", { length: 20 }),
-  start_date: date("start_date", { mode: "string" }),
-  end_date: date("end_date", { mode: "string" }),
-});
 
 export async function findAllActive() {
   return baseQueryWithManager().where(ACTIVE_ROSTER).orderBy(employees.name);
@@ -147,7 +140,7 @@ export async function findLeads() {
 
 export async function findBySecondaryEmail(email: string) {
   const rows = await baseQuery()
-    .where(eq(employees.secondary_email, email))
+    .where(eq(employees.secondaryEmail, email))
     .limit(1);
   return rows[0] || null;
 }
@@ -161,12 +154,12 @@ export async function findAuthByEmail(email: string) {
       role: employees.role,
       designation: designations.title,
       department: departments.name,
-      password_hash: employees.password_hash,
-      two_factor_enabled: employees.two_factor_enabled,
+      password_hash: employees.passwordHash,
+      two_factor_enabled: employees.twoFactorEnabled,
     })
     .from(employees)
-    .leftJoin(designations, eq(employees.designation_id, designations.id))
-    .leftJoin(departments, eq(employees.department_id, departments.id))
+    .leftJoin(designations, eq(employees.designationId, designations.id))
+    .leftJoin(departments, eq(employees.departmentId, departments.id))
     .where(and(eq(employees.email, email), ACTIVE_ROSTER))
     .limit(1);
   return rows[0] || null;
@@ -181,11 +174,11 @@ export async function findAuthById(id: number) {
       role: employees.role,
       designation: designations.title,
       department: departments.name,
-      password_hash: employees.password_hash,
+      password_hash: employees.passwordHash,
     })
     .from(employees)
-    .leftJoin(designations, eq(employees.designation_id, designations.id))
-    .leftJoin(departments, eq(employees.department_id, departments.id))
+    .leftJoin(designations, eq(employees.designationId, designations.id))
+    .leftJoin(departments, eq(employees.departmentId, departments.id))
     .where(and(eq(employees.id, id), ACTIVE_ROSTER))
     .limit(1);
   return rows[0] || null;
@@ -202,7 +195,7 @@ export async function findActiveBasicByEmail(email: string) {
 
 export async function findPasswordHashById(id: number | string) {
   const rows = await db
-    .select({ password_hash: employees.password_hash })
+    .select({ password_hash: employees.passwordHash })
     .from(employees)
     .where(eq(employees.id, Number(id)))
     .limit(1);
@@ -212,7 +205,7 @@ export async function findPasswordHashById(id: number | string) {
 export async function updatePasswordHash(id: number | string, hash: string) {
   await db
     .update(employees)
-    .set({ password_hash: hash })
+    .set({ passwordHash: hash })
     .where(eq(employees.id, Number(id)));
 }
 
@@ -229,7 +222,7 @@ export async function findByDiscordUsername(discordUsername: string) {
   const rows = await db
     .select({ id: employees.id, name: employees.name })
     .from(employees)
-    .where(eq(employees.discord_username, discordUsername))
+    .where(eq(employees.discordUsername, discordUsername))
     .limit(1);
   return rows[0] || null;
 }
@@ -256,7 +249,7 @@ async function findOrCreateDepartmentId(
   if (existing[0]) return existing[0].id;
   const result = await tx
     .insert(departments)
-    .values({ name, is_active: true, created_at: new Date() });
+    .values({ name, isActive: true, createdAt: new Date() });
   return insertedId(result);
 }
 
@@ -273,7 +266,7 @@ async function findOrCreateDesignationId(
   if (existing[0]) return existing[0].id;
   const result = await tx
     .insert(designations)
-    .values({ title, is_active: true, created_at: new Date() });
+    .values({ title, isActive: true, createdAt: new Date() });
   return insertedId(result);
 }
 
@@ -330,15 +323,15 @@ export async function create(
     const result = await tx.insert(employees).values({
       name: data.name,
       email: data.email,
-      secondary_email: data.secondary_email ?? null,
-      manager_id: data.manager_id ?? null,
-      start_date: data.start_date ?? null,
-      designation_id: designationId,
-      department_id: departmentId,
+      secondaryEmail: data.secondary_email ?? null,
+      managerId: data.manager_id ?? null,
+      startDate: data.start_date ?? null,
+      designationId,
+      departmentId,
       status: data.status,
       role: data.role || "employee",
       gender: data.gender ?? null,
-      github_url: data.github_url ?? null,
+      githubUrl: data.github_url ?? null,
     });
     const employeeId = insertedId(result);
 
@@ -373,23 +366,23 @@ export async function seedLeaveBalances(
   `);
 }
 
-const EMPLOYEES_TABLE_FIELDS = [
-  "dob",
-  "address",
-  "name",
-  "gender",
-  "email",
-  "secondary_email",
-  "phone",
-  "profile_picture",
-  "designation",
-  "department",
-  "department_id",
-  "manager_id",
-  "start_date",
-  "github_url",
-  "discord_username",
-];
+// Update-request field (snake_case, as sent by the frontend) -> employees column key.
+const EMPLOYEES_TABLE_FIELDS: Record<string, keyof typeof employees.$inferInsert> = {
+  dob: "dob",
+  address: "address",
+  name: "name",
+  gender: "gender",
+  email: "email",
+  secondary_email: "secondaryEmail",
+  phone: "phone",
+  designation: "designation",
+  department: "department",
+  department_id: "departmentId",
+  manager_id: "managerId",
+  start_date: "startDate",
+  github_url: "githubUrl",
+  discord_username: "discordUsername",
+};
 
 export async function update(
   id: number | string,
@@ -401,9 +394,7 @@ export async function update(
   const employeeId = Number(id);
 
   await db.transaction(async (tx) => {
-    const employeesFields = fields.filter((f) =>
-      EMPLOYEES_TABLE_FIELDS.includes(f),
-    );
+    const employeesFields = fields.filter((f) => f in EMPLOYEES_TABLE_FIELDS);
 
     if (
       ["designation", "department", "manager_id"].some((f) =>
@@ -415,8 +406,8 @@ export async function update(
       }
       const currentRows = await tx
         .select({
-          designation_id: employees.designation_id,
-          department_id: employees.department_id,
+          designation_id: employees.designationId,
+          department_id: employees.departmentId,
         })
         .from(employees)
         .where(eq(employees.id, employeeId))
@@ -430,17 +421,17 @@ export async function update(
         : current?.designation_id;
 
       const setValues: Record<string, any> = {
-        designation_id: designationId,
-        department_id: departmentId,
+        designationId,
+        departmentId,
       };
-      for (const f of employeesFields) setValues[f] = (updates as any)[f];
+      for (const f of employeesFields) setValues[EMPLOYEES_TABLE_FIELDS[f]] = (updates as any)[f];
       await tx
         .update(employees)
         .set(setValues)
         .where(eq(employees.id, employeeId));
     } else if (employeesFields.length) {
       const setValues: Record<string, any> = {};
-      for (const f of employeesFields) setValues[f] = (updates as any)[f];
+      for (const f of employeesFields) setValues[EMPLOYEES_TABLE_FIELDS[f]] = (updates as any)[f];
       await tx
         .update(employees)
         .set(setValues)
@@ -468,7 +459,7 @@ export async function approve(
 ) {
   await db
     .update(employees)
-    .set({ status: "active", password_hash: passwordHash })
+    .set({ status: "active", passwordHash })
     .where(eq(employees.id, Number(id)));
 }
 
@@ -484,17 +475,17 @@ export async function findPayrollBaseById(id: number | string) {
       designation: designations.title,
       department: departments.name,
       salary: employeeCompensationHistory.salary,
-      pay_frequency: employeeCompensationHistory.pay_frequency,
-      start_date: employees.start_date,
+      pay_frequency: employeeCompensationHistory.payFrequency,
+      start_date: employees.startDate,
     })
     .from(employees)
-    .leftJoin(designations, eq(employees.designation_id, designations.id))
-    .leftJoin(departments, eq(employees.department_id, departments.id))
+    .leftJoin(designations, eq(employees.designationId, designations.id))
+    .leftJoin(departments, eq(employees.departmentId, departments.id))
     .leftJoin(
       employeeCompensationHistory,
       and(
-        eq(employeeCompensationHistory.employee_id, employees.id),
-        sql`${employeeCompensationHistory.effective_to} IS NULL`,
+        eq(employeeCompensationHistory.employeeId, employees.id),
+        sql`${employeeCompensationHistory.effectiveTo} IS NULL`,
       ),
     )
     .where(and(eq(employees.id, Number(id)), ACTIVE_ROSTER))
@@ -510,7 +501,7 @@ export async function findPayrollColumns(id: number | string | null) {
     department: departments.name,
     role: employees.role,
     salary: employeeCompensationHistory.salary,
-    pay_frequency: employeeCompensationHistory.pay_frequency,
+    pay_frequency: employeeCompensationHistory.payFrequency,
   };
   const where = id
     ? and(ACTIVE_ROSTER, eq(employees.id, Number(id)))
@@ -518,13 +509,13 @@ export async function findPayrollColumns(id: number | string | null) {
   return db
     .select(cols)
     .from(employees)
-    .leftJoin(designations, eq(employees.designation_id, designations.id))
-    .leftJoin(departments, eq(employees.department_id, departments.id))
+    .leftJoin(designations, eq(employees.designationId, designations.id))
+    .leftJoin(departments, eq(employees.departmentId, departments.id))
     .leftJoin(
       employeeCompensationHistory,
       and(
-        eq(employeeCompensationHistory.employee_id, employees.id),
-        sql`${employeeCompensationHistory.effective_to} IS NULL`,
+        eq(employeeCompensationHistory.employeeId, employees.id),
+        sql`${employeeCompensationHistory.effectiveTo} IS NULL`,
       ),
     )
     .where(where)
@@ -559,10 +550,10 @@ export async function findProfileById(id: number | string) {
     db
       .select(PROFILE_COLUMNS)
       .from(employees)
-      .leftJoin(designations, eq(employees.designation_id, designations.id))
+      .leftJoin(designations, eq(employees.designationId, designations.id))
       .leftJoin(
         departments,
-        eq(employees.department_id, departments.id),
+        eq(employees.departmentId, departments.id),
       ) as any,
   )
     .where(and(eq(employees.id, Number(id)), ACTIVE_ROSTER))
@@ -576,7 +567,7 @@ export async function findProfilePictureById(id: number | string) {
     .from(employeeDocuments)
     .where(
       and(
-        eq(employeeDocuments.emp_id, Number(id)),
+        eq(employeeDocuments.empId, Number(id)),
         eq(employeeDocuments.name, "profile_picture"),
       ),
     )
@@ -603,7 +594,7 @@ export async function findCitizenshipDocById(
     .from(employeeDocuments)
     .where(
       and(
-        eq(employeeDocuments.emp_id, Number(id)),
+        eq(employeeDocuments.empId, Number(id)),
         eq(employeeDocuments.name, column),
       ),
     )
@@ -626,16 +617,16 @@ export async function findApprovedLeaveRangesForEmployee(
 ) {
   return db
     .select({
-      start_date: leaveRequests.start_date,
-      end_date: leaveRequests.end_date,
+      start_date: leaveRequests.startDate,
+      end_date: leaveRequests.endDate,
     })
     .from(leaveRequests)
     .where(
       and(
-        eq(leaveRequests.employee_id, Number(id)),
+        eq(leaveRequests.employeeId, Number(id)),
         eq(leaveRequests.status, "approved"),
-        sql`${leaveRequests.start_date} <= ${rangeEnd}`,
-        sql`${leaveRequests.end_date} >= ${rangeStart}`,
+        sql`${leaveRequests.startDate} <= ${rangeEnd}`,
+        sql`${leaveRequests.endDate} >= ${rangeStart}`,
       ),
     );
 }
@@ -652,7 +643,7 @@ export async function assertNoManagerCycle(
   let currentId: number = Number(proposedManagerId);
   for (let depth = 0; depth < MAX_MANAGER_CHAIN_DEPTH; depth++) {
     const rows = await db
-      .select({ manager_id: employees.manager_id })
+      .select({ manager_id: employees.managerId })
       .from(employees)
       .where(eq(employees.id, currentId))
       .limit(1);
@@ -676,24 +667,24 @@ export async function recordCompensationChange(
   const effectiveFrom = new Date().toISOString().slice(0, 10);
   await tx
     .update(employeeCompensationHistory)
-    .set({ effective_to: effectiveFrom })
+    .set({ effectiveTo: effectiveFrom })
     .where(
       and(
-        eq(employeeCompensationHistory.employee_id, Number(employeeId)),
-        sql`${employeeCompensationHistory.effective_to} IS NULL`,
+        eq(employeeCompensationHistory.employeeId, Number(employeeId)),
+        sql`${employeeCompensationHistory.effectiveTo} IS NULL`,
       ),
     );
   await tx.insert(employeeCompensationHistory).values({
-    employee_id: Number(employeeId),
+    employeeId: Number(employeeId),
     salary: String(salary),
-    pay_frequency: (payFrequency ?? "monthly") as
+    payFrequency: (payFrequency ?? "monthly") as
       | "monthly"
       | "biweekly"
       | "weekly",
-    effective_from: effectiveFrom,
-    change_reason: changeReason ?? null,
-    changed_by: changedBy ?? null,
-    created_at: new Date(),
+    effectiveFrom,
+    changeReason: changeReason ?? null,
+    changedBy: changedBy ?? null,
+    createdAt: new Date(),
   });
 }
 
@@ -707,12 +698,12 @@ export async function recordDocumentUpload(
     .delete(employeeDocuments)
     .where(
       and(
-        eq(employeeDocuments.emp_id, Number(employeeId)),
+        eq(employeeDocuments.empId, Number(employeeId)),
         eq(employeeDocuments.name, slot),
       ),
     );
   await tx.insert(employeeDocuments).values({
-    emp_id: Number(employeeId),
+    empId: Number(employeeId),
     name: slot,
     filename,
     url: null,
@@ -728,7 +719,32 @@ const VALID_STATUSES = [
   "terminated",
 ] as const;
 
-function validateBulkEmployee(data: NewEmployee, index: number) {
+// One bulk-import row, as sent by the frontend (snake_case).
+interface BulkEmployeeInput {
+  name: string;
+  email: string;
+  gender?: "male" | "female" | "other" | "prefer_not_to_say" | null;
+  secondary_email?: string | null;
+  phone?: string | null;
+  emergency_contact?: string | null;
+  designation?: string | null;
+  department?: string | null;
+  manager_id?: number | null;
+  start_date?: string | null;
+  dob?: string | null;
+  github_url?: string | null;
+  address?: string | null;
+  discord_username?: string | null;
+  panNo?: string | null;
+  timezone?: string | null;
+  work_hours?: string | null;
+  role?: "admin" | "lead" | "employee" | "intern";
+  salary?: string | null;
+  pay_frequency?: "monthly" | "biweekly" | "weekly" | null;
+  status?: "onboarding" | "active" | "on_leave" | "probation" | "offboarding" | "terminated";
+}
+
+function validateBulkEmployee(data: BulkEmployeeInput, index: number) {
   const errors: string[] = [];
 
   if (!data.name || typeof data.name !== "string" || !data.name.trim()) {
@@ -765,7 +781,7 @@ function validateBulkEmployee(data: NewEmployee, index: number) {
 }
 
 export async function createBulk(
-  dataList: NewEmployee[],
+  dataList: BulkEmployeeInput[],
   actorId: number | null = null,
 ) {
   if (!Array.isArray(dataList) || dataList.length === 0) {
@@ -823,7 +839,32 @@ export async function createBulk(
     // );
 
     // ── Single bulk insert ──
-    const result = await tx.insert(employees).values(dataList);
+    const result = await tx
+      .insert(employees)
+      .values(
+        dataList.map((data) => ({
+          name: data.name,
+          gender: data.gender,
+          email: data.email,
+          secondaryEmail: data.secondary_email,
+          phone: data.phone,
+          emergencyContact: data.emergency_contact,
+          designation: data.designation,
+          department: data.department,
+          startDate: data.start_date,
+          dob: data.dob,
+          githubUrl: data.github_url,
+          address: data.address,
+          discordUsername: data.discord_username,
+          panNo: data.panNo,
+          timezone: data.timezone,
+          workHours: data.work_hours,
+          role: data.role,
+          salary: data.salary,
+          payFrequency: data.pay_frequency,
+          status: data.status,
+        })),
+      );
 
     // MySQL's insertId on a multi-row insert gives you the FIRST inserted row's id;
     // subsequent ids are sequential from there (true only if AUTO_INCREMENT has no gaps

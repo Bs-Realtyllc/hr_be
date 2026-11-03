@@ -1,26 +1,43 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../config/database';
-import { emailSettings } from '../models';
+import { emailSettings } from '../../drizzle/schema';
+
+const emailSettingsColumns = {
+  id: emailSettings.id,
+  employee_id: emailSettings.employeeId,
+  smtp_host: emailSettings.smtpHost,
+  smtp_port: emailSettings.smtpPort,
+  smtp_user: emailSettings.smtpUser,
+  smtp_pass: emailSettings.smtpPass,
+  smtp_from: emailSettings.smtpFrom,
+  default_to: emailSettings.defaultTo,
+  default_cc: emailSettings.defaultCc,
+  default_bcc: emailSettings.defaultBcc,
+  created_at: emailSettings.createdAt,
+  updated_at: emailSettings.updatedAt,
+  created_by: emailSettings.createdBy,
+  updated_by: emailSettings.updatedBy,
+};
 
 export async function findPublicByEmployeeId(employeeId: number | string) {
   const rows = await db
     .select({
-      smtp_host: emailSettings.smtp_host,
-      smtp_port: emailSettings.smtp_port,
-      smtp_user: emailSettings.smtp_user,
-      smtp_from: emailSettings.smtp_from,
-      default_to: emailSettings.default_to,
-      default_cc: emailSettings.default_cc,
-      default_bcc: emailSettings.default_bcc,
+      smtp_host: emailSettings.smtpHost,
+      smtp_port: emailSettings.smtpPort,
+      smtp_user: emailSettings.smtpUser,
+      smtp_from: emailSettings.smtpFrom,
+      default_to: emailSettings.defaultTo,
+      default_cc: emailSettings.defaultCc,
+      default_bcc: emailSettings.defaultBcc,
     })
     .from(emailSettings)
-    .where(eq(emailSettings.employee_id, Number(employeeId)))
+    .where(eq(emailSettings.employeeId, Number(employeeId)))
     .limit(1);
   return rows[0] || null;
 }
 
 export async function findFullByEmployeeId(employeeId: number | string) {
-  const rows = await db.select().from(emailSettings).where(eq(emailSettings.employee_id, Number(employeeId))).limit(1);
+  const rows = await db.select(emailSettingsColumns).from(emailSettings).where(eq(emailSettings.employeeId, Number(employeeId))).limit(1);
   return rows[0] || null;
 }
 
@@ -43,14 +60,14 @@ export async function updateWithoutPassword(employeeId: number | string, data: a
   await db
     .update(emailSettings)
     .set({
-      smtp_host: data.smtp_host,
-      smtp_port: data.smtp_port,
-      smtp_user: data.smtp_user,
-      smtp_from: data.smtp_from,
-      default_to: data.default_to,
-      default_cc: data.default_cc,
-      default_bcc: data.default_bcc,
-      updated_by: actorId,
+      smtpHost: data.smtp_host,
+      smtpPort: data.smtp_port,
+      smtpUser: data.smtp_user,
+      smtpFrom: data.smtp_from,
+      defaultTo: data.default_to,
+      defaultCc: data.default_cc,
+      defaultBcc: data.default_bcc,
+      updatedBy: actorId,
     })
-    .where(eq(emailSettings.employee_id, Number(employeeId)));
+    .where(eq(emailSettings.employeeId, Number(employeeId)));
 }

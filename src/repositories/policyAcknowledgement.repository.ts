@@ -1,7 +1,19 @@
-import { eq, and, desc, getTableColumns } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import { db } from '../config/database';
-import { policyAcknowledgements, policies, employees } from '../models';
+import { policyAcknowledgements, policies, employees } from '../../drizzle/schema';
+
+const policyAcknowledgementsColumns = {
+  id: policyAcknowledgements.id,
+  policy_id: policyAcknowledgements.policyId,
+  employee_id: policyAcknowledgements.employeeId,
+  signed_file_path: policyAcknowledgements.signedFilePath,
+  status: policyAcknowledgements.status,
+  rejection_reason: policyAcknowledgements.rejectionReason,
+  submitted_at: policyAcknowledgements.submittedAt,
+  reviewed_by: policyAcknowledgements.reviewedBy,
+  reviewed_at: policyAcknowledgements.reviewedAt,
+};
 
 export async function upsertSubmission({ policyId, employeeId, signedFilePath }: any) {
   await db.execute(sql`
@@ -19,9 +31,9 @@ export async function upsertSubmission({ policyId, employeeId, signedFilePath }:
 
 export async function findByPolicyAndEmployee(policyId: number | string, employeeId: number | string) {
   const rows = await db
-    .select()
+    .select(policyAcknowledgementsColumns)
     .from(policyAcknowledgements)
-    .where(and(eq(policyAcknowledgements.policy_id, Number(policyId)), eq(policyAcknowledgements.employee_id, Number(employeeId))))
+    .where(and(eq(policyAcknowledgements.policyId, Number(policyId)), eq(policyAcknowledgements.employeeId, Number(employeeId))))
     .limit(1);
   return rows[0] || null;
 }
@@ -29,37 +41,37 @@ export async function findByPolicyAndEmployee(policyId: number | string, employe
 export async function listForEmployee(employeeId: number | string) {
   return db
     .select({
-      ...getTableColumns(policyAcknowledgements),
+      ...policyAcknowledgementsColumns,
       policy_title: policies.title,
       policy_type: policies.type,
       policy_category: policies.category,
     })
     .from(policyAcknowledgements)
-    .innerJoin(policies, eq(policyAcknowledgements.policy_id, policies.id))
-    .where(eq(policyAcknowledgements.employee_id, Number(employeeId)));
+    .innerJoin(policies, eq(policyAcknowledgements.policyId, policies.id))
+    .where(eq(policyAcknowledgements.employeeId, Number(employeeId)));
 }
 
 export async function listForPolicy(policyId: number | string) {
   return db
     .select({
-      ...getTableColumns(policyAcknowledgements),
+      ...policyAcknowledgementsColumns,
       employee_name: employees.name,
       employee_email: employees.email,
     })
     .from(policyAcknowledgements)
-    .innerJoin(employees, eq(policyAcknowledgements.employee_id, employees.id))
-    .where(eq(policyAcknowledgements.policy_id, Number(policyId)))
-    .orderBy(desc(policyAcknowledgements.submitted_at));
+    .innerJoin(employees, eq(policyAcknowledgements.employeeId, employees.id))
+    .where(eq(policyAcknowledgements.policyId, Number(policyId)))
+    .orderBy(desc(policyAcknowledgements.submittedAt));
 }
 
 export async function findById(id: number | string) {
-  const rows = await db.select().from(policyAcknowledgements).where(eq(policyAcknowledgements.id, Number(id))).limit(1);
+  const rows = await db.select(policyAcknowledgementsColumns).from(policyAcknowledgements).where(eq(policyAcknowledgements.id, Number(id))).limit(1);
   return rows[0] || null;
 }
 
 export async function review(id: number | string, { status, rejectionReason, reviewedBy }: any) {
   await db
     .update(policyAcknowledgements)
-    .set({ status, rejection_reason: rejectionReason || null, reviewed_by: reviewedBy, reviewed_at: new Date() })
+    .set({ status, rejectionReason: rejectionReason || null, reviewedBy, reviewedAt: new Date() })
     .where(eq(policyAcknowledgements.id, Number(id)));
 }

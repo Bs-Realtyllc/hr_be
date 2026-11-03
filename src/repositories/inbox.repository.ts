@@ -11,16 +11,59 @@ import {
   inboxPresence,
   employees,
   designations,
-} from '../models';
+} from '../../drizzle/schema';
+
+const inboxCategoriesColumns = {
+  id: inboxCategories.id,
+  name: inboxCategories.name,
+  position: inboxCategories.position,
+  created_by: inboxCategories.createdBy,
+  created_at: inboxCategories.createdAt,
+};
+const inboxChannelsColumns = {
+  id: inboxChannels.id,
+  name: inboxChannels.name,
+  type: inboxChannels.type,
+  category: inboxChannels.category,
+  description: inboxChannels.description,
+  position: inboxChannels.position,
+  created_at: inboxChannels.createdAt,
+  updated_at: inboxChannels.updatedAt,
+  created_by: inboxChannels.createdBy,
+  updated_by: inboxChannels.updatedBy,
+  required_role: inboxChannels.requiredRole,
+  is_archived: inboxChannels.isArchived,
+  category_id: inboxChannels.categoryId,
+  is_private: inboxChannels.isPrivate,
+};
+const inboxMessagesColumns = {
+  id: inboxMessages.id,
+  channel_id: inboxMessages.channelId,
+  employee_id: inboxMessages.employeeId,
+  content: inboxMessages.content,
+  is_edited: inboxMessages.isEdited,
+  is_pinned: inboxMessages.isPinned,
+  reply_to_id: inboxMessages.replyToId,
+  created_at: inboxMessages.createdAt,
+  updated_at: inboxMessages.updatedAt,
+  deleted_at: inboxMessages.deletedAt,
+  reply_to_content: inboxMessages.replyToContent,
+  reply_to_author: inboxMessages.replyToAuthor,
+};
+const inboxPresenceColumns = {
+  employee_id: inboxPresence.employeeId,
+  status: inboxPresence.status,
+  last_seen: inboxPresence.lastSeen,
+};
 
 /* ── Categories ───────────────────────────────────────────── */
 
 export async function listCategories() {
-  return db.select().from(inboxCategories).orderBy(asc(inboxCategories.position));
+  return db.select(inboxCategoriesColumns).from(inboxCategories).orderBy(asc(inboxCategories.position));
 }
 
 export async function createCategory(name: string, position: number, createdBy: number) {
-  const result: any = await db.insert(inboxCategories).values({ name, position, created_by: createdBy });
+  const result: any = await db.insert(inboxCategories).values({ name, position, createdBy });
   return result[0].insertId as number;
 }
 
@@ -45,17 +88,17 @@ export async function listChannels(employeeId?: number, employeeRole?: string) {
         name:          inboxChannels.name,
         type:          inboxChannels.type,
         category:      inboxChannels.category,
-        category_id:   inboxChannels.category_id,
+        category_id:   inboxChannels.categoryId,
         category_name: inboxCategories.name,
         description:   inboxChannels.description,
         position:      inboxChannels.position,
-        required_role: inboxChannels.required_role,
-        is_archived:   inboxChannels.is_archived,
-        is_private:    inboxChannels.is_private,
+        required_role: inboxChannels.requiredRole,
+        is_archived:   inboxChannels.isArchived,
+        is_private:    inboxChannels.isPrivate,
       })
       .from(inboxChannels)
-      .leftJoin(inboxCategories, eq(inboxChannels.category_id, inboxCategories.id))
-      .where(eq(inboxChannels.is_archived, 0))
+      .leftJoin(inboxCategories, eq(inboxChannels.categoryId, inboxCategories.id))
+      .where(eq(inboxChannels.isArchived, 0))
       .orderBy(asc(inboxChannels.position));
   }
 
@@ -106,7 +149,7 @@ export async function listChannels(employeeId?: number, employeeRole?: string) {
 }
 
 export async function findChannelById(id: number) {
-  const rows = await db.select().from(inboxChannels).where(eq(inboxChannels.id, id));
+  const rows = await db.select(inboxChannelsColumns).from(inboxChannels).where(eq(inboxChannels.id, id));
   return rows[0] ?? null;
 }
 
@@ -121,7 +164,17 @@ export async function createChannel(data: {
   position?: number;
   created_by: number;
 }) {
-  const result: any = await db.insert(inboxChannels).values(data);
+  const result: any = await db.insert(inboxChannels).values({
+    name: data.name,
+    type: data.type,
+    category: data.category,
+    categoryId: data.category_id,
+    description: data.description,
+    requiredRole: data.required_role,
+    isPrivate: data.is_private,
+    position: data.position,
+    createdBy: data.created_by,
+  });
   const channelId = result[0].insertId as number;
 
   if (!data.is_private) {
@@ -145,11 +198,20 @@ export async function updateChannel(id: number, data: {
   is_private?: number;
   category_id?: number;
 }) {
-  await db.update(inboxChannels).set(data).where(eq(inboxChannels.id, id));
+  await db
+    .update(inboxChannels)
+    .set({
+      name: data.name,
+      description: data.description,
+      requiredRole: data.required_role,
+      isPrivate: data.is_private,
+      categoryId: data.category_id,
+    })
+    .where(eq(inboxChannels.id, id));
 }
 
 export async function archiveChannel(id: number) {
-  await db.update(inboxChannels).set({ is_archived: 1 }).where(eq(inboxChannels.id, id));
+  await db.update(inboxChannels).set({ isArchived: 1 }).where(eq(inboxChannels.id, id));
 }
 
 export async function deleteChannel(id: number) {
@@ -163,8 +225,8 @@ export async function getMemberRole(employeeId: number, channelId: number) {
     .select({ role: inboxChannelMembers.role })
     .from(inboxChannelMembers)
     .where(and(
-      eq(inboxChannelMembers.employee_id, employeeId),
-      eq(inboxChannelMembers.channel_id, channelId),
+      eq(inboxChannelMembers.employeeId, employeeId),
+      eq(inboxChannelMembers.channelId, channelId),
     ))
     .limit(1);
   return rows[0]?.role ?? null;
@@ -173,15 +235,15 @@ export async function getMemberRole(employeeId: number, channelId: number) {
 export async function getChannelMembers(channelId: number) {
   return db
     .select({
-      employee_id:  inboxChannelMembers.employee_id,
+      employee_id:  inboxChannelMembers.employeeId,
       role:         inboxChannelMembers.role,
-      joined_at:    inboxChannelMembers.joined_at,
-      last_read_at: inboxChannelMembers.last_read_at,
+      joined_at:    inboxChannelMembers.joinedAt,
+      last_read_at: inboxChannelMembers.lastReadAt,
       name:         employees.name,
     })
     .from(inboxChannelMembers)
-    .innerJoin(employees, eq(inboxChannelMembers.employee_id, employees.id))
-    .where(eq(inboxChannelMembers.channel_id, channelId));
+    .innerJoin(employees, eq(inboxChannelMembers.employeeId, employees.id))
+    .where(eq(inboxChannelMembers.channelId, channelId));
 }
 
 export async function setMemberRole(channelId: number, employeeId: number, role: 'admin' | 'member' | 'readonly') {
@@ -195,8 +257,8 @@ export async function setMemberRole(channelId: number, employeeId: number, role:
 export async function removeMember(channelId: number, employeeId: number) {
   await db.delete(inboxChannelMembers)
     .where(and(
-      eq(inboxChannelMembers.channel_id, channelId),
-      eq(inboxChannelMembers.employee_id, employeeId),
+      eq(inboxChannelMembers.channelId, channelId),
+      eq(inboxChannelMembers.employeeId, employeeId),
     ));
 }
 
@@ -226,32 +288,32 @@ export async function getUnreadCountForMember(channelId: number, employeeId: num
 
 export async function listMessages(channelId: number, limit = 50, before?: Date) {
   const conditions = [
-    eq(inboxMessages.channel_id, channelId),
-    isNull(inboxMessages.deleted_at),
+    eq(inboxMessages.channelId, channelId),
+    isNull(inboxMessages.deletedAt),
   ];
   if (before) {
-    conditions.push(sql`${inboxMessages.created_at} < ${before}`);
+    conditions.push(sql`${inboxMessages.createdAt} < ${before}`);
   }
 
   const msgs = await db
     .select({
       id:          inboxMessages.id,
-      channel_id:  inboxMessages.channel_id,
-      employee_id: inboxMessages.employee_id,
+      channel_id:  inboxMessages.channelId,
+      employee_id: inboxMessages.employeeId,
       content:     inboxMessages.content,
-      is_edited:   inboxMessages.is_edited,
-      is_pinned:   inboxMessages.is_pinned,
-      reply_to_id: inboxMessages.reply_to_id,
-      created_at:  inboxMessages.created_at,
-      updated_at:  inboxMessages.updated_at,
+      is_edited:   inboxMessages.isEdited,
+      is_pinned:   inboxMessages.isPinned,
+      reply_to_id: inboxMessages.replyToId,
+      created_at:  inboxMessages.createdAt,
+      updated_at:  inboxMessages.updatedAt,
       author_name:        employees.name,
       author_designation: designations.title,
     })
     .from(inboxMessages)
-    .innerJoin(employees,    eq(inboxMessages.employee_id, employees.id))
-    .leftJoin(designations,  eq(employees.designation_id, designations.id))
+    .innerJoin(employees,    eq(inboxMessages.employeeId, employees.id))
+    .leftJoin(designations,  eq(employees.designationId, designations.id))
     .where(and(...conditions))
-    .orderBy(asc(inboxMessages.created_at))
+    .orderBy(asc(inboxMessages.createdAt))
     .limit(limit);
 
   if (msgs.length === 0) return [];
@@ -259,12 +321,12 @@ export async function listMessages(channelId: number, limit = 50, before?: Date)
   const msgIds = msgs.map(m => m.id);
   const reactions = await db
     .select({
-      message_id:  inboxMessageReactions.message_id,
+      message_id:  inboxMessageReactions.messageId,
       emoji:       inboxMessageReactions.emoji,
-      employee_id: inboxMessageReactions.employee_id,
+      employee_id: inboxMessageReactions.employeeId,
     })
     .from(inboxMessageReactions)
-    .where(inArray(inboxMessageReactions.message_id, msgIds));
+    .where(inArray(inboxMessageReactions.messageId, msgIds));
 
   const reactionMap = new Map<number, Map<string, number[]>>();
   for (const r of reactions) {
@@ -286,39 +348,44 @@ export async function insertMessage(data: {
   content:     string;
   reply_to_id?: number;
 }) {
-  const result: any = await db.insert(inboxMessages).values(data);
+  const result: any = await db.insert(inboxMessages).values({
+    channelId: data.channel_id,
+    employeeId: data.employee_id,
+    content: data.content,
+    replyToId: data.reply_to_id,
+  });
   return result[0].insertId as number;
 }
 
 export async function updateMessageContent(id: number, content: string, employeeId: number) {
   await db
     .update(inboxMessages)
-    .set({ content, is_edited: 1 })
-    .where(and(eq(inboxMessages.id, id), eq(inboxMessages.employee_id, employeeId)));
+    .set({ content, isEdited: 1 })
+    .where(and(eq(inboxMessages.id, id), eq(inboxMessages.employeeId, employeeId)));
 }
 
 export async function softDeleteMessage(id: number, employeeId: number, isAdmin: boolean) {
   const conditions = isAdmin
     ? [eq(inboxMessages.id, id)]
-    : [eq(inboxMessages.id, id), eq(inboxMessages.employee_id, employeeId)];
+    : [eq(inboxMessages.id, id), eq(inboxMessages.employeeId, employeeId)];
   await db
     .update(inboxMessages)
-    .set({ deleted_at: new Date() })
+    .set({ deletedAt: new Date() })
     .where(and(...conditions));
 }
 
 export async function togglePin(id: number, pinned: boolean) {
   await db
     .update(inboxMessages)
-    .set({ is_pinned: pinned ? 1 : 0 })
+    .set({ isPinned: pinned ? 1 : 0 })
     .where(eq(inboxMessages.id, id));
 }
 
 export async function getMessageById(id: number) {
   const rows = await db
-    .select()
+    .select(inboxMessagesColumns)
     .from(inboxMessages)
-    .where(and(eq(inboxMessages.id, id), isNull(inboxMessages.deleted_at)));
+    .where(and(eq(inboxMessages.id, id), isNull(inboxMessages.deletedAt)));
   return rows[0] ?? null;
 }
 
@@ -326,29 +393,29 @@ export async function getFullMessageById(id: number) {
   const rows = await db
     .select({
       id:          inboxMessages.id,
-      channel_id:  inboxMessages.channel_id,
-      employee_id: inboxMessages.employee_id,
+      channel_id:  inboxMessages.channelId,
+      employee_id: inboxMessages.employeeId,
       content:     inboxMessages.content,
-      is_edited:   inboxMessages.is_edited,
-      is_pinned:   inboxMessages.is_pinned,
-      reply_to_id: inboxMessages.reply_to_id,
-      created_at:  inboxMessages.created_at,
-      updated_at:  inboxMessages.updated_at,
+      is_edited:   inboxMessages.isEdited,
+      is_pinned:   inboxMessages.isPinned,
+      reply_to_id: inboxMessages.replyToId,
+      created_at:  inboxMessages.createdAt,
+      updated_at:  inboxMessages.updatedAt,
       author_name:        employees.name,
       author_designation: designations.title,
     })
     .from(inboxMessages)
-    .innerJoin(employees,   eq(inboxMessages.employee_id, employees.id))
-    .leftJoin(designations, eq(employees.designation_id, designations.id))
-    .where(and(eq(inboxMessages.id, id), isNull(inboxMessages.deleted_at)))
+    .innerJoin(employees,   eq(inboxMessages.employeeId, employees.id))
+    .leftJoin(designations, eq(employees.designationId, designations.id))
+    .where(and(eq(inboxMessages.id, id), isNull(inboxMessages.deletedAt)))
     .limit(1);
 
   if (rows.length === 0) return null;
 
   const reactions = await db
-    .select({ emoji: inboxMessageReactions.emoji, employee_id: inboxMessageReactions.employee_id })
+    .select({ emoji: inboxMessageReactions.emoji, employee_id: inboxMessageReactions.employeeId })
     .from(inboxMessageReactions)
-    .where(eq(inboxMessageReactions.message_id, id));
+    .where(eq(inboxMessageReactions.messageId, id));
 
   const reactionMap = new Map<string, number[]>();
   for (const r of reactions) {
@@ -369,8 +436,8 @@ export async function toggleReaction(messageId: number, employeeId: number, emoj
     .select()
     .from(inboxMessageReactions)
     .where(and(
-      eq(inboxMessageReactions.message_id, messageId),
-      eq(inboxMessageReactions.employee_id, employeeId),
+      eq(inboxMessageReactions.messageId, messageId),
+      eq(inboxMessageReactions.employeeId, employeeId),
       eq(inboxMessageReactions.emoji, emoji),
     ));
 
@@ -378,14 +445,14 @@ export async function toggleReaction(messageId: number, employeeId: number, emoj
     await db
       .delete(inboxMessageReactions)
       .where(and(
-        eq(inboxMessageReactions.message_id, messageId),
-        eq(inboxMessageReactions.employee_id, employeeId),
+        eq(inboxMessageReactions.messageId, messageId),
+        eq(inboxMessageReactions.employeeId, employeeId),
         eq(inboxMessageReactions.emoji, emoji),
       ));
     return 'removed';
   }
 
-  await db.insert(inboxMessageReactions).values({ message_id: messageId, employee_id: employeeId, emoji });
+  await db.insert(inboxMessageReactions).values({ messageId, employeeId, emoji });
   return 'added';
 }
 
@@ -393,10 +460,10 @@ export async function getReactionsForMessage(messageId: number) {
   const rows = await db
     .select({
       emoji:       inboxMessageReactions.emoji,
-      employee_id: inboxMessageReactions.employee_id,
+      employee_id: inboxMessageReactions.employeeId,
     })
     .from(inboxMessageReactions)
-    .where(eq(inboxMessageReactions.message_id, messageId));
+    .where(eq(inboxMessageReactions.messageId, messageId));
 
   const map = new Map<string, number[]>();
   for (const r of rows) {
@@ -443,28 +510,28 @@ export async function listDmConversations(employeeId: number) {
 export async function listDmMessages(employeeId: number, partnerId: number, limit = 50, before?: Date) {
   const conditions: any[] = [
     or(
-      and(eq(inboxDmMessages.from_employee_id, employeeId), eq(inboxDmMessages.to_employee_id, partnerId)),
-      and(eq(inboxDmMessages.from_employee_id, partnerId),   eq(inboxDmMessages.to_employee_id, employeeId)),
+      and(eq(inboxDmMessages.fromEmployeeId, employeeId), eq(inboxDmMessages.toEmployeeId, partnerId)),
+      and(eq(inboxDmMessages.fromEmployeeId, partnerId),   eq(inboxDmMessages.toEmployeeId, employeeId)),
     )!,
-    isNull(inboxDmMessages.deleted_at),
+    isNull(inboxDmMessages.deletedAt),
   ];
-  if (before) conditions.push(sql`${inboxDmMessages.created_at} < ${before}`);
+  if (before) conditions.push(sql`${inboxDmMessages.createdAt} < ${before}`);
 
   return db
     .select({
       id:               inboxDmMessages.id,
-      from_employee_id: inboxDmMessages.from_employee_id,
-      to_employee_id:   inboxDmMessages.to_employee_id,
+      from_employee_id: inboxDmMessages.fromEmployeeId,
+      to_employee_id:   inboxDmMessages.toEmployeeId,
       content:          inboxDmMessages.content,
-      is_edited:        inboxDmMessages.is_edited,
-      is_read:          inboxDmMessages.is_read,
-      created_at:       inboxDmMessages.created_at,
+      is_edited:        inboxDmMessages.isEdited,
+      is_read:          inboxDmMessages.isRead,
+      created_at:       inboxDmMessages.createdAt,
       author_name:      employees.name,
     })
     .from(inboxDmMessages)
-    .innerJoin(employees, eq(inboxDmMessages.from_employee_id, employees.id))
+    .innerJoin(employees, eq(inboxDmMessages.fromEmployeeId, employees.id))
     .where(and(...conditions))
-    .orderBy(asc(inboxDmMessages.created_at))
+    .orderBy(asc(inboxDmMessages.createdAt))
     .limit(limit);
 }
 
@@ -473,29 +540,33 @@ export async function insertDmMessage(data: {
   to_employee_id:   number;
   content:          string;
 }) {
-  const result: any = await db.insert(inboxDmMessages).values(data);
+  const result: any = await db.insert(inboxDmMessages).values({
+    fromEmployeeId: data.from_employee_id,
+    toEmployeeId: data.to_employee_id,
+    content: data.content,
+  });
   return result[0].insertId as number;
 }
 
 export async function markDmMessagesRead(fromId: number, toId: number) {
   await db
     .update(inboxDmMessages)
-    .set({ is_read: 1 })
-    .where(and(eq(inboxDmMessages.from_employee_id, fromId), eq(inboxDmMessages.to_employee_id, toId)));
+    .set({ isRead: 1 })
+    .where(and(eq(inboxDmMessages.fromEmployeeId, fromId), eq(inboxDmMessages.toEmployeeId, toId)));
 }
 
 export async function updateDmContent(id: number, fromId: number, content: string) {
   await db
     .update(inboxDmMessages)
-    .set({ content, is_edited: 1 })
-    .where(and(eq(inboxDmMessages.id, id), eq(inboxDmMessages.from_employee_id, fromId)));
+    .set({ content, isEdited: 1 })
+    .where(and(eq(inboxDmMessages.id, id), eq(inboxDmMessages.fromEmployeeId, fromId)));
 }
 
 export async function softDeleteDm(id: number, employeeId: number) {
   await db
     .update(inboxDmMessages)
-    .set({ deleted_at: new Date() })
-    .where(and(eq(inboxDmMessages.id, id), eq(inboxDmMessages.from_employee_id, employeeId)));
+    .set({ deletedAt: new Date() })
+    .where(and(eq(inboxDmMessages.id, id), eq(inboxDmMessages.fromEmployeeId, employeeId)));
 }
 
 /* ── Voice Presence ──────────────────────────────────────── */
@@ -509,32 +580,32 @@ export async function joinVoiceChannel(channelId: number, employeeId: number) {
 export async function leaveVoiceChannel(channelId: number, employeeId: number) {
   await db
     .delete(inboxVoicePresence)
-    .where(and(eq(inboxVoicePresence.channel_id, channelId), eq(inboxVoicePresence.employee_id, employeeId)));
+    .where(and(eq(inboxVoicePresence.channelId, channelId), eq(inboxVoicePresence.employeeId, employeeId)));
 }
 
 export async function leaveAllVoiceChannels(employeeId: number) {
   await db
     .delete(inboxVoicePresence)
-    .where(eq(inboxVoicePresence.employee_id, employeeId));
+    .where(eq(inboxVoicePresence.employeeId, employeeId));
 }
 
 export async function getVoicePresenceByChannel(channelId: number) {
   return db
-    .select({ employee_id: inboxVoicePresence.employee_id, name: employees.name })
+    .select({ employee_id: inboxVoicePresence.employeeId, name: employees.name })
     .from(inboxVoicePresence)
-    .innerJoin(employees, eq(inboxVoicePresence.employee_id, employees.id))
-    .where(eq(inboxVoicePresence.channel_id, channelId));
+    .innerJoin(employees, eq(inboxVoicePresence.employeeId, employees.id))
+    .where(eq(inboxVoicePresence.channelId, channelId));
 }
 
 export async function getAllVoicePresence() {
   return db
     .select({
-      channel_id:  inboxVoicePresence.channel_id,
-      employee_id: inboxVoicePresence.employee_id,
+      channel_id:  inboxVoicePresence.channelId,
+      employee_id: inboxVoicePresence.employeeId,
       name:        employees.name,
     })
     .from(inboxVoicePresence)
-    .innerJoin(employees, eq(inboxVoicePresence.employee_id, employees.id));
+    .innerJoin(employees, eq(inboxVoicePresence.employeeId, employees.id));
 }
 
 /* ── User Presence ───────────────────────────────────────── */
@@ -548,7 +619,7 @@ export async function upsertPresence(employeeId: number, status: 'online' | 'awa
 
 export async function getAllPresence(): Promise<Record<number, string>> {
   const rows = await db
-    .select({ employee_id: inboxPresence.employee_id, status: inboxPresence.status })
+    .select({ employee_id: inboxPresence.employeeId, status: inboxPresence.status })
     .from(inboxPresence);
   const map: Record<number, string> = {};
   for (const r of rows) map[r.employee_id] = r.status;
@@ -558,9 +629,9 @@ export async function getAllPresence(): Promise<Record<number, string>> {
 export async function getPresenceForEmployees(employeeIds: number[]) {
   if (employeeIds.length === 0) return [];
   return db
-    .select()
+    .select(inboxPresenceColumns)
     .from(inboxPresence)
-    .where(inArray(inboxPresence.employee_id, employeeIds));
+    .where(inArray(inboxPresence.employeeId, employeeIds));
 }
 
 export async function getUnreadCountsForEmployee(employeeId: number): Promise<{ channel_id: number; count: number }[]> {
@@ -651,8 +722,8 @@ export async function forwardToChannel(fromEmployeeId: number, sourceMessageId: 
 
 export async function forwardToDm(fromEmployeeId: number, content: string, toEmployeeId: number) {
   const result: any = await db.insert(inboxDmMessages).values({
-    from_employee_id: fromEmployeeId,
-    to_employee_id:   toEmployeeId,
+    fromEmployeeId,
+    toEmployeeId:   toEmployeeId,
     content,
   });
   return result[0]?.insertId as number;

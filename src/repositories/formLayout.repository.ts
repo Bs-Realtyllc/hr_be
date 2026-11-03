@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "../config/database";
-import { formsLayout } from "../models";
+import { formsLayout } from "../../drizzle/schema";
 
 export async function saveFormLayout(name: string, data: Record<string, any>) {
   // Merge at the top level so a partial save (e.g. just the contract
