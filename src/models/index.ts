@@ -43,4 +43,6 @@ export { inboxMessages } from './InboxMessage';
 export { inboxMessageReactions } from './InboxReaction';
 export { inboxDmMessages } from './InboxDmMessage';
 export { inboxVoicePresence, inboxPresence } from './InboxPresence';
+export { employeeOffboarding } from './EmployeeOffboarding';
+export { employeeOffboardingTasks } from './EmployeeOffboardingTask';
 

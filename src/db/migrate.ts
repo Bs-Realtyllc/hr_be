@@ -72,7 +72,7 @@ async function runFile(conn: Connection, filePath: string): Promise<boolean> {
   });
 
   console.log('Applying schema.sql…');
-  await runFile(conn, path.join(__dirname, 'schema.sql'));
+  const schemaOk = await runFile(conn, path.join(__dirname, 'schema.sql'));
 
   let appliedSet = new Set<string>();
   try {
@@ -89,6 +89,7 @@ async function runFile(conn: Connection, filePath: string): Promise<boolean> {
     .sort();
 
   console.log(`Applying ${migrationFiles.length} migration file(s)…`);
+  const failedFiles: string[] = [];
   for (const file of migrationFiles) {
     if (appliedSet.has(file)) {
       console.log(`  ${file}: already applied, skipping`);
@@ -101,11 +102,22 @@ async function runFile(conn: Connection, filePath: string): Promise<boolean> {
       } catch (err: any) {
         if (err.code !== 'ER_NO_SUCH_TABLE') throw err;
       }
+    } else {
+      failedFiles.push(file);
     }
   }
 
-  console.log('Done.');
   await conn.end();
+
+  // A failed statement inside runFile() only logs — it never throws — so without this check
+  // the process would exit 0 and the app would start even though the schema is out of sync.
+  if (!schemaOk || failedFiles.length) {
+    if (!schemaOk) console.error('schema.sql had unresolved failures (see [FAIL] lines above).');
+    if (failedFiles.length) console.error(`Migration(s) with unresolved failures: ${failedFiles.join(', ')}`);
+    process.exit(1);
+  }
+
+  console.log('Done.');
 })().catch((err) => {
   console.error('Migration run aborted:', err.message);
   process.exit(1);

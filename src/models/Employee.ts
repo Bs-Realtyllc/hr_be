@@ -33,7 +33,6 @@ export const employees = mysqlTable("employees", {
   panNo: varchar("panNo", { length: 50 }).unique(),
   timezone: varchar("timezone", { length: 50 }).default("UTC"),
   work_hours: varchar("work_hours", { length: 50 }).default("9 AM - 5 PM"),
-  tech_stack: json("tech_stack"),
   role: mysqlEnum("role", ["admin", "lead", "employee", "intern"])
     .notNull()
     .default("employee"),
@@ -44,22 +43,16 @@ export const employees = mysqlTable("employees", {
     "biweekly",
     "weekly",
   ]).default("monthly"),
-  is_active: boolean("is_active").default(true),
   status: mysqlEnum("status", [
     "onboarding",
     "active",
     "on_leave",
     "probation",
+    "offboarding",
     "terminated",
   ])
     .notNull()
     .default("active"),
-  termination_date: date("termination_date", { mode: "string" }),
-  termination_reason: varchar("termination_reason", { length: 255 }),
-  created_at: timestamp("created_at").defaultNow(),
-  updated_at: timestamp("updated_at").defaultNow().onUpdateNow(),
-  created_by: int("created_by"),
-  updated_by: int("updated_by"),
   leave_policy_accepted: boolean("leave_policy_accepted").default(false),
   leave_policy_accepted_at: timestamp("leave_policy_accepted_at"),
   two_factor_enabled: boolean("two_factor_enabled").notNull().default(false),

@@ -114,7 +114,7 @@ const options = {
 
         EmployeeStatus: {
           type: "string",
-          enum: ["onboarding", "active", "on_leave", "probation", "terminated"],
+          enum: ["onboarding", "active", "on_leave", "probation", "offboarding", "terminated"],
         },
 
         SuccessResponse: {
@@ -1417,11 +1417,6 @@ const options = {
             start_date: { type: "string", format: "date", nullable: true },
             github_url: { type: "string", format: "uri", nullable: true },
             discord_username: { type: "string", nullable: true },
-            tech_stack: {
-              type: "array",
-              items: { type: "string" },
-              nullable: true,
-            },
           },
         },
         UploadResponse: {
@@ -1973,7 +1968,7 @@ const options = {
         NotificationPreference: {
           type: "object",
           description:
-            "The returned list is filtered by the caller's role — admin sees only security + employee_updates; lead additionally sees the approver types (leave_request_submitted, overtime_request_submitted), which fire for every leave/overtime request submitted company-wide (every employee with role 'lead' is notified, independent of manager_id/reporting chain); employee/intern see security + employee_updates + requester types (leave_request, overtime_request, documents_signature, onboarding_updated).",
+            "The returned list is filtered by the caller's role — admin sees only security + employee_updates; lead additionally sees the approver types (leave_request_submitted, overtime_request_submitted), which fire for every leave/overtime request submitted company-wide (every employee with role 'lead' is notified, independent of manager_id/reporting chain); employee/intern see security + employee_updates + requester types (leave_request, overtime_request, documents_signature, onboarding_updated, offboarding_updated).",
           properties: {
             type: {
               type: "string",
@@ -1985,6 +1980,7 @@ const options = {
                 "overtime_request",
                 "documents_signature",
                 "onboarding_updated",
+                "offboarding_updated",
                 "leave_request_submitted",
                 "overtime_request_submitted",
               ],

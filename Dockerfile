@@ -7,6 +7,7 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY index.ts ./
 COPY src ./src
+COPY drizzle ./drizzle
 RUN npm run build \
  && cp src/db/*.sql dist/src/db/ \
  && mkdir -p dist/src/db/migrations \
@@ -34,4 +35,4 @@ EXPOSE 6002
 ENV NODE_ENV=production
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "node dist/src/db/migrate.js && node dist/index.js"]
+CMD ["sh", "-c", "node dist/src/db/migrate.js && node dist/src/db/migrate-drizzle.js && node dist/index.js"]

@@ -76,10 +76,10 @@ CREATE TABLE IF NOT EXISTS inbox_presence (
 );
 
 -- Indexes for hot query paths
-CREATE INDEX IF NOT EXISTS idx_inbox_msg_channel_created ON inbox_messages (channel_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_inbox_msg_employee        ON inbox_messages (employee_id);
-CREATE INDEX IF NOT EXISTS idx_inbox_dm_pair             ON inbox_dm_messages (from_employee_id, to_employee_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_inbox_dm_to               ON inbox_dm_messages (to_employee_id, is_read);
+CREATE INDEX idx_inbox_msg_channel_created ON inbox_messages (channel_id, created_at);
+CREATE INDEX idx_inbox_msg_employee        ON inbox_messages (employee_id);
+CREATE INDEX idx_inbox_dm_pair             ON inbox_dm_messages (from_employee_id, to_employee_id, created_at);
+CREATE INDEX idx_inbox_dm_to               ON inbox_dm_messages (to_employee_id, is_read);
 
 -- Seed default channels (idempotent via INSERT IGNORE)
 INSERT IGNORE INTO inbox_channels (id, name, type, category, description, position) VALUES

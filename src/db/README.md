@@ -18,6 +18,10 @@ src/db/
   "already applied" and skipped rather than failing the run.
 - Applied filenames are recorded in the `schema_migrations` table so re-running `npm run migrate`
   is a no-op for files already applied.
+- A file with a statement that fails for a non-skippable reason is never marked as applied, and
+  `migrate.ts` exits non-zero in that case — since the Docker image's `CMD` is
+  `migrate.js && index.js`, this stops the app from starting on a broken migration instead of
+  booting silently against a schema that's out of sync with the code.
 - `migrate_zz_*.sql` files are late/patch-style migrations (e.g. added audit columns) — the `zz`
   prefix just keeps them sorted after the earlier, more foundational migrations. New migrations
   should generally NOT use the `zz` prefix unless they're a small follow-up patch to something

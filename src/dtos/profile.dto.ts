@@ -17,7 +17,6 @@ const SELF_SERVICE_FIELDS = [
   "start_date",
   "github_url",
   "discord_username",
-  "tech_stack",
 ] as const;
 
 const fieldSchemas = {
@@ -53,7 +52,6 @@ const fieldSchemas = {
       /^[a-z0-9_.]{2,32}$/,
       "discord_username must be 2-32 lowercase letters, numbers, _ or .",
     ),
-  tech_stack: z.array(z.string().min(1).max(50)).max(30),
 } as const;
 
 export interface ProfileUpdateInput {

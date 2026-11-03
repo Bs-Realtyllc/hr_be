@@ -12,6 +12,7 @@ export const NOTIFICATION_TYPES = [
   { key: 'overtime_request', group: 'email', label: 'Overtime Request', roles: REQUESTER_ROLES },
   { key: 'documents_signature', group: 'email', label: 'Documents & Signature Request', roles: REQUESTER_ROLES },
   { key: 'onboarding_updated', group: 'email', label: 'Onboarding Updated', roles: REQUESTER_ROLES },
+  { key: 'offboarding_updated', group: 'email', label: 'Offboarding Updated', roles: REQUESTER_ROLES },
   // Approver alerts only ever get sent to the requester's assigned lead
   // (see leave.service.ts / overtime.service.ts) — admins never receive
   // these, so the toggle is hidden from admin to avoid a dead setting.
