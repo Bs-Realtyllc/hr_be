@@ -2,49 +2,52 @@
 
 ```
 src/db/
-├── schema.sql             Base schema — full CREATE TABLE statements, applied first
-├── migrate.ts              Runner: applies schema.sql, then migrations/*.sql in order
-├── migrations/              Incremental schema changes, one file per change
+├── migrate.ts              Runner: applies pending drizzle-kit migrations on boot
 ├── seed/                    Demo/dev seed data (run manually, never by migrate.ts)
-├── create-admin.ts         One-off script: create an admin employee account
-└── migrate_employee_data.ts One-off backfill script (department/designation normalization)
+└── create-admin.ts         One-off script: create an admin employee account
 ```
 
-## Migrations (`migrations/`)
+## Schema changes
 
-- Every file is named `migrate_<description>.sql` and applied in alphabetical order by
-  `npm run migrate` (`migrate.ts`). Each statement is idempotent-safe: errors with codes like
-  `ER_DUP_FIELDNAME`, `ER_DUP_KEYNAME`, `ER_DUP_ENTRY`, `ER_TABLE_EXISTS_ERROR` are treated as
-  "already applied" and skipped rather than failing the run.
-- Applied filenames are recorded in the `schema_migrations` table so re-running `npm run migrate`
-  is a no-op for files already applied.
-- A file with a statement that fails for a non-skippable reason is never marked as applied, and
-  `migrate.ts` exits non-zero in that case — since the Docker image's `CMD` is
-  `migrate.js && index.js`, this stops the app from starting on a broken migration instead of
-  booting silently against a schema that's out of sync with the code.
-- `migrate_zz_*.sql` files are late/patch-style migrations (e.g. added audit columns) — the `zz`
-  prefix just keeps them sorted after the earlier, more foundational migrations. New migrations
-  should generally NOT use the `zz` prefix unless they're a small follow-up patch to something
-  already merged.
-- To add a new migration: create `migrations/migrate_<short_description>.sql`, write
-  idempotent DDL (`ADD COLUMN IF NOT EXISTS` isn't supported by MySQL, so rely on the
-  skippable-error-code behavior above, or guard with `INSERT IGNORE` / conditional checks as
-  needed), then run `npm run migrate`.
+Schema is managed by [drizzle-kit](https://orm.drizzle.team/kit-docs/overview), not
+hand-written SQL:
+
+1. Edit the table definition in `drizzle/schema.ts`.
+2. Run `npm run db:generate` — this diffs against the last snapshot and writes a new
+   numbered SQL file into `drizzle/migrations/`.
+3. Review the generated SQL, commit it.
+4. On deploy, `npm run migrate` (`src/db/migrate.ts`) applies any migrations in
+   `drizzle/migrations/` not yet recorded in the `__drizzle_migrations` tracking table.
+
+`drizzle/schema.ts` is tracked separately from `src/models/*.ts` (the app's query
+layer) — the app models don't declare real foreign keys, so pointing drizzle-kit
+at them directly risked it proposing to drop constraints it didn't know existed.
+When adding a new table, add it to **both** `src/models/` (so the app can query it)
+and `drizzle/schema.ts` (so `db:generate` picks it up).
 
 ## Seed data (`seed/`)
 
-- `seed/seed.sql` is demo/dev data only — it is **not** run automatically by `migrate.ts`.
+- `seed/seed.sql` is demo/dev data only — it is **not** run automatically.
   Apply it manually after migrating:
   ```
   mysql -u root -p hr_platform < src/db/seed/seed.sql
   ```
-- Add new seed files here as `seed/<description>.sql` if a separate dataset is needed (e.g.
-  per-environment fixtures); keep them idempotent (`INSERT IGNORE`) since they may be re-run.
+- Add new seed files here as `seed/<description>.sql` if a separate dataset is needed
+  (e.g. per-environment fixtures); keep them idempotent (`INSERT IGNORE`) since they
+  may be re-run.
 
 ## Scripts
 
-- `npm run migrate` — applies `schema.sql` then everything in `migrations/`.
-- `npm run create-admin -- "Full Name" "email@company.com" "Password123"` — creates an admin
-  employee account directly (bypasses seed data).
-- `npm run migrate-employee-data` — one-off backfill for department/designation normalization;
-  pass `--verify` to check without writing.
+- `npm run migrate` — applies pending migrations from `drizzle/migrations/`.
+- `npm run db:generate` — generates a new migration file from a `drizzle/schema.ts` change.
+- `npm run create-admin -- "Full Name" "email@company.com" "Password123"` — creates an
+  admin employee account directly (bypasses seed data).
+
+## History
+
+Prior to drizzle-kit, this repo used a hand-written SQL migration system
+(`schema.sql` + `migrations/*.sql`, applied by a custom runner). It was retired after
+drizzle-kit's `0000_baseline.sql` was seeded from a live introspection of production,
+making it a complete, accurate replacement — including for fresh installs. The old
+files are still visible in git history if you need the reasoning behind a past schema
+change (e.g. `git log --all -- src/db/migrations`).

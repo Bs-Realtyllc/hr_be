@@ -8,12 +8,7 @@ COPY tsconfig.json ./
 COPY index.ts ./
 COPY src ./src
 COPY drizzle ./drizzle
-RUN npm run build \
- && cp src/db/*.sql dist/src/db/ \
- && mkdir -p dist/src/db/migrations \
- && cp src/db/migrations/*.sql dist/src/db/migrations/ \
- && mkdir -p dist/src/db/seed \
- && cp src/db/seed/*.sql dist/src/db/seed/
+RUN npm run build
 
 
 FROM node:20-alpine
@@ -35,4 +30,4 @@ EXPOSE 6002
 ENV NODE_ENV=production
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "node dist/src/db/migrate.js && node dist/src/db/migrate-drizzle.js && node dist/index.js"]
+CMD ["sh", "-c", "node dist/src/db/migrate.js && node dist/index.js"]
