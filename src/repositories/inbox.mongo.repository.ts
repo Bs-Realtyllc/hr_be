@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { ChannelMessage } from '../db/mongo/channelMessage';
 import { DmMessage }      from '../db/mongo/dmMessage';
+import { signMediaToken } from '../middleware/auth';
 
 const API_BASE = process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 6002}/api`;
 
@@ -14,7 +15,8 @@ export async function hydrateAudioUrl(content: string): Promise<string> {
   const dur = parts[1];
   const key = parts.slice(2).join(':');
   if (key.startsWith('http') || key.startsWith('/') || key.startsWith('blob:')) return content;
-  return `__audio__:${dur}:${API_BASE}/inbox/audio/${encodeURIComponent(key)}`;
+  const token = signMediaToken(key);
+  return `__audio__:${dur}:${API_BASE}/inbox/audio/${encodeURIComponent(key)}?token=${token}`;
 }
 
 async function hydrateMessages<T extends { content: string }>(msgs: T[]): Promise<T[]> {
