@@ -20,7 +20,7 @@ CREATE TABLE `culture_events` (
 	`employee_id` int,
 	`event_date` date NOT NULL,
 	`description` text,
-	`slack_notified` tinyint DEFAULT 0,
+	`slack_notified` boolean DEFAULT false,
 	`created_at` timestamp DEFAULT (now()),
 	`updated_at` timestamp DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	`created_by` int,
@@ -31,7 +31,7 @@ CREATE TABLE `culture_events` (
 CREATE TABLE `departments` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`name` varchar(100) NOT NULL,
-	`is_active` tinyint DEFAULT 1,
+	`is_active` boolean DEFAULT true,
 	`created_at` timestamp DEFAULT (now()),
 	CONSTRAINT `departments_id` PRIMARY KEY(`id`),
 	CONSTRAINT `name` UNIQUE(`name`)
@@ -41,7 +41,7 @@ CREATE TABLE `designations` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`title` varchar(100) NOT NULL,
 	`department_id` int,
-	`is_active` tinyint DEFAULT 1,
+	`is_active` boolean DEFAULT true,
 	`created_at` timestamp DEFAULT (now()),
 	CONSTRAINT `designations_id` PRIMARY KEY(`id`),
 	CONSTRAINT `title` UNIQUE(`title`)
@@ -96,6 +96,8 @@ CREATE TABLE `employee_daily_clock` (
 	`clock_in` timestamp DEFAULT (now()),
 	`clock_out` timestamp,
 	`clock_date` date DEFAULT (curdate()),
+	`clock_in_lat` decimal(9,6),
+	`clock_in_lng` decimal(9,6),
 	`created_at` timestamp DEFAULT (now()),
 	`updated_at` timestamp DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT `employee_daily_clock_id` PRIMARY KEY(`id`),
@@ -109,6 +111,41 @@ CREATE TABLE `employee_documents` (
 	`name` varchar(100) NOT NULL,
 	`filename` varchar(255) NOT NULL,
 	CONSTRAINT `employee_documents_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+CREATE TABLE `employee_offboarding` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`emp_id` int NOT NULL,
+	`exit_type` enum('resignation','termination','end_of_contract','non_renewal') NOT NULL,
+	`reason` text,
+	`notice_date` date NOT NULL,
+	`last_working_day` date NOT NULL,
+	`status` enum('in_progress','completed','cancelled') NOT NULL DEFAULT 'in_progress',
+	`previous_status` varchar(20) NOT NULL,
+	`relieving_letter_path` varchar(255),
+	`completed_at` timestamp,
+	`cancelled_at` timestamp,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp ON UPDATE CURRENT_TIMESTAMP,
+	`created_by` int,
+	`updated_by` int,
+	CONSTRAINT `employee_offboarding_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+CREATE TABLE `employee_offboarding_tasks` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`offboarding_id` int NOT NULL,
+	`category` enum('hr','it','finance','manager') NOT NULL,
+	`title` varchar(150) NOT NULL,
+	`status` enum('pending','completed','not_applicable') NOT NULL DEFAULT 'pending',
+	`notes` text,
+	`completed_by` int,
+	`completed_at` timestamp,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp ON UPDATE CURRENT_TIMESTAMP,
+	`created_by` int,
+	`updated_by` int,
+	CONSTRAINT `employee_offboarding_tasks_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
 CREATE TABLE `employee_onboarding_profile` (
@@ -126,12 +163,12 @@ CREATE TABLE `employee_onboarding_profile` (
 	`field_of_study` varchar(50),
 	`graduation_date` date,
 	`previous_experience` text,
-	`is_active` tinyint DEFAULT 1,
+	`is_active` boolean DEFAULT true,
 	`areas_of_interest` text,
 	`linkedin_url` varchar(255),
 	`github_url` varchar(255),
 	`portfolio_url` varchar(255),
-	`role` enum('intern','employee') NOT NULL,
+	`role` enum('intern','employee','admin') NOT NULL,
 	`additional_info` text,
 	`tech_stack` json,
 	`nda_path` varchar(255),
@@ -186,10 +223,10 @@ CREATE TABLE `employees` (
 	`password_hash` varchar(255),
 	`salary` decimal(10,2),
 	`pay_frequency` enum('monthly','biweekly','weekly') DEFAULT 'monthly',
-	`status` enum('onboarding','active','on_leave','probation','terminated') NOT NULL DEFAULT 'active',
-	`leave_policy_accepted` tinyint DEFAULT 0,
+	`status` enum('onboarding','active','on_leave','probation','offboarding','terminated') NOT NULL DEFAULT 'active',
+	`leave_policy_accepted` boolean DEFAULT false,
 	`leave_policy_accepted_at` timestamp,
-	`two_factor_enabled` tinyint NOT NULL DEFAULT 0,
+	`two_factor_enabled` boolean NOT NULL DEFAULT false,
 	`two_factor_secret` varchar(255),
 	`two_factor_backup_codes` json,
 	CONSTRAINT `employees_id` PRIMARY KEY(`id`),
@@ -410,7 +447,7 @@ CREATE TABLE `login_history` (
 	`email` varchar(255) NOT NULL,
 	`ip_address` varchar(45),
 	`user_agent` varchar(500),
-	`success` tinyint NOT NULL,
+	`success` boolean NOT NULL,
 	`failure_reason` varchar(50),
 	`created_at` timestamp NOT NULL DEFAULT (now()),
 	CONSTRAINT `login_history_id` PRIMARY KEY(`id`)
@@ -462,7 +499,7 @@ CREATE TABLE `notification_preferences` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`employee_id` int NOT NULL,
 	`notification_type` varchar(64) NOT NULL,
-	`enabled` tinyint NOT NULL DEFAULT 1,
+	`enabled` boolean NOT NULL DEFAULT true,
 	`created_at` timestamp NOT NULL DEFAULT (now()),
 	`updated_at` timestamp,
 	`created_by` int,
@@ -575,10 +612,10 @@ CREATE TABLE `policies` (
 	`file_path` varchar(255) NOT NULL,
 	`version` int NOT NULL DEFAULT 1,
 	`uploaded_by` int,
-	`is_active` tinyint DEFAULT 1,
+	`is_active` boolean DEFAULT true,
 	`created_at` timestamp DEFAULT (now()),
 	`category` varchar(30) NOT NULL DEFAULT 'policy',
-	`is_pinned` tinyint DEFAULT 0,
+	`is_pinned` boolean DEFAULT false,
 	CONSTRAINT `policies_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
@@ -658,7 +695,7 @@ CREATE TABLE `servers` (
 	`domain` varchar(255),
 	`ssh_user` varchar(100),
 	`notes` text,
-	`is_sensitive` tinyint DEFAULT 0,
+	`is_sensitive` boolean DEFAULT false,
 	`created_at` timestamp DEFAULT (now()),
 	`updated_at` timestamp DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	`created_by` int,
@@ -747,6 +784,11 @@ ALTER TABLE `employee_compensation_history` ADD CONSTRAINT `employee_compensatio
 ALTER TABLE `employee_compensation_history` ADD CONSTRAINT `employee_compensation_history_changed_by_employees_id_fk` FOREIGN KEY (`changed_by`) REFERENCES `employees`(`id`) ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `employee_daily_clock` ADD CONSTRAINT `employee_daily_clock_employee_id_employees_id_fk` FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `employee_documents` ADD CONSTRAINT `employee_documents_emp_id_employees_id_fk` FOREIGN KEY (`emp_id`) REFERENCES `employees`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `employee_offboarding` ADD CONSTRAINT `employee_offboarding_emp_id_employees_id_fk` FOREIGN KEY (`emp_id`) REFERENCES `employees`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `employee_offboarding` ADD CONSTRAINT `employee_offboarding_created_by_employees_id_fk` FOREIGN KEY (`created_by`) REFERENCES `employees`(`id`) ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `employee_offboarding` ADD CONSTRAINT `employee_offboarding_updated_by_employees_id_fk` FOREIGN KEY (`updated_by`) REFERENCES `employees`(`id`) ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `employee_offboarding_tasks` ADD CONSTRAINT `employee_offboarding_tasks_completed_by_employees_id_fk` FOREIGN KEY (`completed_by`) REFERENCES `employees`(`id`) ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `employee_offboarding_tasks` ADD CONSTRAINT `employee_offboarding_tasks_offboarding_id_fk` FOREIGN KEY (`offboarding_id`) REFERENCES `employee_offboarding`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `employees` ADD CONSTRAINT `employees_designation_id_designations_id_fk` FOREIGN KEY (`designation_id`) REFERENCES `designations`(`id`) ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `employees` ADD CONSTRAINT `employees_department_id_departments_id_fk` FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `employees` ADD CONSTRAINT `employees_ibfk_1` FOREIGN KEY (`manager_id`) REFERENCES `employees`(`id`) ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -827,6 +869,8 @@ CREATE INDEX `clock_id` ON `employee_clock_pauses` (`clock_id`);--> statement-br
 CREATE INDEX `idx_employee_comp_history_employee` ON `employee_compensation_history` (`employee_id`,`effective_from`);--> statement-breakpoint
 CREATE INDEX `changed_by` ON `employee_compensation_history` (`changed_by`);--> statement-breakpoint
 CREATE INDEX `idx_employee_documents_emp_name` ON `employee_documents` (`emp_id`,`name`);--> statement-breakpoint
+CREATE INDEX `idx_employee_offboarding_emp_id` ON `employee_offboarding` (`emp_id`);--> statement-breakpoint
+CREATE INDEX `idx_employee_offboarding_tasks_offboarding_id` ON `employee_offboarding_tasks` (`offboarding_id`);--> statement-breakpoint
 CREATE INDEX `manager_id` ON `employees` (`manager_id`);--> statement-breakpoint
 CREATE INDEX `from_employee_id` ON `feedback_notes` (`from_employee_id`);--> statement-breakpoint
 CREATE INDEX `to_employee_id` ON `feedback_notes` (`to_employee_id`);--> statement-breakpoint

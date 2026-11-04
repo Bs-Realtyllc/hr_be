@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "1894182a-a09a-4f40-9563-2031f2ce7018",
+  "id": "4675ce8d-70fe-443c-aab9-dff80f134c70",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "access_log": {
@@ -146,11 +146,11 @@
         },
         "slack_notified": {
           "name": "slack_notified",
-          "type": "tinyint",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": 0
+          "default": false
         },
         "created_at": {
           "name": "created_at",
@@ -271,11 +271,11 @@
         },
         "is_active": {
           "name": "is_active",
-          "type": "tinyint",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": 1
+          "default": true
         },
         "created_at": {
           "name": "created_at",
@@ -332,11 +332,11 @@
         },
         "is_active": {
           "name": "is_active",
-          "type": "tinyint",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": 1
+          "default": true
         },
         "created_at": {
           "name": "created_at",
@@ -813,6 +813,20 @@
           "autoincrement": false,
           "default": "(curdate())"
         },
+        "clock_in_lat": {
+          "name": "clock_in_lat",
+          "type": "decimal(9,6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "clock_in_lng": {
+          "name": "clock_in_lng",
+          "type": "decimal(9,6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -941,6 +955,318 @@
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
+    "employee_offboarding": {
+      "name": "employee_offboarding",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "emp_id": {
+          "name": "emp_id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "exit_type": {
+          "name": "exit_type",
+          "type": "enum('resignation','termination','end_of_contract','non_renewal')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notice_date": {
+          "name": "notice_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "last_working_day": {
+          "name": "last_working_day",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "enum('in_progress','completed','cancelled')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'in_progress'"
+        },
+        "previous_status": {
+          "name": "previous_status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "relieving_letter_path": {
+          "name": "relieving_letter_path",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cancelled_at": {
+          "name": "cancelled_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "onUpdate": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_employee_offboarding_emp_id": {
+          "name": "idx_employee_offboarding_emp_id",
+          "columns": [
+            "emp_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "employee_offboarding_emp_id_employees_id_fk": {
+          "name": "employee_offboarding_emp_id_employees_id_fk",
+          "tableFrom": "employee_offboarding",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "emp_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "employee_offboarding_created_by_employees_id_fk": {
+          "name": "employee_offboarding_created_by_employees_id_fk",
+          "tableFrom": "employee_offboarding",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "employee_offboarding_updated_by_employees_id_fk": {
+          "name": "employee_offboarding_updated_by_employees_id_fk",
+          "tableFrom": "employee_offboarding",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "employee_offboarding_id": {
+          "name": "employee_offboarding_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "employee_offboarding_tasks": {
+      "name": "employee_offboarding_tasks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "offboarding_id": {
+          "name": "offboarding_id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "category": {
+          "name": "category",
+          "type": "enum('hr','it','finance','manager')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "enum('pending','completed','not_applicable')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "completed_by": {
+          "name": "completed_by",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "onUpdate": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_employee_offboarding_tasks_offboarding_id": {
+          "name": "idx_employee_offboarding_tasks_offboarding_id",
+          "columns": [
+            "offboarding_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "employee_offboarding_tasks_completed_by_employees_id_fk": {
+          "name": "employee_offboarding_tasks_completed_by_employees_id_fk",
+          "tableFrom": "employee_offboarding_tasks",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "completed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "employee_offboarding_tasks_offboarding_id_fk": {
+          "name": "employee_offboarding_tasks_offboarding_id_fk",
+          "tableFrom": "employee_offboarding_tasks",
+          "tableTo": "employee_offboarding",
+          "columnsFrom": [
+            "offboarding_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "employee_offboarding_tasks_id": {
+          "name": "employee_offboarding_tasks_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
     "employee_onboarding_profile": {
       "name": "employee_onboarding_profile",
       "columns": {
@@ -1044,11 +1370,11 @@
         },
         "is_active": {
           "name": "is_active",
-          "type": "tinyint",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": 1
+          "default": true
         },
         "areas_of_interest": {
           "name": "areas_of_interest",
@@ -1080,7 +1406,7 @@
         },
         "role": {
           "name": "role",
-          "type": "enum('intern','employee')",
+          "type": "enum('intern','employee','admin')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -1449,7 +1775,7 @@
         },
         "status": {
           "name": "status",
-          "type": "enum('onboarding','active','on_leave','probation','terminated')",
+          "type": "enum('onboarding','active','on_leave','probation','offboarding','terminated')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -1457,11 +1783,11 @@
         },
         "leave_policy_accepted": {
           "name": "leave_policy_accepted",
-          "type": "tinyint",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": 0
+          "default": false
         },
         "leave_policy_accepted_at": {
           "name": "leave_policy_accepted_at",
@@ -1472,11 +1798,11 @@
         },
         "two_factor_enabled": {
           "name": "two_factor_enabled",
-          "type": "tinyint",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 0
+          "default": false
         },
         "two_factor_secret": {
           "name": "two_factor_secret",
@@ -3441,7 +3767,7 @@
         },
         "success": {
           "name": "success",
-          "type": "tinyint",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -3878,11 +4204,11 @@
         },
         "enabled": {
           "name": "enabled",
-          "type": "tinyint",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 1
+          "default": true
         },
         "created_at": {
           "name": "created_at",
@@ -4887,11 +5213,11 @@
         },
         "is_active": {
           "name": "is_active",
-          "type": "tinyint",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": 1
+          "default": true
         },
         "created_at": {
           "name": "created_at",
@@ -4911,11 +5237,11 @@
         },
         "is_pinned": {
           "name": "is_pinned",
-          "type": "tinyint",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": 0
+          "default": false
         }
       },
       "indexes": {
@@ -5653,11 +5979,11 @@
         },
         "is_sensitive": {
           "name": "is_sensitive",
-          "type": "tinyint",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": 0
+          "default": false
         },
         "created_at": {
           "name": "created_at",

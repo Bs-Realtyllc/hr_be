@@ -226,6 +226,7 @@ export const employees = mysqlTable("employees", {
 	secondaryEmail: varchar("secondary_email", { length: 150 }),
 	phone: varchar({ length: 20 }),
 	emergencyContact: varchar("emergency_contact", { length: 150 }),
+	profilePicture: varchar("profile_picture", { length: 255 }),
 	designation: varchar({ length: 100 }),
 	designationId: int("designation_id").references(() => designations.id, { onDelete: "set null" } ),
 	department: varchar({ length: 100 }),
