@@ -95,6 +95,8 @@ steps:
           cd $DIR
           docker compose -f $FILE pull app
           docker compose -f $FILE up -d --remove-orphans
+          sleep 10
+          docker compose -f $FILE exec -T app node dist/src/db/migrate.js
           docker image prune -f
           docker ps | grep $CONTAINER
       environment:

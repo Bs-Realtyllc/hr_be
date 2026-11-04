@@ -2,7 +2,7 @@
 
 ```
 src/db/
-├── migrate.ts              Runner: applies pending drizzle-kit migrations on boot
+├── migrate.ts              Runner: applies pending drizzle-kit migrations
 ├── mongo/                   Mongoose models (inbox messages live in MongoDB)
 ├── seed/                    Demo/dev seed data (run manually, never by migrate.ts)
 └── create-admin.ts         One-off script: create an admin employee account
@@ -17,8 +17,12 @@ hand-written SQL:
 2. Run `npm run db:generate` — this diffs against the last snapshot and writes a new
    numbered SQL file into `drizzle/migrations/`.
 3. Review the generated SQL, commit it.
-4. On deploy, `npm run migrate` (`src/db/migrate.ts`) applies any migrations in
-   `drizzle/migrations/` not yet recorded in the `__drizzle_migrations` tracking table.
+4. On deploy, Drone runs `migrate.js` as an explicit step against the running
+   container (`docker compose exec app node dist/src/db/migrate.js`) — after the
+   container starts, not baked into its `CMD` — so the migration output (and any
+   failure) shows directly in the Drone build log instead of only `docker logs`.
+   It applies any migrations in `drizzle/migrations/` not yet recorded in the
+   `__drizzle_migrations` tracking table.
 
 `drizzle/schema.ts` is the single definition of every MySQL table: drizzle-kit
 diffs it to generate migrations, and the app imports its tables and row types
