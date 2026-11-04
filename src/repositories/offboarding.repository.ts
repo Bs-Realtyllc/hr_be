@@ -1,8 +1,39 @@
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "../config/database";
-import { employees, employeeOffboarding, employeeOffboardingTasks } from "../models";
-import type { NewEmployeeOffboarding } from "../models/EmployeeOffboarding";
+import { employees, employeeOffboarding, employeeOffboardingTasks } from "../../drizzle/schema";
 import AppError from "../pkg/AppError";
+
+const employeeOffboardingColumns = {
+  id: employeeOffboarding.id,
+  emp_id: employeeOffboarding.empId,
+  exit_type: employeeOffboarding.exitType,
+  reason: employeeOffboarding.reason,
+  notice_date: employeeOffboarding.noticeDate,
+  last_working_day: employeeOffboarding.lastWorkingDay,
+  status: employeeOffboarding.status,
+  previous_status: employeeOffboarding.previousStatus,
+  relieving_letter_path: employeeOffboarding.relievingLetterPath,
+  completed_at: employeeOffboarding.completedAt,
+  cancelled_at: employeeOffboarding.cancelledAt,
+  created_at: employeeOffboarding.createdAt,
+  updated_at: employeeOffboarding.updatedAt,
+  created_by: employeeOffboarding.createdBy,
+  updated_by: employeeOffboarding.updatedBy,
+};
+const employeeOffboardingTasksColumns = {
+  id: employeeOffboardingTasks.id,
+  offboarding_id: employeeOffboardingTasks.offboardingId,
+  category: employeeOffboardingTasks.category,
+  title: employeeOffboardingTasks.title,
+  status: employeeOffboardingTasks.status,
+  notes: employeeOffboardingTasks.notes,
+  completed_by: employeeOffboardingTasks.completedBy,
+  completed_at: employeeOffboardingTasks.completedAt,
+  created_at: employeeOffboardingTasks.createdAt,
+  updated_at: employeeOffboardingTasks.updatedAt,
+  created_by: employeeOffboardingTasks.createdBy,
+  updated_by: employeeOffboardingTasks.updatedBy,
+};
 
 const CHECKLIST_TEMPLATE: Array<{ category: "hr" | "it" | "finance" | "manager"; title: string }> = [
   { category: "hr", title: "Conduct exit interview" },
@@ -15,12 +46,20 @@ const CHECKLIST_TEMPLATE: Array<{ category: "hr" | "it" | "finance" | "manager";
   { category: "manager", title: "Reassign ongoing projects and tasks" },
 ];
 
+interface InitiateOffboardingInput {
+  emp_id: number;
+  exit_type: "resignation" | "termination" | "end_of_contract" | "non_renewal";
+  reason?: string | null;
+  notice_date: string;
+  last_working_day: string;
+}
+
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
 
 export async function initiate(
-  input: Omit<NewEmployeeOffboarding, "previous_status" | "status">,
+  input: InitiateOffboardingInput,
   actorId: number | null,
 ) {
   return db.transaction(async (tx) => {
@@ -33,20 +72,24 @@ export async function initiate(
     if (employee.status === "offboarding") throw new AppError("Employee already has an offboarding in progress", 400);
 
     const result = await tx.insert(employeeOffboarding).values({
-      ...input,
-      previous_status: employee.status,
-      created_by: actorId,
-      updated_by: actorId,
+      empId: input.emp_id,
+      exitType: input.exit_type,
+      reason: input.reason,
+      noticeDate: input.notice_date,
+      lastWorkingDay: input.last_working_day,
+      previousStatus: employee.status,
+      createdBy: actorId,
+      updatedBy: actorId,
     });
     const offboardingId = insertedId(result);
 
     await tx.insert(employeeOffboardingTasks).values(
       CHECKLIST_TEMPLATE.map((task) => ({
-        offboarding_id: offboardingId,
+        offboardingId,
         category: task.category,
         title: task.title,
-        created_by: actorId,
-        updated_by: actorId,
+        createdBy: actorId,
+        updatedBy: actorId,
       })),
     );
 
@@ -57,30 +100,31 @@ export async function initiate(
 }
 
 export async function findById(id: number) {
-  const [row] = await db.select().from(employeeOffboarding).where(eq(employeeOffboarding.id, id));
+  const [row] = await db.select(employeeOffboardingColumns).from(employeeOffboarding).where(eq(employeeOffboarding.id, id));
   return row;
 }
 
 export async function listTasks(offboardingId: number) {
   return db
-    .select()
+    .select(employeeOffboardingTasksColumns)
     .from(employeeOffboardingTasks)
-    .where(eq(employeeOffboardingTasks.offboarding_id, offboardingId));
+    .where(eq(employeeOffboardingTasks.offboardingId, offboardingId));
 }
 
 export async function list(status?: string) {
-  if (status) {
-    return db.select().from(employeeOffboarding).where(eq(employeeOffboarding.status, status as any)).orderBy(desc(employeeOffboarding.created_at));
-  }
-  return db.select().from(employeeOffboarding).orderBy(desc(employeeOffboarding.created_at));
+  return db
+    .select(employeeOffboardingColumns)
+    .from(employeeOffboarding)
+    .where(status ? eq(employeeOffboarding.status, status as any) : undefined)
+    .orderBy(desc(employeeOffboarding.createdAt));
 }
 
 export async function listByEmployee(empId: number) {
   return db
-    .select()
+    .select(employeeOffboardingColumns)
     .from(employeeOffboarding)
-    .where(eq(employeeOffboarding.emp_id, empId))
-    .orderBy(desc(employeeOffboarding.created_at));
+    .where(eq(employeeOffboarding.empId, empId))
+    .orderBy(desc(employeeOffboarding.createdAt));
 }
 
 export async function updateTask(
@@ -92,7 +136,7 @@ export async function updateTask(
   const [task] = await db
     .select()
     .from(employeeOffboardingTasks)
-    .where(and(eq(employeeOffboardingTasks.id, taskId), eq(employeeOffboardingTasks.offboarding_id, offboardingId)));
+    .where(and(eq(employeeOffboardingTasks.id, taskId), eq(employeeOffboardingTasks.offboardingId, offboardingId)));
   if (!task) throw new AppError("Offboarding task not found", 404);
 
   const isCompleting = updates.status !== "pending";
@@ -101,9 +145,9 @@ export async function updateTask(
     .set({
       status: updates.status,
       notes: updates.notes,
-      completed_by: isCompleting ? actorId : null,
-      completed_at: isCompleting ? new Date() : null,
-      updated_by: actorId,
+      completedBy: isCompleting ? actorId : null,
+      completedAt: isCompleting ? new Date() : null,
+      updatedBy: actorId,
     })
     .where(eq(employeeOffboardingTasks.id, taskId));
 }
@@ -114,14 +158,14 @@ export async function complete(
   actorId: number | null,
 ) {
   return db.transaction(async (tx) => {
-    const [offboarding] = await tx.select().from(employeeOffboarding).where(eq(employeeOffboarding.id, offboardingId));
+    const [offboarding] = await tx.select(employeeOffboardingColumns).from(employeeOffboarding).where(eq(employeeOffboarding.id, offboardingId));
     if (!offboarding) throw new AppError("Offboarding record not found", 404);
     if (offboarding.status !== "in_progress") throw new AppError(`Offboarding is already ${offboarding.status}`, 400);
 
     const tasks = await tx
       .select({ status: employeeOffboardingTasks.status })
       .from(employeeOffboardingTasks)
-      .where(eq(employeeOffboardingTasks.offboarding_id, offboardingId));
+      .where(eq(employeeOffboardingTasks.offboardingId, offboardingId));
     const incomplete = tasks.some((t) => t.status === "pending");
     if (incomplete) throw new AppError("All checklist tasks must be completed or marked not applicable first", 400);
 
@@ -129,9 +173,9 @@ export async function complete(
       .update(employeeOffboarding)
       .set({
         status: "completed",
-        completed_at: new Date(),
-        relieving_letter_path: relievingLetterPath ?? offboarding.relieving_letter_path,
-        updated_by: actorId,
+        completedAt: new Date(),
+        relievingLetterPath: relievingLetterPath ?? offboarding.relieving_letter_path,
+        updatedBy: actorId,
       })
       .where(eq(employeeOffboarding.id, offboardingId));
 
@@ -149,13 +193,13 @@ export async function complete(
 
 export async function cancel(offboardingId: number, actorId: number | null) {
   return db.transaction(async (tx) => {
-    const [offboarding] = await tx.select().from(employeeOffboarding).where(eq(employeeOffboarding.id, offboardingId));
+    const [offboarding] = await tx.select(employeeOffboardingColumns).from(employeeOffboarding).where(eq(employeeOffboarding.id, offboardingId));
     if (!offboarding) throw new AppError("Offboarding record not found", 404);
     if (offboarding.status !== "in_progress") throw new AppError(`Offboarding is already ${offboarding.status}`, 400);
 
     await tx
       .update(employeeOffboarding)
-      .set({ status: "cancelled", cancelled_at: new Date(), updated_by: actorId })
+      .set({ status: "cancelled", cancelledAt: new Date(), updatedBy: actorId })
       .where(eq(employeeOffboarding.id, offboardingId));
 
     await tx

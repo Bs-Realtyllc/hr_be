@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
-import { ChannelMessage } from '../models/mongo/channelMessage';
-import { DmMessage }      from '../models/mongo/dmMessage';
+import { ChannelMessage } from '../db/mongo/channelMessage';
+import { DmMessage }      from '../db/mongo/dmMessage';
 
 const API_BASE = process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 6002}/api`;
 

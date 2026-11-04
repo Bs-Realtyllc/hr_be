@@ -1,6 +1,18 @@
-import { eq, and, sql, desc, getTableColumns } from 'drizzle-orm';
+import { eq, and, sql, desc } from 'drizzle-orm';
 import { db } from '../config/database';
-import { weeklyReports, employees, designations, departments } from '../models';
+import { weeklyReports, employees, designations, departments } from '../../drizzle/schema';
+
+const weeklyReportsColumns = {
+  id: weeklyReports.id,
+  employee_id: weeklyReports.employeeId,
+  title: weeklyReports.title,
+  week_start_date: weeklyReports.weekStartDate,
+  file_name: weeklyReports.fileName,
+  file_path: weeklyReports.filePath,
+  file_size: weeklyReports.fileSize,
+  notes: weeklyReports.notes,
+  submitted_at: weeklyReports.submittedAt,
+};
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
@@ -16,41 +28,41 @@ export async function findWithEmployeeNames({
   year?: number | string;
 }) {
   const conditions = [];
-  if (employeeId) conditions.push(eq(weeklyReports.employee_id, Number(employeeId)));
-  if (weekStartDate) conditions.push(eq(weeklyReports.week_start_date, weekStartDate));
-  if (year) conditions.push(sql`YEAR(${weeklyReports.week_start_date}) = ${Number(year)}`);
+  if (employeeId) conditions.push(eq(weeklyReports.employeeId, Number(employeeId)));
+  if (weekStartDate) conditions.push(eq(weeklyReports.weekStartDate, weekStartDate));
+  if (year) conditions.push(sql`YEAR(${weeklyReports.weekStartDate}) = ${Number(year)}`);
 
   return db
     .select({
-      ...getTableColumns(weeklyReports),
+      ...weeklyReportsColumns,
       employee_name: employees.name,
       designation: designations.title,
       department: departments.name,
     })
     .from(weeklyReports)
-    .innerJoin(employees, eq(weeklyReports.employee_id, employees.id))
-    .leftJoin(designations, eq(employees.designation_id, designations.id))
-    .leftJoin(departments, eq(employees.department_id, departments.id))
+    .innerJoin(employees, eq(weeklyReports.employeeId, employees.id))
+    .leftJoin(designations, eq(employees.designationId, designations.id))
+    .leftJoin(departments, eq(employees.departmentId, departments.id))
     .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(weeklyReports.week_start_date), desc(weeklyReports.submitted_at));
+    .orderBy(desc(weeklyReports.weekStartDate), desc(weeklyReports.submittedAt));
 }
 
 export async function create(data: any) {
   const result = await db.insert(weeklyReports).values({
-    employee_id: data.employee_id,
+    employeeId: data.employee_id,
     title: data.title,
-    week_start_date: data.week_start_date,
-    file_name: data.file_name,
-    file_path: data.file_path,
-    file_size: data.file_size,
+    weekStartDate: data.week_start_date,
+    fileName: data.file_name,
+    filePath: data.file_path,
+    fileSize: data.file_size,
     notes: data.notes ?? null,
-    submitted_at: new Date(),
+    submittedAt: new Date(),
   } as any);
   return insertedId(result);
 }
 
 export async function findById(id: number | string) {
-  const rows = await db.select().from(weeklyReports).where(eq(weeklyReports.id, Number(id))).limit(1);
+  const rows = await db.select(weeklyReportsColumns).from(weeklyReports).where(eq(weeklyReports.id, Number(id))).limit(1);
   return rows[0] || null;
 }
 

@@ -1,5 +1,4 @@
-import { employeeClockPauses, employeeDailyClock } from "../models";
-import { employees } from "../models/Employee";
+import { employeeClockPauses, employeeDailyClock, employees } from "../../drizzle/schema";
 import { db } from "../config/database";
 import AppError from "../pkg/AppError";
 import { and, eq, inArray, asc, desc, sql } from "drizzle-orm";

@@ -1,6 +1,20 @@
 import { eq, asc, sql } from 'drizzle-orm';
 import { db } from '../config/database';
-import { projectTodos } from '../models';
+import { projectTodos } from '../../drizzle/schema';
+
+const projectTodosColumns = {
+  id: projectTodos.id,
+  project_id: projectTodos.projectId,
+  title: projectTodos.title,
+  description: projectTodos.description,
+  deadline: projectTodos.deadline,
+  is_complete: projectTodos.isComplete,
+  sort_order: projectTodos.sortOrder,
+  created_by: projectTodos.createdBy,
+  updated_by: projectTodos.updatedBy,
+  created_at: projectTodos.createdAt,
+  updated_at: projectTodos.updatedAt,
+};
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
@@ -8,10 +22,10 @@ function insertedId(result: any): number {
 
 export async function findByProjectId(projectId: number | string) {
   return db
-    .select()
+    .select(projectTodosColumns)
     .from(projectTodos)
-    .where(eq(projectTodos.project_id, Number(projectId)))
-    .orderBy(asc(projectTodos.sort_order), asc(projectTodos.created_at));
+    .where(eq(projectTodos.projectId, Number(projectId)))
+    .orderBy(asc(projectTodos.sortOrder), asc(projectTodos.createdAt));
 }
 
 export async function create(
@@ -20,14 +34,14 @@ export async function create(
   actorId: number | null = null
 ) {
   const result = await db.insert(projectTodos).values({
-    project_id: Number(projectId),
+    projectId: Number(projectId),
     title: data.title,
     description: data.description ?? null,
     deadline: data.deadline ?? null,
-    sort_order: data.sort_order ?? 0,
-    is_complete: 0,
-    created_by: actorId,
-    updated_by: actorId,
+    sortOrder: data.sort_order ?? 0,
+    isComplete: 0,
+    createdBy: actorId,
+    updatedBy: actorId,
   } as any);
   return insertedId(result);
 }
@@ -39,7 +53,13 @@ export async function update(
 ) {
   await db
     .update(projectTodos)
-    .set({ ...data, updated_by: actorId } as any)
+    .set({
+      title: data.title,
+      description: data.description,
+      deadline: data.deadline,
+      sortOrder: data.sort_order,
+      updatedBy: actorId,
+    })
     .where(eq(projectTodos.id, Number(todoId)));
 }
 
@@ -50,7 +70,7 @@ export async function toggleComplete(
 ) {
   await db
     .update(projectTodos)
-    .set({ is_complete, updated_by: actorId } as any)
+    .set({ isComplete: is_complete, updatedBy: actorId } as any)
     .where(eq(projectTodos.id, Number(todoId)));
 }
 
@@ -62,10 +82,10 @@ export async function progressSummary(projectId: number | string): Promise<{ tot
   const rows = await db
     .select({
       total: sql<number>`COUNT(*)`,
-      completed: sql<number>`SUM(CASE WHEN ${projectTodos.is_complete} = 1 THEN 1 ELSE 0 END)`,
+      completed: sql<number>`SUM(CASE WHEN ${projectTodos.isComplete} = 1 THEN 1 ELSE 0 END)`,
     })
     .from(projectTodos)
-    .where(eq(projectTodos.project_id, Number(projectId)));
+    .where(eq(projectTodos.projectId, Number(projectId)));
 
   const total = Number(rows[0]?.total ?? 0);
   const completed = Number(rows[0]?.completed ?? 0);

@@ -1,6 +1,17 @@
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { db } from '../config/database';
-import { loginHistory, employees } from '../models';
+import { loginHistory, employees } from '../../drizzle/schema';
+
+const loginHistoryColumns = {
+  id: loginHistory.id,
+  employee_id: loginHistory.employeeId,
+  email: loginHistory.email,
+  ip_address: loginHistory.ipAddress,
+  user_agent: loginHistory.userAgent,
+  success: loginHistory.success,
+  failure_reason: loginHistory.failureReason,
+  created_at: loginHistory.createdAt,
+};
 
 interface RecordAttemptInput {
   employeeId: number | null;
@@ -13,12 +24,12 @@ interface RecordAttemptInput {
 
 export async function record({ employeeId, email, ipAddress, userAgent, success, failureReason }: RecordAttemptInput) {
   await db.insert(loginHistory).values({
-    employee_id: employeeId,
+    employeeId,
     email,
-    ip_address: ipAddress ?? null,
-    user_agent: userAgent ?? null,
+    ipAddress: ipAddress ?? null,
+    userAgent: userAgent ?? null,
     success,
-    failure_reason: failureReason ?? null,
+    failureReason: failureReason ?? null,
   });
 }
 
@@ -32,16 +43,16 @@ export async function findByEmployeeId(employeeId: number, { page, limit }: Pagi
 
   const [entries, countResult] = await Promise.all([
     db
-      .select()
+      .select(loginHistoryColumns)
       .from(loginHistory)
-      .where(eq(loginHistory.employee_id, employeeId))
-      .orderBy(desc(loginHistory.created_at))
+      .where(eq(loginHistory.employeeId, employeeId))
+      .orderBy(desc(loginHistory.createdAt))
       .limit(limit)
       .offset(offset),
     db
       .select({ count: sql<number>`COUNT(*)`.mapWith(Number) })
       .from(loginHistory)
-      .where(eq(loginHistory.employee_id, employeeId)),
+      .where(eq(loginHistory.employeeId, employeeId)),
   ]);
 
   return { entries, total: countResult[0]?.count ?? 0 };
@@ -55,10 +66,10 @@ export async function hasPriorSuccessfulLogin(employeeId: number, ipAddress: str
     .from(loginHistory)
     .where(
       and(
-        eq(loginHistory.employee_id, employeeId),
+        eq(loginHistory.employeeId, employeeId),
         eq(loginHistory.success, true),
-        eq(loginHistory.ip_address, ipAddress),
-        eq(loginHistory.user_agent, userAgent),
+        eq(loginHistory.ipAddress, ipAddress),
+        eq(loginHistory.userAgent, userAgent),
       ),
     )
     .limit(1);
@@ -72,18 +83,18 @@ export async function findAll({ page, limit }: Pagination) {
     db
       .select({
         id: loginHistory.id,
-        employee_id: loginHistory.employee_id,
+        employee_id: loginHistory.employeeId,
         email: loginHistory.email,
-        ip_address: loginHistory.ip_address,
-        user_agent: loginHistory.user_agent,
+        ip_address: loginHistory.ipAddress,
+        user_agent: loginHistory.userAgent,
         success: loginHistory.success,
-        failure_reason: loginHistory.failure_reason,
-        created_at: loginHistory.created_at,
+        failure_reason: loginHistory.failureReason,
+        created_at: loginHistory.createdAt,
         employee_name: employees.name,
       })
       .from(loginHistory)
-      .leftJoin(employees, eq(loginHistory.employee_id, employees.id))
-      .orderBy(desc(loginHistory.created_at))
+      .leftJoin(employees, eq(loginHistory.employeeId, employees.id))
+      .orderBy(desc(loginHistory.createdAt))
       .limit(limit)
       .offset(offset),
     db.select({ count: sql<number>`COUNT(*)`.mapWith(Number) }).from(loginHistory),

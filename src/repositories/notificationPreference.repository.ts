@@ -1,12 +1,12 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '../config/database';
-import { notificationPreferences } from '../models';
+import { notificationPreferences } from '../../drizzle/schema';
 
 export async function findAllForEmployee(employeeId: number) {
   return db
-    .select({ notification_type: notificationPreferences.notification_type, enabled: notificationPreferences.enabled })
+    .select({ notification_type: notificationPreferences.notificationType, enabled: notificationPreferences.enabled })
     .from(notificationPreferences)
-    .where(eq(notificationPreferences.employee_id, employeeId));
+    .where(eq(notificationPreferences.employeeId, employeeId));
 }
 
 export async function findOne(employeeId: number, notificationType: string) {
@@ -15,8 +15,8 @@ export async function findOne(employeeId: number, notificationType: string) {
     .from(notificationPreferences)
     .where(
       and(
-        eq(notificationPreferences.employee_id, employeeId),
-        eq(notificationPreferences.notification_type, notificationType),
+        eq(notificationPreferences.employeeId, employeeId),
+        eq(notificationPreferences.notificationType, notificationType),
       ),
     )
     .limit(1);
@@ -26,6 +26,6 @@ export async function findOne(employeeId: number, notificationType: string) {
 export async function upsert(employeeId: number, notificationType: string, enabled: boolean, actorId: number | null) {
   await db
     .insert(notificationPreferences)
-    .values({ employee_id: employeeId, notification_type: notificationType, enabled, created_by: actorId })
-    .onDuplicateKeyUpdate({ set: { enabled, updated_by: actorId } });
+    .values({ employeeId, notificationType, enabled, createdBy: actorId })
+    .onDuplicateKeyUpdate({ set: { enabled, updatedBy: actorId } });
 }

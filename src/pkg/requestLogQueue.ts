@@ -1,6 +1,5 @@
 import { db } from "../config/database";
-import { accessLog, NewAccessLog } from "../models/AccessLog";
-import { NewOperationLog, operationLog } from "../models/OperationLog";
+import { accessLog, NewAccessLog, NewOperationLog, operationLog } from "../../drizzle/schema";
 import { getContext } from "./requestContext";
 
 interface EnqueueOperationType {

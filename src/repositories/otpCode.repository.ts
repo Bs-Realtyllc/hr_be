@@ -1,28 +1,42 @@
 import { eq, and, desc, gt, sql } from 'drizzle-orm';
 import { db } from '../config/database';
-import { otpCodes } from '../models/OtpCode';
+import { otpCodes } from '../../drizzle/schema';
+
+const otpCodesColumns = {
+  id: otpCodes.id,
+  employee_id: otpCodes.employeeId,
+  code_hash: otpCodes.codeHash,
+  attempts: otpCodes.attempts,
+  max_attempts: otpCodes.maxAttempts,
+  expires_at: otpCodes.expiresAt,
+  used_at: otpCodes.usedAt,
+  created_at: otpCodes.createdAt,
+  updated_at: otpCodes.updatedAt,
+  created_by: otpCodes.createdBy,
+  updated_by: otpCodes.updatedBy,
+};
 
 export async function create(employeeId: number, codeHash: string, expiresAt: Date) {
   const result = await db.insert(otpCodes).values({
-    employee_id: employeeId,
-    code_hash: codeHash,
-    expires_at: expiresAt,
+    employeeId,
+    codeHash,
+    expiresAt,
   });
   return result[0].insertId;
 }
 
 export async function findLatestActive(employeeId: number) {
   const rows = await db
-    .select()
+    .select(otpCodesColumns)
     .from(otpCodes)
     .where(
       and(
-        eq(otpCodes.employee_id, employeeId),
-        sql`${otpCodes.used_at} IS NULL`,
-        gt(otpCodes.expires_at, new Date())
+        eq(otpCodes.employeeId, employeeId),
+        sql`${otpCodes.usedAt} IS NULL`,
+        gt(otpCodes.expiresAt, new Date())
       )
     )
-    .orderBy(desc(otpCodes.created_at))
+    .orderBy(desc(otpCodes.createdAt))
     .limit(1);
   return rows[0] || null;
 }
@@ -37,18 +51,18 @@ export async function incrementAttempts(id: number) {
 export async function markUsed(id: number) {
   await db
     .update(otpCodes)
-    .set({ used_at: new Date() })
+    .set({ usedAt: new Date() })
     .where(eq(otpCodes.id, id));
 }
 
 export async function invalidateAllForEmployee(employeeId: number) {
   await db
     .update(otpCodes)
-    .set({ used_at: new Date() })
+    .set({ usedAt: new Date() })
     .where(
       and(
-        eq(otpCodes.employee_id, employeeId),
-        sql`${otpCodes.used_at} IS NULL`
+        eq(otpCodes.employeeId, employeeId),
+        sql`${otpCodes.usedAt} IS NULL`
       )
     );
 }

@@ -3,6 +3,7 @@
 ```
 src/db/
 ├── migrate.ts              Runner: applies pending drizzle-kit migrations on boot
+├── mongo/                   Mongoose models (inbox messages live in MongoDB)
 ├── seed/                    Demo/dev seed data (run manually, never by migrate.ts)
 └── create-admin.ts         One-off script: create an admin employee account
 ```
@@ -19,11 +20,22 @@ hand-written SQL:
 4. On deploy, `npm run migrate` (`src/db/migrate.ts`) applies any migrations in
    `drizzle/migrations/` not yet recorded in the `__drizzle_migrations` tracking table.
 
-`drizzle/schema.ts` is tracked separately from `src/models/*.ts` (the app's query
-layer) — the app models don't declare real foreign keys, so pointing drizzle-kit
-at them directly risked it proposing to drop constraints it didn't know existed.
-When adding a new table, add it to **both** `src/models/` (so the app can query it)
-and `drizzle/schema.ts` (so `db:generate` picks it up).
+`drizzle/schema.ts` is the single definition of every MySQL table: drizzle-kit
+diffs it to generate migrations, and the app imports its tables and row types
+from it directly (`import { employees, NewEmployee } from '../../drizzle/schema'`).
+When adding or changing a table, edit only that file.
+
+Drizzle keys are camelCase (`employeeId`); DB columns stay snake_case (`employee_id`).
+
+- **Existing endpoints** still speak snake_case to the frontend. Their repositories keep
+  that shape explicitly: reads list their output keys (`select({ employee_id: t.employeeId })`,
+  or a per-file `<table>Columns` object for whole rows), and writes map incoming fields
+  (`.values({ employeeId: data.employee_id })`). When adding a column to one of these
+  tables, add it to those lists too if the endpoint should expose or accept it.
+- **New code** uses camelCase end to end (schema, repository, API, frontend) — no mapping.
+
+`drizzle/migrations/0000_baseline.sql` creates the whole schema from scratch; every
+later migration should only add, alter or drop on top of it.
 
 ## Seed data (`seed/`)
 
