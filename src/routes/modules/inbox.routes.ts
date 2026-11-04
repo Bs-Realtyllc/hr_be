@@ -1,9 +1,15 @@
 import { Router } from 'express';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, authenticateMediaToken } from '../../middleware/auth';
 import { uploadAudioMemory } from '../../middleware/uplod';
 import * as ctrl from '../../controllers/inbox.controller';
 
 const router = Router();
+
+/* Native <audio> elements can't send an Authorization header, so this route checks a
+   short-lived, resource-scoped query token instead — must be registered before the
+   blanket `authenticate` below, which would otherwise reject it for lacking a Bearer header. */
+router.get('/audio/:key', authenticateMediaToken, ctrl.streamAudio);
+
 router.use(authenticate);
 
 /* ── Categories ───────────────────────────────────────────── */
@@ -41,7 +47,7 @@ router.post('/messages/:messageId/reactions',          ctrl.toggleReaction);
 /* ── Direct messages ──────────────────────────────────────── */
 router.get('/dms',                                     ctrl.getDmConversations);
 router.post('/dms/audio',                              uploadAudioMemory.single('audio'), ctrl.uploadDmAudio);
-router.get('/audio/:key',                              ctrl.streamAudio);
+router.get('/audio/:key/refresh-url',                  ctrl.refreshAudioUrl);
 router.get('/dms/:partnerId/messages',                 ctrl.getDmMessages);
 router.post('/dms/:partnerId/messages',                ctrl.sendDm);
 router.patch('/dm-messages/:messageId',                ctrl.editDm);

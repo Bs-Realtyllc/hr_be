@@ -2,6 +2,7 @@ import { Response } from 'express';
 import asyncHandler from '../middleware/asyncHandler';
 import * as inboxService from '../services/inbox.service';
 import { uploadAudioToMinio, streamAudioFromMinio } from '../services/minio.service';
+import { signMediaToken } from '../middleware/auth';
 
 /* ── Categories ───────────────────────────────────────────── */
 
@@ -286,8 +287,20 @@ export const uploadDmAudio = asyncHandler(async (req: any, res: Response) => {
   if (!req.file) throw Object.assign(new Error('No audio file uploaded'), { status: 400 });
   const key = await uploadAudioToMinio(req.file.buffer, req.file.mimetype);
   const apiBase  = process.env.API_BASE_URL ?? `${req.protocol}://${req.get('host')}/api`;
-  const proxyUrl = `${apiBase}/inbox/audio/${encodeURIComponent(key)}`;
+  const proxyUrl = `${apiBase}/inbox/audio/${encodeURIComponent(key)}?token=${signMediaToken(key)}`;
   res.json({ key, presignedUrl: proxyUrl });
+});
+
+/* ── Audio URL refresh — mints a new signed token once the old one expires ── */
+
+export const refreshAudioUrl = asyncHandler(async (req: any, res: Response) => {
+  const key = req.params.key as string;
+  if (!key || key.includes('..') || key.includes('/')) {
+    throw Object.assign(new Error('Invalid audio key'), { status: 400 });
+  }
+  const apiBase = process.env.API_BASE_URL ?? `${req.protocol}://${req.get('host')}/api`;
+  const url = `${apiBase}/inbox/audio/${encodeURIComponent(key)}?token=${signMediaToken(key)}`;
+  res.json({ url });
 });
 
 /* ── Audio proxy (streams MinIO → browser, no CORS issues) ── */

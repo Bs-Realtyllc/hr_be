@@ -28,3 +28,25 @@ export function requireRole(...roles: string[]) {
     next();
   };
 }
+
+/** Short-lived token scoped to one object key, for media URLs native <audio>/<img> elements
+ *  request directly and can't attach an Authorization header to. */
+export function signMediaToken(key: string): string {
+  return jwt.sign({ key }, process.env.JWT_SECRET as string, { expiresIn: "15m" });
+}
+
+export function authenticateMediaToken(req: any, res: Response, next: NextFunction) {
+  const token = req.query.token;
+  if (typeof token !== "string") {
+    return res.status(401).json({ error: "No token provided" });
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { key: string };
+    if (decoded.key !== req.params.key) {
+      return res.status(403).json({ error: "Token does not match resource" });
+    }
+    next();
+  } catch {
+    res.status(401).json({ error: "Invalid or expired token" });
+  }
+}
