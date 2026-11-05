@@ -3,6 +3,9 @@ import asyncHandler from "../middleware/asyncHandler";
 import * as onboardService from "../services/onboard.service";
 import AppError from "../pkg/AppError";
 import fs from "fs/promises";
+import * as onboardDto from "../dtos/onboard.dto";
+import type { OnboardFilePaths } from "../dtos/onboard.dto";
+import { ONBOARD_FILE_FIELDS, toStoredPath, type OnboardFileField } from "../middleware/uplod";
 
 //list data in employee_onboarding_profile;
 export const list = asyncHandler(async (req: Request, res: Response) => {
@@ -30,42 +33,33 @@ export const getDraft = asyncHandler(async (req: Request, res: Response) => {
 });
 
 //add data in employee_onboarding_profile;
-const REQUIRED_FIELDS = [
-  "contract",
-  "citizenshipFront",
-  "citizenshipBack",
-  "panCard",
-  "passoutCertificate",
-  "passportPhoto",
-] as const;
-
+// multipart/form-data from the /onboard/:role form: a JSON `payload` field plus one
+// file per document field (see ONBOARD_FILE_FIELDS). Files are already on disk by now.
 export const add = asyncHandler(async (req: Request, res: Response) => {
-  const files = req.files as Record<string, Express.Multer.File[]> | undefined;
-
-  const missing = REQUIRED_FIELDS.filter((field) => !files?.[field]?.[0]);
-  if (missing.length > 0) {
-    throw new AppError(`Missing required file(s): ${missing.join(", ")}`, 400);
-  }
-
-  // Non-null assertion is safe here — we just validated every field exists.
-  const filenames = {
-    contract: files!.contract[0].filename,
-    citizenshipFront: files!.citizenshipFront[0].filename,
-    citizenshipBack: files!.citizenshipBack[0].filename,
-    panCard: files!.panCard[0].filename,
-    passoutCertificate: files!.passoutCertificate[0].filename,
-    passportPhoto: files!.passportPhoto[0].filename,
-  };
-  // console.log('controller', filenames)
+  const files = (req.files as Record<string, Express.Multer.File[]> | undefined) ?? {};
+  const uploaded = Object.values(files).flat();
 
   try {
-    await onboardService.create(req.body.payload, filenames);
+    const fields = Object.keys(ONBOARD_FILE_FIELDS) as OnboardFileField[];
+    const missing = fields.filter((f) => ONBOARD_FILE_FIELDS[f].required && !files[f]?.[0]);
+    if (missing.length > 0) {
+      throw new AppError(`Missing required file(s): ${missing.join(", ")}`, 400);
+    }
+
+    const input = onboardDto.toCreateInput(req.body?.payload);
+
+    const filePaths: OnboardFilePaths = {};
+    for (const field of fields) {
+      const file = files[field]?.[0];
+      if (file) filePaths[field] = toStoredPath(file);
+    }
+
+    await onboardService.create(input, filePaths);
     res.status(201).json({ message: "Onboarding data added sucessfully!" });
   } catch (err) {
-    // Roll back all saved files since the DB insert failed
-    const allFiles = REQUIRED_FIELDS.flatMap((field) => files![field]);
+    // Nothing was saved (validation or DB failure) — remove this request's uploads
     await Promise.all(
-      allFiles.map((f) =>
+      uploaded.map((f) =>
         fs.unlink(f.path).catch((unlinkErr) => {
           console.error("Failed to clean up orphaned file:", unlinkErr);
         }),
@@ -96,7 +90,7 @@ export const getContract = asyncHandler(async (req: any, res: Response) => {
   const { filePath, filename } = await onboardService.getContractFilePath(
     req.user,
     Number(req.params.id),
-    req.params.type as "photo" | "nda" | "citizenship" | "pan" | "certificate",
+    req.params.type,
   );
 
   res.setHeader("Content-Disposition", `inline; filename="${filename}"`);

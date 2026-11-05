@@ -1,7 +1,7 @@
 import express from "express";
 import * as ctrl from "../../controllers/onboard.controller";
 import { authenticate, requireRole } from "../../middleware/auth";
-import { upload } from "../../middleware/uplod";
+import { uploadOnboardDocuments } from "../../middleware/uplod";
 const router = express.Router();
 
 router.get("/", authenticate, requireRole('admin'), ctrl.list);
@@ -9,18 +9,8 @@ router.get("/", authenticate, requireRole('admin'), ctrl.list);
 // Public lookup so the onboarding form can pre-fill itself — same unauthenticated
 // surface as the POST below, since the candidate isn't logged in when they land here.
 router.get("/draft", ctrl.getDraft);
-router.post(
-  "/",
-  upload.fields([
-    { name: "contract", maxCount: 1 },
-    { name: "citizenshipFront", maxCount: 1 },
-    { name: "citizenshipBack", maxCount: 1 },
-    { name: "panCard", maxCount: 1 },
-    { name: "passoutCertificate", maxCount: 1 },
-    { name: "passportPhoto", maxCount: 1 },
-  ]),
-  ctrl.add,
-);
+// Submitted by the /onboard/:role form — documents are saved under uploads/ by multer
+router.post("/", uploadOnboardDocuments, ctrl.add);
 router.patch(
   "/:id/approve",
   authenticate,
@@ -29,7 +19,7 @@ router.patch(
 );
 router.delete("/:id", authenticate, requireRole("lead", "admin"), ctrl.remove);
 
-// route
+// :type is a document field name (citizenshipFront, panBack, signedContract, ...) or a legacy alias
 router.get("/:id/:type", authenticate, requireRole("admin", "lead"), ctrl.getContract);
 router.post("/request-access", ctrl.onboardAdmin);
 export default router;

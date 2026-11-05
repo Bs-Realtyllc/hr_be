@@ -1,21 +1,33 @@
 import { eq,and } from "drizzle-orm";
 import { db } from "../config/database";
 import { employeeOnboardingProfile, employees } from "../../drizzle/schema";
+import type { NewEmployeeOnboardingProfile } from "../../drizzle/schema";
 import AppError from "../pkg/AppError";
-import fs from "fs/promises";
-import path from "path";
 import * as employeeRepo from "./employee.repository";
+import type { OnboardFileField } from "../middleware/uplod";
+import type { OnboardCreateInput, OnboardFilePaths } from "../dtos/onboard.dto";
 
 const employeeOnboardingProfileColumns = {
   id: employeeOnboardingProfile.id,
   name: employeeOnboardingProfile.name,
   gender: employeeOnboardingProfile.gender,
   dob: employeeOnboardingProfile.dob,
+  nationality: employeeOnboardingProfile.nationality,
   email: employeeOnboardingProfile.email,
   phone: employeeOnboardingProfile.phone,
   current_address: employeeOnboardingProfile.currentAddress,
   permanent_address: employeeOnboardingProfile.permanentAddress,
-  emergency_contact: employeeOnboardingProfile.emergencyContact,
+  designation: employeeOnboardingProfile.designation,
+  department: employeeOnboardingProfile.department,
+  start_date: employeeOnboardingProfile.startDate,
+  reporting_manager: employeeOnboardingProfile.reportingManager,
+  employment_type: employeeOnboardingProfile.employmentType,
+  work_location: employeeOnboardingProfile.workLocation,
+  emergency_contact_name: employeeOnboardingProfile.emergencyContactName,
+  emergency_contact_relationship: employeeOnboardingProfile.emergencyContactRelationship,
+  emergency_contact_phone: employeeOnboardingProfile.emergencyContactPhone,
+  emergency_contact_email: employeeOnboardingProfile.emergencyContactEmail,
+  emergency_contact_address: employeeOnboardingProfile.emergencyContactAddress,
   education_level: employeeOnboardingProfile.educationLevel,
   institution_name: employeeOnboardingProfile.institutionName,
   field_of_study: employeeOnboardingProfile.fieldOfStudy,
@@ -29,87 +41,97 @@ const employeeOnboardingProfileColumns = {
   role: employeeOnboardingProfile.role,
   additional_info: employeeOnboardingProfile.additionalInfo,
   tech_stack: employeeOnboardingProfile.techStack,
-  nda_path: employeeOnboardingProfile.ndaPath,
   citizenship_front_path: employeeOnboardingProfile.citizenshipFrontPath,
   citizenship_back_path: employeeOnboardingProfile.citizenshipBackPath,
-  pan_path: employeeOnboardingProfile.panPath,
-  passout_certificate_path: employeeOnboardingProfile.passoutCertificatePath,
+  pan_front_path: employeeOnboardingProfile.panFrontPath,
+  pan_back_path: employeeOnboardingProfile.panBackPath,
+  educational_document_path: employeeOnboardingProfile.educationalDocumentPath,
+  additional_document_path: employeeOnboardingProfile.additionalDocumentPath,
+  signed_contract_path: employeeOnboardingProfile.signedContractPath,
+  offer_letter_path: employeeOnboardingProfile.offerLetterPath,
+  other_employment_document_path: employeeOnboardingProfile.otherEmploymentDocumentPath,
   photo_path: employeeOnboardingProfile.photoPath,
-  designation: employeeOnboardingProfile.designation,
   source: employeeOnboardingProfile.source,
   source_application_id: employeeOnboardingProfile.sourceApplicationId,
 };
 
-interface OnboardFilenames {
-  contract: string;
-  citizenshipFront: string;
-  citizenshipBack: string;
-  panCard: string;
-  passoutCertificate: string;
-  passportPhoto: string;
-}
+export type OnboardProfile = Awaited<ReturnType<typeof getOnboardProfileById>>;
 
-// Onboarding form body, as sent by the frontend (snake_case).
-interface OnboardPayload {
-  name: string;
-  email: string;
-  role: "intern" | "employee" | "admin";
-  gender?: "male" | "female" | "other" | "prefer_not_to_say" | null;
-  dob?: string | null;
-  phone?: string | null;
-  current_address?: string | null;
-  permanent_address?: string | null;
-  emergency_contact?: string | null;
-  education_level?: string | null;
-  institution_name?: string | null;
-  field_of_study?: string | null;
-  graduation_date?: string | null;
-  previous_experience?: string | null;
-  is_active?: boolean;
-  areas_of_interest?: string | null;
-  linkedin_url?: string | null;
-  github_url?: string | null;
-  portfolio_url?: string | null;
-  additional_info?: string | null;
-  tech_stack?: unknown;
-  designation?: string | null;
-  source?: string;
-  source_application_id?: string | null;
-}
+// Form file field → the column storing that file's path.
+const FILE_COLUMNS = {
+  citizenshipFront: "citizenshipFrontPath",
+  citizenshipBack: "citizenshipBackPath",
+  panFront: "panFrontPath",
+  panBack: "panBackPath",
+  educational: "educationalDocumentPath",
+  additional: "additionalDocumentPath",
+  signedContract: "signedContractPath",
+  offerLetter: "offerLetterPath",
+  otherEmployment: "otherEmploymentDocumentPath",
+} as const satisfies Record<OnboardFileField, keyof NewEmployeeOnboardingProfile>;
 
-function toProfileRow(data: OnboardPayload, filenames: OnboardFilenames) {
+// Every column that holds an uploaded file path (including the legacy photo).
+const allFilePathColumns = {
+  citizenshipFrontPath: employeeOnboardingProfile.citizenshipFrontPath,
+  citizenshipBackPath: employeeOnboardingProfile.citizenshipBackPath,
+  panFrontPath: employeeOnboardingProfile.panFrontPath,
+  panBackPath: employeeOnboardingProfile.panBackPath,
+  educationalDocumentPath: employeeOnboardingProfile.educationalDocumentPath,
+  additionalDocumentPath: employeeOnboardingProfile.additionalDocumentPath,
+  signedContractPath: employeeOnboardingProfile.signedContractPath,
+  offerLetterPath: employeeOnboardingProfile.offerLetterPath,
+  otherEmploymentDocumentPath: employeeOnboardingProfile.otherEmploymentDocumentPath,
+  photoPath: employeeOnboardingProfile.photoPath,
+};
+
+const nonEmptyPaths = (row: Record<string, string | null> | undefined) =>
+  row ? Object.values(row).filter((p): p is string => !!p) : [];
+
+function toProfileRow(input: OnboardCreateInput, filePaths: OnboardFilePaths) {
+  const { personalInfo: p, employmentInfo: e, emergencyContact: c } = input;
+
+  const fileColumns = Object.fromEntries(
+    (Object.keys(FILE_COLUMNS) as OnboardFileField[]).map((field) => [
+      FILE_COLUMNS[field],
+      filePaths[field] ?? null,
+    ]),
+  ) as Record<(typeof FILE_COLUMNS)[OnboardFileField], string | null>;
+
   return {
-    name: data.name,
-    gender: data.gender,
-    dob: data.dob,
-    email: data.email,
-    phone: data.phone,
-    currentAddress: data.current_address,
-    permanentAddress: data.permanent_address,
-    emergencyContact: data.emergency_contact,
-    educationLevel: data.education_level,
-    institutionName: data.institution_name,
-    fieldOfStudy: data.field_of_study,
-    graduationDate: data.graduation_date,
-    previousExperience: data.previous_experience,
-    isActive: data.is_active,
-    areasOfInterest: data.areas_of_interest,
-    linkedinUrl: data.linkedin_url,
-    githubUrl: data.github_url,
-    portfolioUrl: data.portfolio_url,
-    role: data.role,
-    additionalInfo: data.additional_info,
-    techStack: data.tech_stack,
-    designation: data.designation,
-    source: data.source,
-    sourceApplicationId: data.source_application_id,
-    ndaPath: filenames.contract,
-    citizenshipFrontPath: filenames.citizenshipFront,
-    citizenshipBackPath: filenames.citizenshipBack,
-    panPath: filenames.panCard,
-    passoutCertificatePath: filenames.passoutCertificate,
-    photoPath: filenames.passportPhoto,
-  };
+    role: input.role,
+    name: p.name,
+    dob: p.dob,
+    gender: p.gender,
+    nationality: p.nationality,
+    email: p.email,
+    phone: p.phone,
+    currentAddress: p.currentAddress,
+    permanentAddress: p.permanentAddress,
+    designation: e.jobTitle,
+    department: e.department,
+    startDate: e.startDate,
+    reportingManager: e.reportingManager,
+    employmentType: e.employmentType,
+    workLocation: e.workLocation,
+    emergencyContactName: c.fullName,
+    emergencyContactRelationship: c.relationship,
+    emergencyContactPhone: c.phone,
+    emergencyContactEmail: c.email,
+    emergencyContactAddress: c.address,
+    isActive: true,
+    ...fileColumns,
+  } satisfies NewEmployeeOnboardingProfile;
+}
+
+// employees.emergency_contact is a single varchar(150), so flatten the structured contact into it
+function formatEmergencyContact(profile: NonNullable<OnboardProfile>): string | null {
+  const name = profile.emergency_contact_name;
+  if (!name) return null;
+  const relationship = profile.emergency_contact_relationship
+    ? ` (${profile.emergency_contact_relationship})`
+    : "";
+  const phone = profile.emergency_contact_phone ? ` - ${profile.emergency_contact_phone}` : "";
+  return `${name}${relationship}${phone}`.slice(0, 150);
 }
 
 export async function getOnboardProfile(type: "intern" | "employee" | "all") {
@@ -134,35 +156,49 @@ export async function getOnboardProfileById(id: number) {
   return profile;
 }
 
+/**
+ * Inserts the submitted onboarding form, or completes the existing active row for the
+ * same email (e.g. a job-portal draft). Returns the paths of any previously stored files
+ * that this submission replaced, so the caller can delete them from disk.
+ */
 export async function saveOnboardProfile(
-  data: OnboardPayload,
-  filenames: OnboardFilenames,
-) {
-  const row = toProfileRow(data, filenames);
+  input: OnboardCreateInput,
+  filePaths: OnboardFilePaths,
+): Promise<{ replacedFilePaths: string[] }> {
+  const row = toProfileRow(input, filePaths);
 
   try {
     // email is unique — if a job-portal webhook already seeded a draft for this address,
     // complete that same row instead of inserting a second one and hitting the unique key.
-    const [existingDraft] = await db
-      .select({ id: employeeOnboardingProfile.id })
+    const [existing] = await db
+      .select({ id: employeeOnboardingProfile.id, files: allFilePathColumns })
       .from(employeeOnboardingProfile)
       .where(
         and(
-          eq(employeeOnboardingProfile.email, data.email),
+          eq(employeeOnboardingProfile.email, row.email),
           eq(employeeOnboardingProfile.isActive, true),
         ),
       );
 
-    if (existingDraft) {
+    if (existing) {
       await db
         .update(employeeOnboardingProfile)
         .set(row)
-        .where(eq(employeeOnboardingProfile.id, existingDraft.id));
-      return;
+        .where(eq(employeeOnboardingProfile.id, existing.id));
+
+      // photo_path isn't part of the form, so the update leaves it in place
+      const { photoPath, ...formFiles } = existing.files;
+      const kept = new Set(Object.values(FILE_COLUMNS).map((col) => row[col]));
+      const replacedFilePaths = nonEmptyPaths(formFiles).filter((p) => !kept.has(p));
+      return { replacedFilePaths };
     }
 
     await db.insert(employeeOnboardingProfile).values(row);
+    return { replacedFilePaths: [] };
   } catch (err) {
+    if (err?.cause?.code === "ER_DUP_ENTRY") {
+      throw new AppError(`An onboarding record for ${row.email} already exists.`, 409);
+    }
     throw new AppError(
       err?.cause?.sqlMessage ?? err.message ?? "Failed to save profile",
       400,
@@ -260,6 +296,7 @@ export async function getDraftByEmail(email: string) {
   return draft ?? null;
 }
 
+
 export async function approveOnboardProfile(id: number) {
   return db.transaction(async (tx) => {
     const [profile] = await tx
@@ -278,12 +315,12 @@ export async function approveOnboardProfile(id: number) {
       email: profile.email,
       phone: profile.phone,
       address: profile.current_address,
-      emergencyContact: profile.emergency_contact,
+      emergencyContact: formatEmergencyContact(profile),
       githubUrl: profile.github_url,
       designation: profile.designation,
       role: profile.role,
       status: "onboarding",
-      startDate: new Date().toISOString().split('T')[0]
+      startDate: profile.start_date ?? new Date().toISOString().split('T')[0]
     });
 
     // const newEmployeeId = insertResult.insertId;
@@ -298,18 +335,11 @@ export async function approveOnboardProfile(id: number) {
   });
 }
 
-export async function deleteOnboardProfile(id: number) {
+/** Deletes the row and returns the stored paths of its uploaded files for the caller to remove. */
+export async function deleteOnboardProfile(id: number): Promise<{ filePaths: string[] }> {
   // Fetch file paths before deleting the row — once it's gone, we lose them.
   const [profile] = await db
-    .select({
-      nda_path: employeeOnboardingProfile.ndaPath,
-      citizenship_front_path: employeeOnboardingProfile.citizenshipFrontPath,
-      citizenship_back_path: employeeOnboardingProfile.citizenshipBackPath,
-      pan_path: employeeOnboardingProfile.panPath,
-      passout_certificate_path:
-        employeeOnboardingProfile.passoutCertificatePath,
-      photo_path: employeeOnboardingProfile.photoPath,
-    })
+    .select(allFilePathColumns)
     .from(employeeOnboardingProfile)
     .where(eq(employeeOnboardingProfile.id, id));
 
@@ -332,31 +362,7 @@ export async function deleteOnboardProfile(id: number) {
     throw new AppError("Onboarding profile not found.", 404);
   }
 
-  const FOLDER_MAP: Record<string, string> = {
-    nda_path: "uploads/nda",
-    citizenship_front_path: "uploads/profile/citizenship",
-    citizenship_back_path: "uploads/profile/citizenship",
-    pan_path: "uploads/profile/PAN",
-    passout_certificate_path: "uploads/profile/certificate",
-    photo_path: "uploads/profile/photo",
-  };
-
-  await Promise.all(
-    Object.entries(FOLDER_MAP).map(async ([field, folder]) => {
-      const filename = (profile as Record<string, string | null>)[field];
-      if (!filename) return;
-      try {
-        await fs.unlink(path.join(folder, filename));
-      } catch (unlinkErr) {
-        console.error(
-          `Failed to delete file ${field} (${filename}):`,
-          unlinkErr,
-        );
-      }
-    }),
-  );
-
-  return { message: "Onboarding profile rejected and removed sucessfully." };
+  return { filePaths: nonEmptyPaths(profile) };
 }
 
 export async function addAdmin (name, email, role,g){
