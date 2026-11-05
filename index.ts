@@ -119,7 +119,8 @@ app.use(
     },
   }),
 );
-app.use("/api", trace, routes); 
+app.use(cookieParser());
+app.use("/api", trace, routes);
 
 app.get("/api/health", (req, res) =>
   res.json({ status: "ok", timestamp: new Date() }),

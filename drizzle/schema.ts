@@ -20,6 +20,22 @@ export const accessLog = mysqlTable("access_log", {
 export type AccessLog = typeof accessLog.$inferSelect;
 export type NewAccessLog = typeof accessLog.$inferInsert;
 
+// Singleton settings row, same pattern as google_settings — the app always
+// reads/updates whichever row exists rather than enforcing a single id.
+export const companySettings = mysqlTable("company_settings", {
+	id: int().autoincrement().notNull(),
+	name: varchar({ length: 150 }),
+	email: varchar({ length: 150 }),
+	website: varchar({ length: 255 }),
+	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
+	updatedBy: int("updated_by"),
+},
+(table) => [
+	primaryKey({ columns: [table.id], name: "company_settings_id"}),
+]);
+export type CompanySettings = typeof companySettings.$inferSelect;
+export type NewCompanySettings = typeof companySettings.$inferInsert;
+
 export const cultureEvents = mysqlTable("culture_events", {
 	id: int().autoincrement().notNull(),
 	title: varchar({ length: 200 }).notNull(),
