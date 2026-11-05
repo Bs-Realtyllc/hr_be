@@ -3,6 +3,7 @@ import asyncHandler from "../middleware/asyncHandler";
 import * as onboardService from "../services/onboard.service";
 import AppError from "../pkg/AppError";
 import fs from "fs/promises";
+import { onboardFileKey, signMediaToken } from "../middleware/auth";
 
 //list data in employee_onboarding_profile;
 export const list = asyncHandler(async (req: Request, res: Response) => {
@@ -30,40 +31,37 @@ export const getDraft = asyncHandler(async (req: Request, res: Response) => {
 });
 
 //add data in employee_onboarding_profile;
-const REQUIRED_FIELDS = [
-  "contract",
-  "citizenshipFront",
-  "citizenshipBack",
-  "panCard",
-  "passoutCertificate",
-  "passportPhoto",
-] as const;
+// Every upload is optional; see the field list in onboard.routes.ts.
+const MAX_ENTRY_FILES = 5;
 
 export const add = asyncHandler(async (req: Request, res: Response) => {
   const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+  const fileName = (field: string) => files?.[field]?.[0]?.filename;
 
-  const missing = REQUIRED_FIELDS.filter((field) => !files?.[field]?.[0]);
-  if (missing.length > 0) {
-    throw new AppError(`Missing required file(s): ${missing.join(", ")}`, 400);
-  }
-
-  // Non-null assertion is safe here — we just validated every field exists.
   const filenames = {
-    contract: files!.contract[0].filename,
-    citizenshipFront: files!.citizenshipFront[0].filename,
-    citizenshipBack: files!.citizenshipBack[0].filename,
-    panCard: files!.panCard[0].filename,
-    passoutCertificate: files!.passoutCertificate[0].filename,
-    passportPhoto: files!.passportPhoto[0].filename,
+    passportPhoto: fileName("passportPhoto"),
+    idFront: fileName("idFront"),
+    idBack: fileName("idBack"),
+    panFront: fileName("panFront"),
+    panBack: fileName("panBack"),
+    additionalDocument: fileName("additionalDocument"),
+    contract: fileName("contract"),
+    otherDocument: fileName("otherDocument"),
+    // index i belongs to education_info[i] / previous_experience_info[i]
+    educationCertificates: Array.from({ length: MAX_ENTRY_FILES }, (_, i) =>
+      fileName(`educationCertificate_${i}`),
+    ),
+    experienceLetters: Array.from({ length: MAX_ENTRY_FILES }, (_, i) =>
+      fileName(`experienceLetter_${i}`),
+    ),
   };
-  // console.log('controller', filenames)
 
   try {
     await onboardService.create(req.body.payload, filenames);
     res.status(201).json({ message: "Onboarding data added sucessfully!" });
   } catch (err) {
     // Roll back all saved files since the DB insert failed
-    const allFiles = REQUIRED_FIELDS.flatMap((field) => files![field]);
+    const allFiles = Object.values(files ?? {}).flat();
     await Promise.all(
       allFiles.map((f) =>
         fs.unlink(f.path).catch((unlinkErr) => {
@@ -78,25 +76,35 @@ export const add = asyncHandler(async (req: Request, res: Response) => {
 //approve user from employee_onboarding_profile and move tha data to employees table;
 export const approve = asyncHandler(async (req: Request, res: Response) => {
   const onboardId = Number(req.params.id);
-  const id = await onboardService.approve(onboardId);
+  const {id} = await onboardService.approve(onboardId);
   res.status(200).json({ id });
 });
 
 //reject user from employee_onboarding_profile and delete tha data;
 export const remove = asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const response = await onboardService.remove(id);
+  const response = await onboardService.deactivateOnboardProfile(id);
   res.status(200).json(response);
 });
 
-// controller
+// Returns a 15-minute signed link the frontend can window.open() — a new window
+// can't send the Authorization header that the file route would otherwise need.
+export const getDocumentUrl = asyncHandler(async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const type = req.params.type as string;
+  // 404 now rather than opening a window onto an error page.
+  await onboardService.getContractFilePath(id, type);
 
+  const apiBase = process.env.API_BASE_URL ?? `${req.protocol}://${req.get("host")}/api`;
+  const url = `${apiBase}/onboard/${id}/${encodeURIComponent(type)}?token=${signMediaToken(onboardFileKey(id, type))}`;
+  res.status(200).json({ url });
+});
+
+// Opened directly in a new window; access is checked by the ?token in the route.
 export const getContract = asyncHandler(async (req: any, res: Response) => {
-  // console.log(req.user)
   const { filePath, filename } = await onboardService.getContractFilePath(
-    req.user,
     Number(req.params.id),
-    req.params.type as "photo" | "nda" | "citizenship" | "pan" | "certificate",
+    req.params.type,
   );
 
   res.setHeader("Content-Disposition", `inline; filename="${filename}"`);

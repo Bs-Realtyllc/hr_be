@@ -1,114 +1,211 @@
 import { eq,and } from "drizzle-orm";
 import { db } from "../config/database";
-import { employeeOnboardingProfile, employees } from "../../drizzle/schema";
+import {
+  employeeOnboardingProfile,
+  employees,
+  EducationInfoEntry,
+  PreviousExperienceEntry,
+} from "../../drizzle/schema";
 import AppError from "../pkg/AppError";
-import fs from "fs/promises";
-import path from "path";
 import * as employeeRepo from "./employee.repository";
+
+// Uploaded filenames from POST /onboard (undefined = not uploaded). The entry
+// arrays are indexed like education_info / previous_experience_info.
+export interface OnboardFilenames {
+  passportPhoto?: string;
+  idFront?: string;
+  idBack?: string;
+  panFront?: string;
+  panBack?: string;
+  additionalDocument?: string;
+  contract?: string;
+  otherDocument?: string;
+  educationCertificates: (string | undefined)[];
+  experienceLetters: (string | undefined)[];
+}
 
 const employeeOnboardingProfileColumns = {
   id: employeeOnboardingProfile.id,
   name: employeeOnboardingProfile.name,
-  gender: employeeOnboardingProfile.gender,
   dob: employeeOnboardingProfile.dob,
+  gender: employeeOnboardingProfile.gender,
+  nationality: employeeOnboardingProfile.nationality,
   email: employeeOnboardingProfile.email,
   phone: employeeOnboardingProfile.phone,
   current_address: employeeOnboardingProfile.currentAddress,
   permanent_address: employeeOnboardingProfile.permanentAddress,
-  emergency_contact: employeeOnboardingProfile.emergencyContact,
-  education_level: employeeOnboardingProfile.educationLevel,
-  institution_name: employeeOnboardingProfile.institutionName,
-  field_of_study: employeeOnboardingProfile.fieldOfStudy,
-  graduation_date: employeeOnboardingProfile.graduationDate,
-  previous_experience: employeeOnboardingProfile.previousExperience,
-  is_active: employeeOnboardingProfile.isActive,
-  areas_of_interest: employeeOnboardingProfile.areasOfInterest,
   linkedin_url: employeeOnboardingProfile.linkedinUrl,
   github_url: employeeOnboardingProfile.githubUrl,
   portfolio_url: employeeOnboardingProfile.portfolioUrl,
-  role: employeeOnboardingProfile.role,
-  additional_info: employeeOnboardingProfile.additionalInfo,
-  tech_stack: employeeOnboardingProfile.techStack,
-  nda_path: employeeOnboardingProfile.ndaPath,
-  citizenship_front_path: employeeOnboardingProfile.citizenshipFrontPath,
-  citizenship_back_path: employeeOnboardingProfile.citizenshipBackPath,
-  pan_path: employeeOnboardingProfile.panPath,
-  passout_certificate_path: employeeOnboardingProfile.passoutCertificatePath,
+  education_info: employeeOnboardingProfile.educationInfo,
+  previous_experience_info: employeeOnboardingProfile.previousExperienceInfo,
+  emergency_contact_name: employeeOnboardingProfile.emergencyContactName,
+  emergency_contact_relation: employeeOnboardingProfile.emergencyContactRelation,
+  emergency_contact_phone: employeeOnboardingProfile.emergencyContactPhone,
+  emergency_contact_email: employeeOnboardingProfile.emergencyContactEmail,
+  emergency_contact_address: employeeOnboardingProfile.emergencyContactAddress,
   photo_path: employeeOnboardingProfile.photoPath,
-  designation: employeeOnboardingProfile.designation,
+  id_front_path: employeeOnboardingProfile.idFrontPath,
+  id_back_path: employeeOnboardingProfile.idBackPath,
+  pan_front_path: employeeOnboardingProfile.panFrontPath,
+  pan_back_path: employeeOnboardingProfile.panBackPath,
+  additional_document_path: employeeOnboardingProfile.additionalDocumentPath,
+  contract_path: employeeOnboardingProfile.contractPath,
+  other_document_path: employeeOnboardingProfile.otherDocumentPath,
+  confirmed: employeeOnboardingProfile.confirmed,
+  is_active: employeeOnboardingProfile.isActive,
+  role: employeeOnboardingProfile.role,
   source: employeeOnboardingProfile.source,
   source_application_id: employeeOnboardingProfile.sourceApplicationId,
 };
 
-interface OnboardFilenames {
-  contract: string;
-  citizenshipFront: string;
-  citizenshipBack: string;
-  panCard: string;
-  passoutCertificate: string;
-  passportPhoto: string;
-}
+/** Education entry as sent by the frontend; certificate comes from the upload. */
+type EducationPayloadEntry = Partial<Omit<EducationInfoEntry, "certificate">>;
+/** Experience entry as sent by the frontend; experience_letter comes from the upload. */
+type ExperiencePayloadEntry = Partial<Omit<PreviousExperienceEntry, "experience_letter">>;
 
-// Onboarding form body, as sent by the frontend (snake_case).
+// Onboarding form body, as sent by the frontend (snake_case). File paths are
+// never taken from the body — only from the uploaded files.
 interface OnboardPayload {
   name: string;
   email: string;
   role: "intern" | "employee" | "admin";
-  gender?: "male" | "female" | "other" | "prefer_not_to_say" | null;
   dob?: string | null;
+  gender?: "male" | "female" | "other" | "prefer_not_to_say" | null;
+  nationality?: string | null;
   phone?: string | null;
   current_address?: string | null;
   permanent_address?: string | null;
-  emergency_contact?: string | null;
-  education_level?: string | null;
-  institution_name?: string | null;
-  field_of_study?: string | null;
-  graduation_date?: string | null;
-  previous_experience?: string | null;
-  is_active?: boolean;
-  areas_of_interest?: string | null;
   linkedin_url?: string | null;
   github_url?: string | null;
   portfolio_url?: string | null;
-  additional_info?: string | null;
-  tech_stack?: unknown;
-  designation?: string | null;
+  education_info?: EducationPayloadEntry[] | null;
+  previous_experience_info?: ExperiencePayloadEntry[] | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_relation?: string | null;
+  emergency_contact_phone?: string | null;
+  emergency_contact_email?: string | null;
+  emergency_contact_address?: string | null;
+  is_active?: boolean;
   source?: string;
   source_application_id?: string | null;
+}
+
+const EMPLOYMENT_TYPES = ["part-time", "full-time"] as const;
+const WORK_LOCATIONS = ["remote", "physical", "hybrid"] as const;
+
+function asArray<T>(value: unknown, field: string): T[] | null {
+  if (value == null) return null;
+  if (!Array.isArray(value)) {
+    throw new AppError(`${field} must be an array.`, 400);
+  }
+  return value as T[];
+}
+
+/** Rejects uploaded entry files whose index has no matching payload entry. */
+function assertFileIndexes(
+  files: (string | undefined)[],
+  entryCount: number,
+  field: string,
+) {
+  const orphan = files.findIndex((f, i) => f && i >= entryCount);
+  if (orphan !== -1) {
+    throw new AppError(`${field}_${orphan} has no matching entry.`, 400);
+  }
+}
+
+function oneOf<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  field: string,
+): T | null {
+  if (value == null || value === "") return null;
+  if (!allowed.includes(value as T)) {
+    throw new AppError(`${field} must be one of: ${allowed.join(", ")}.`, 400);
+  }
+  return value as T;
+}
+
+function toEducationInfo(
+  raw: unknown,
+  certificates: (string | undefined)[],
+): EducationInfoEntry[] | null {
+  const entries = asArray<EducationPayloadEntry>(raw, "education_info");
+  assertFileIndexes(certificates, entries?.length ?? 0, "educationCertificate");
+  if (!entries) return null;
+  return entries.map((e, i) => ({
+    education_level: e?.education_level ?? "",
+    institution_name: e?.institution_name ?? "",
+    field_of_study: e?.field_of_study ?? "",
+    still_enrolled: !!e?.still_enrolled,
+    graduation_date: e?.graduation_date || null,
+    certificate: certificates[i] ?? null,
+  }));
+}
+
+function toPreviousExperienceInfo(
+  raw: unknown,
+  letters: (string | undefined)[],
+): PreviousExperienceEntry[] | null {
+  const entries = asArray<ExperiencePayloadEntry>(raw, "previous_experience_info");
+  assertFileIndexes(letters, entries?.length ?? 0, "experienceLetter");
+  if (!entries) return null;
+  return entries.map((e, i) => ({
+    company: e?.company ?? "",
+    role: e?.role ?? "",
+    start_date: e?.start_date ?? "",
+    end_date: e?.end_date || null,
+    still_working: !!e?.still_working,
+    // Optional when the form layout leaves them out, so null is stored even
+    // though the schema type is non-null.
+    employment_type: oneOf(
+      e?.employment_type, EMPLOYMENT_TYPES, `previous_experience_info[${i}].employment_type`,
+    ) as PreviousExperienceEntry["employment_type"],
+    work_location: oneOf(
+      e?.work_location, WORK_LOCATIONS, `previous_experience_info[${i}].work_location`,
+    ) as PreviousExperienceEntry["work_location"],
+    description: e?.description || null,
+    experience_letter: letters[i] ?? null,
+  }));
 }
 
 function toProfileRow(data: OnboardPayload, filenames: OnboardFilenames) {
   return {
     name: data.name,
-    gender: data.gender,
     dob: data.dob,
+    gender: data.gender,
+    nationality: data.nationality,
     email: data.email,
     phone: data.phone,
     currentAddress: data.current_address,
     permanentAddress: data.permanent_address,
-    emergencyContact: data.emergency_contact,
-    educationLevel: data.education_level,
-    institutionName: data.institution_name,
-    fieldOfStudy: data.field_of_study,
-    graduationDate: data.graduation_date,
-    previousExperience: data.previous_experience,
-    isActive: data.is_active,
-    areasOfInterest: data.areas_of_interest,
     linkedinUrl: data.linkedin_url,
     githubUrl: data.github_url,
     portfolioUrl: data.portfolio_url,
+    educationInfo: toEducationInfo(data.education_info, filenames.educationCertificates),
+    previousExperienceInfo: toPreviousExperienceInfo(
+      data.previous_experience_info,
+      filenames.experienceLetters,
+    ),
+    emergencyContactName: data.emergency_contact_name,
+    emergencyContactRelation: data.emergency_contact_relation,
+    emergencyContactPhone: data.emergency_contact_phone,
+    emergencyContactEmail: data.emergency_contact_email,
+    emergencyContactAddress: data.emergency_contact_address,
+    isActive: data.is_active,
     role: data.role,
-    additionalInfo: data.additional_info,
-    techStack: data.tech_stack,
-    designation: data.designation,
     source: data.source,
     sourceApplicationId: data.source_application_id,
-    ndaPath: filenames.contract,
-    citizenshipFrontPath: filenames.citizenshipFront,
-    citizenshipBackPath: filenames.citizenshipBack,
-    panPath: filenames.panCard,
-    passoutCertificatePath: filenames.passoutCertificate,
+    // Files not uploaded stay undefined, so updating an existing draft
+    // doesn't null them out.
     photoPath: filenames.passportPhoto,
+    idFrontPath: filenames.idFront,
+    idBackPath: filenames.idBack,
+    panFrontPath: filenames.panFront,
+    panBackPath: filenames.panBack,
+    additionalDocumentPath: filenames.additionalDocument,
+    contractPath: filenames.contract,
+    otherDocumentPath: filenames.otherDocument,
   };
 }
 
@@ -138,6 +235,7 @@ export async function saveOnboardProfile(
   data: OnboardPayload,
   filenames: OnboardFilenames,
 ) {
+  // Outside the try: payload validation errors are already AppErrors.
   const row = toProfileRow(data, filenames);
 
   try {
@@ -175,9 +273,6 @@ interface ExternalOnboardDraft {
   phone?: string | null;
   linkedin_url?: string | null;
   github_url?: string | null;
-  designation?: string | null;
-  tech_stack?: string[] | null;
-  previous_experience?: string | null;
   role: "intern" | "employee";
   source: string;
   source_application_id: string;
@@ -186,8 +281,8 @@ interface ExternalOnboardDraft {
 /**
  * Seeds or refreshes a draft onboarding profile from an external source (the job-portal
  * candidate-hired webhook). Only fills fields that source actually has — gender, DOB,
- * address, emergency contact, education, and the document uploads are left for the
- * candidate/HR to complete in the onboarding form.
+ * address, emergency contact, education, experience and the document uploads are left
+ * for the candidate/HR to complete in the onboarding form.
  */
 export async function upsertDraftFromExternalSource(data: ExternalOnboardDraft) {
   const existingEmployee = await employeeRepo.findByEmail(data.email);
@@ -209,9 +304,6 @@ export async function upsertDraftFromExternalSource(data: ExternalOnboardDraft) 
         phone: data.phone ?? null,
         linkedinUrl: data.linkedin_url ?? null,
         githubUrl: data.github_url ?? null,
-        designation: data.designation ?? null,
-        techStack: data.tech_stack ?? null,
-        previousExperience: data.previous_experience ?? null,
         role: data.role,
         source: data.source,
         sourceApplicationId: data.source_application_id,
@@ -227,9 +319,6 @@ export async function upsertDraftFromExternalSource(data: ExternalOnboardDraft) 
     phone: data.phone ?? null,
     linkedinUrl: data.linkedin_url ?? null,
     githubUrl: data.github_url ?? null,
-    designation: data.designation ?? null,
-    techStack: data.tech_stack ?? null,
-    previousExperience: data.previous_experience ?? null,
     role: data.role,
     source: data.source,
     sourceApplicationId: data.source_application_id,
@@ -249,7 +338,6 @@ export async function getDraftByEmail(email: string) {
       name: employeeOnboardingProfile.name,
       linkedin_url: employeeOnboardingProfile.linkedinUrl,
       github_url: employeeOnboardingProfile.githubUrl,
-      previous_experience: employeeOnboardingProfile.previousExperience,
       // Not a form field to pre-fill — used by the frontend only to warn if the candidate
       // is filling out the wrong form (e.g. drafted as "employee" but on the intern page).
       role: employeeOnboardingProfile.role,
@@ -258,6 +346,22 @@ export async function getDraftByEmail(email: string) {
     .where(and(eq(employeeOnboardingProfile.email, email), eq(employeeOnboardingProfile.isActive, true)));
 
   return draft ?? null;
+}
+
+/**
+ * employees still has a single emergency_contact column (varchar 150), so the
+ * structured onboarding fields are folded into "Name (Relation) Phone".
+ */
+function formatEmergencyContact(profile: {
+  emergency_contact_name: string | null;
+  emergency_contact_relation: string | null;
+  emergency_contact_phone: string | null;
+}): string | null {
+  const name = profile.emergency_contact_name?.trim();
+  const relation = profile.emergency_contact_relation?.trim();
+  const phone = profile.emergency_contact_phone?.trim();
+  const text = [name, relation && `(${relation})`, phone].filter(Boolean).join(" ");
+  return text ? text.slice(0, 150) : null;
 }
 
 export async function approveOnboardProfile(id: number) {
@@ -278,9 +382,8 @@ export async function approveOnboardProfile(id: number) {
       email: profile.email,
       phone: profile.phone,
       address: profile.current_address,
-      emergencyContact: profile.emergency_contact,
+      emergencyContact: formatEmergencyContact(profile),
       githubUrl: profile.github_url,
-      designation: profile.designation,
       role: profile.role,
       status: "onboarding",
       startDate: new Date().toISOString().split('T')[0]
@@ -298,65 +401,53 @@ export async function approveOnboardProfile(id: number) {
   });
 }
 
-export async function deleteOnboardProfile(id: number) {
-  // Fetch file paths before deleting the row — once it's gone, we lose them.
-  const [profile] = await db
+/** Raw filenames for every upload on a profile (doc columns + JSON entries). */
+export async function getOnboardFiles(id: number) {
+  const [row] = await db
     .select({
-      nda_path: employeeOnboardingProfile.ndaPath,
-      citizenship_front_path: employeeOnboardingProfile.citizenshipFrontPath,
-      citizenship_back_path: employeeOnboardingProfile.citizenshipBackPath,
-      pan_path: employeeOnboardingProfile.panPath,
-      passout_certificate_path:
-        employeeOnboardingProfile.passoutCertificatePath,
-      photo_path: employeeOnboardingProfile.photoPath,
+      photoPath: employeeOnboardingProfile.photoPath,
+      idFrontPath: employeeOnboardingProfile.idFrontPath,
+      idBackPath: employeeOnboardingProfile.idBackPath,
+      panFrontPath: employeeOnboardingProfile.panFrontPath,
+      panBackPath: employeeOnboardingProfile.panBackPath,
+      additionalDocumentPath: employeeOnboardingProfile.additionalDocumentPath,
+      contractPath: employeeOnboardingProfile.contractPath,
+      otherDocumentPath: employeeOnboardingProfile.otherDocumentPath,
+      educationInfo: employeeOnboardingProfile.educationInfo,
+      previousExperienceInfo: employeeOnboardingProfile.previousExperienceInfo,
     })
     .from(employeeOnboardingProfile)
     .where(eq(employeeOnboardingProfile.id, id));
+  return row ?? null;
+}
 
-  if (!profile) {
-    throw new AppError("Onboarding profile not found.", 404);
-  }
-
+/**
+ * Soft delete (reject): marks the profile inactive instead of removing the row.
+ * Uploaded files are kept so the profile can still be reviewed or restored.
+ */
+export async function deactivateOnboardProfile(id: number) {
   let result;
   try {
     [result] = await db
-      .delete(employeeOnboardingProfile)
-      .where(eq(employeeOnboardingProfile.id, id));
+      .update(employeeOnboardingProfile)
+      .set({ isActive: false })
+      .where(
+        and(
+          eq(employeeOnboardingProfile.id, id),
+          eq(employeeOnboardingProfile.isActive, true),
+        ),
+      );
   } catch (err) {
     throw new AppError(
-      err?.cause?.sqlMessage ?? "Failed to delete onboarding profile.",
+      err?.cause?.sqlMessage ?? "Failed to reject onboarding profile.",
       400,
     );
   }
   if (result.affectedRows === 0) {
-    throw new AppError("Onboarding profile not found.", 404);
+    throw new AppError("Onboarding profile not found or already inactive.", 404);
   }
 
-  const FOLDER_MAP: Record<string, string> = {
-    nda_path: "uploads/nda",
-    citizenship_front_path: "uploads/profile/citizenship",
-    citizenship_back_path: "uploads/profile/citizenship",
-    pan_path: "uploads/profile/PAN",
-    passout_certificate_path: "uploads/profile/certificate",
-    photo_path: "uploads/profile/photo",
-  };
-
-  await Promise.all(
-    Object.entries(FOLDER_MAP).map(async ([field, folder]) => {
-      const filename = (profile as Record<string, string | null>)[field];
-      if (!filename) return;
-      try {
-        await fs.unlink(path.join(folder, filename));
-      } catch (unlinkErr) {
-        console.error(
-          `Failed to delete file ${field} (${filename}):`,
-          unlinkErr,
-        );
-      }
-    }),
-  );
-
-  return { message: "Onboarding profile rejected and removed sucessfully." };
+  return { message: "Onboarding profile rejected successfully." };
 }
 
 export async function addAdmin (name, email, role,g){

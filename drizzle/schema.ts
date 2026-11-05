@@ -159,38 +159,65 @@ export const employeeDocuments = mysqlTable("employee_documents", {
 export type EmployeeDocument = typeof employeeDocuments.$inferSelect;
 export type NewEmployeeDocument = typeof employeeDocuments.$inferInsert;
 
+
+export type EducationInfoEntry = {
+	education_level: string;
+	institution_name: string;
+	field_of_study: string;
+	still_enrolled: boolean;
+	graduation_date: string | null; // 'YYYY-MM-DD'
+	certificate: string | null; // stored file path/url, null if none uploaded
+};
+export type PreviousExperienceEntry= {
+	company: string;
+	role: string;
+	start_date: string;
+	end_date: string | null;
+	employment_type: 'part-time'|'full-time';
+	work_location: 'remote'| 'physical'| 'hybrid';
+	description: string | null;
+	experience_letter: string | null;
+	still_working: boolean;
+}
 export const employeeOnboardingProfile = mysqlTable("employee_onboarding_profile", {
+	//1. PERSONAL INFORMATION
 	id: int().autoincrement().notNull(),
 	name: varchar({ length: 100 }).notNull(),
-	gender: mysqlEnum(['male','female','other','prefer_not_to_say']),
-	// you can use { mode: 'date' }, if you want to have Date as type for this column
 	dob: date({ mode: 'string' }),
+	gender: mysqlEnum(['male','female','other','prefer_not_to_say']),
+	nationality: varchar({length: 40}),
 	email: varchar({ length: 150 }).notNull(),
 	phone: varchar({ length: 20 }),
 	currentAddress: varchar("current_address", { length: 60 }),
 	permanentAddress: varchar("permanent_address", { length: 60 }),
-	emergencyContact: varchar("emergency_contact", { length: 150 }),
-	educationLevel: varchar("education_level", { length: 50 }),
-	institutionName: varchar("institution_name", { length: 50 }),
-	fieldOfStudy: varchar("field_of_study", { length: 50 }),
-	// you can use { mode: 'date' }, if you want to have Date as type for this column
-	graduationDate: date("graduation_date", { mode: 'string' }),
-	previousExperience: text("previous_experience"),
-	isActive: boolean("is_active").default(true),
-	areasOfInterest: text("areas_of_interest"),
 	linkedinUrl: varchar("linkedin_url", { length: 255 }),
 	githubUrl: varchar("github_url", { length: 255 }),
 	portfolioUrl: varchar("portfolio_url", { length: 255 }),
-	role: mysqlEnum(['intern','employee','admin']).notNull(),
-	additionalInfo: text("additional_info"),
-	techStack: json("tech_stack"),
-	ndaPath: varchar("nda_path", { length: 255 }),
-	citizenshipFrontPath: varchar("citizenship_front_path", { length: 255 }),
-	citizenshipBackPath: varchar("citizenship_back_path", { length: 255 }),
-	panPath: varchar("pan_path", { length: 255 }),
-	passoutCertificatePath: varchar("passout_certificate_path", { length: 255 }),
+	//2. EDUCATIONAL INFORMATION
+	educationInfo: json("education_info").$type<EducationInfoEntry[] | null>(),
+	//3. PREVIOUS EXPERIENCE INFORMATION
+	previousExperienceInfo: json("previous_experience_info").$type<PreviousExperienceEntry[]| null>(),
+
+	//4. EMERGENCY CONTACT
+	emergencyContactName: varchar("emergency_contact_name", { length: 150 }),
+	emergencyContactRelation: varchar("emergency_contact_relation", {length: 30}),
+	emergencyContactPhone: varchar("emergency_contact_phone", {length: 20}),
+	emergencyContactEmail: varchar("emergency_contact_email", {length: 150}),
+	emergencyContactAddress: varchar("emergency_contact_address", {length: 60}),
+	//5. UPLOAD DOCUMENTS
 	photoPath: varchar("photo_path", { length: 255 }),
-	designation: varchar({ length: 100 }),
+	idFrontPath: varchar("id_front_path", { length: 255 }),
+	idBackPath: varchar("id_back_path", { length: 255 }),
+	panFrontPath: varchar("pan_front_path", { length: 255 }),
+	panBackPath: varchar("pan_back_path", { length: 255 }),
+	additionalDocumentPath: varchar("additional_document_path", { length: 255 }),
+	//6. OTHER DOCUMENTS
+	contractPath: varchar("contract_path", { length: 255 }),
+	otherDocumentPath: varchar("other_document_path", { length: 255 }),
+	confirmed: boolean("confirmed").default(false),
+
+	isActive: boolean("is_active").default(true),
+	role: mysqlEnum(['intern','employee','admin']).notNull(),
 	source: varchar({ length: 20 }).default('manual').notNull(),
 	sourceApplicationId: varchar("source_application_id", { length: 100 }),
 },
@@ -287,13 +314,20 @@ export const feedbackNotes = mysqlTable("feedback_notes", {
 export type FeedbackNote = typeof feedbackNotes.$inferSelect;
 export type NewFeedbackNote = typeof feedbackNotes.$inferInsert;
 
+export type FormFieldConfig = {
+	name: string;      // field key, e.g. "dob", "institution_name"
+	required: boolean;
+	// future examples: label?: string; type?: 'text' | 'date' | 'file'; maxLength?: number;
+};
 export const formsLayout = mysqlTable("forms_layout", {
 	id: int().autoincrement().notNull(),
-	name: varchar({ length: 255 }).notNull(),
-	data: json().notNull(),
+	name: varchar({ length: 255 }).notNull(), // e.g. "intern_onboard_personal"
+	data: json("data").$type<FormFieldConfig[] | null>().notNull(),
+	updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+	updatedBy: int("updated_by").references(() => employees.id, { onDelete: "set null" } ),
 },
 (table) => [
-	primaryKey({ columns: [table.id], name: "forms_layout_id"}),
+	primaryKey({ columns: [table.id], name: "forms_layout_id" }),
 	unique("name").on(table.name),
 ]);
 

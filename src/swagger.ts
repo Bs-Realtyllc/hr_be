@@ -1559,20 +1559,47 @@ const options = {
         },
         FormLayoutField: {
           type: "object",
+          required: ["name", "required"],
           properties: {
-            key: { type: "string", example: "email" },
-            type: { type: "string", example: "text" },
-            label: { type: "string", example: "Email Address" },
-            section: { type: "string", example: "personal" },
-            required: { type: "boolean" },
+            name: { type: "string", example: "dob" },
+            required: { type: "boolean", example: true },
+          },
+        },
+        FormLayoutSections: {
+          type: "object",
+          description:
+            "One key per forms_layout row: `<intern|employee>_onboard_<personal|educational|experience|emergency|documents|other>`. All keys in a request must share the same type; only the sections sent are saved.",
+          additionalProperties: {
+            type: "array",
+            items: { $ref: "#/components/schemas/FormLayoutField" },
+          },
+          example: {
+            intern_onboard_personal: [
+              { name: "dob", required: true },
+              { name: "phone", required: false },
+            ],
+            intern_onboard_educational: [
+              { name: "institutionName", required: true },
+            ],
+          },
+        },
+        ContractTemplateInfo: {
+          type: "object",
+          nullable: true,
+          properties: {
+            filename: { type: "string" },
+            originalName: { type: "string", example: "intern_contract.pdf" },
           },
         },
         FormLayoutResponse: {
           type: "object",
-          description: "Fields grouped by section key",
-          additionalProperties: {
-            type: "array",
-            items: { $ref: "#/components/schemas/FormLayoutField" },
+          properties: {
+            data: {
+              allOf: [{ $ref: "#/components/schemas/FormLayoutSections" }],
+              description:
+                "Configured sections keyed by forms_layout.name, plus `contractTemplate`.",
+            },
+            contractTemplate: { $ref: "#/components/schemas/ContractTemplateInfo" },
           },
         },
         OnboardProfile: {
@@ -6473,6 +6500,7 @@ const options = {
             {
               name: "type",
               in: "query",
+              required: true,
               schema: { type: "string", enum: ["intern", "employee"] },
               description: "Which onboarding form layout to fetch",
             },
@@ -6497,7 +6525,7 @@ const options = {
             required: true,
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/FormLayoutResponse" },
+                schema: { $ref: "#/components/schemas/FormLayoutSections" },
               },
             },
           },

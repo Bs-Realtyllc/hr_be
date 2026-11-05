@@ -2,54 +2,56 @@ import * as formLayoutRepo from "../repositories/formLayout.repository";
 import AppError from "../pkg/AppError";
 import path from "path";
 import fs from "fs";
+import type { FormFieldConfig } from "../../drizzle/schema";
+import {
+  FORM_SECTIONS,
+  layoutName,
+  FormLayoutType,
+  FormLayoutSaveInput,
+} from "../dtos/formLayout.dto";
 
 const TEMPLATE_DIR = path.join(process.cwd(), "uploads/templates");
 
-export async function create(name: string, data: string | Record<string, any>) {
-  const parsedData = typeof data === "string" ? JSON.parse(data) : data;
-  return formLayoutRepo.saveFormLayout(name, parsedData);
+export async function save(input: FormLayoutSaveInput, updatedBy: number | null) {
+  await formLayoutRepo.upsertSections(input.rows, updatedBy);
 }
 
-export async function get(name: string) {
-//   const parsedData = typeof data === "string" ? JSON.parse(data) : data;
-  return formLayoutRepo.getFormLayout(name);
-}
+/** Configured sections for a layout type, keyed by forms_layout.name. */
+export async function get(type: FormLayoutType) {
+  const names = FORM_SECTIONS.map((section) => layoutName(type, section));
+  const [rows, contractTemplate] = await Promise.all([
+    formLayoutRepo.getSections(names),
+    formLayoutRepo.getContractTemplate(type),
+  ]);
 
-interface ContractTemplateInfo {
-  filename: string;
-  originalName: string;
+  const sections: Record<string, FormFieldConfig[]> = {};
+  rows.forEach((row) => {
+    sections[row.name] = Array.isArray(row.data) ? row.data : [];
+  });
+  return { sections, contractTemplate };
 }
 
 export async function saveContractTemplate(
-  name: string,
+  type: FormLayoutType,
   filename: string,
   originalName: string,
+  updatedBy: number | null,
 ) {
-  const layout = (await formLayoutRepo.getFormLayout(name)) as Record<
-    string,
-    any
-  > | null;
-  const previous = layout?.contractTemplate as
-    | ContractTemplateInfo
-    | undefined;
+  const previous = await formLayoutRepo.getContractTemplate(type);
 
-  await formLayoutRepo.saveFormLayout(name, {
-    contractTemplate: { filename, originalName } as ContractTemplateInfo,
-  });
+  await formLayoutRepo.setContractTemplate(
+    type,
+    { filename, originalName },
+    updatedBy,
+  );
 
   if (previous?.filename) {
     fs.unlink(path.join(TEMPLATE_DIR, previous.filename), () => {});
   }
 }
 
-export async function getContractTemplatePath(name: string) {
-  const layout = (await formLayoutRepo.getFormLayout(name)) as Record<
-    string,
-    any
-  > | null;
-  const template = layout?.contractTemplate as
-    | ContractTemplateInfo
-    | undefined;
+export async function getContractTemplatePath(type: FormLayoutType) {
+  const template = await formLayoutRepo.getContractTemplate(type);
 
   if (!template?.filename) {
     throw new AppError("No contract template configured.", 404);
@@ -63,16 +65,13 @@ export async function getContractTemplatePath(name: string) {
   return { filePath, originalName: template.originalName };
 }
 
-export async function removeContractTemplate(name: string) {
-  const layout = (await formLayoutRepo.getFormLayout(name)) as Record<
-    string,
-    any
-  > | null;
-  const template = layout?.contractTemplate as
-    | ContractTemplateInfo
-    | undefined;
+export async function removeContractTemplate(
+  type: FormLayoutType,
+  updatedBy: number | null,
+) {
+  const template = await formLayoutRepo.getContractTemplate(type);
 
-  await formLayoutRepo.saveFormLayout(name, { contractTemplate: null });
+  await formLayoutRepo.setContractTemplate(type, null, updatedBy);
 
   if (template?.filename) {
     fs.unlink(path.join(TEMPLATE_DIR, template.filename), () => {});
