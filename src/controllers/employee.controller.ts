@@ -28,7 +28,7 @@ export const create = asyncHandler(async (req: any, res: Response) => {
 
 export const update = asyncHandler(async (req: any, res: Response) => {
   const input = employeeDto.toUpdateInput(req.body);
-  await employeeService.update(req.params.id, input, req.user?.id ?? null);
+  await employeeService.update(req.params.id, input, req.user?.id ?? null, req.user?.role ?? null);
   res.json({ success: true });
 });
 

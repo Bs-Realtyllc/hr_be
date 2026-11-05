@@ -29,6 +29,7 @@ import clockRoutes from './clock.routes'
 import notificationPreferenceRoutes from './notificationPreference.routes'
 import inboxRoutes from './inbox.routes'
 import offboardingRoutes from './offboarding.routes'
+import companySettingsRoutes from './companySettings.routes'
 
 const modules: Array<{ path: string; router: Router }> = [
   { path: '/auth', router: authRoutes },
@@ -61,6 +62,7 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/notifications', router: notificationPreferenceRoutes },
   { path: '/inbox',         router: inboxRoutes },
   { path: '/offboarding',   router: offboardingRoutes },
+  { path: '/company',      router: companySettingsRoutes },
 
 
 ];
