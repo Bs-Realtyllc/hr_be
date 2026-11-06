@@ -5,15 +5,7 @@ import fs from "fs";
 import * as employeeRepo from "../repositories/employee.repository";
 import * as notificationPreferenceService from "./notificationPreference.service";
 import nodemailer from "nodemailer";
-
-interface OnboardFilenames {
-  contract: string;
-  citizenshipFront: string;
-  citizenshipBack: string;
-  panCard: string;
-  passoutCertificate: string;
-  passportPhoto: string;
-}
+import { OnboardFilenames } from "../repositories/onboard.repository";
 
 //send email after sucessfull approve
 export async function sendApproveMail(name: string, to: string, role: string) {
@@ -41,12 +33,6 @@ export async function sendApproveMail(name: string, to: string, role: string) {
   });
 }
 
-const NDA_DIR = path.join(process.cwd(), "uploads/nda");
-const PHOTO_DIR = path.join(process.cwd(), "uploads/profile/photo");
-const CITIZENSHIP_DIR = path.join(process.cwd(), "uploads/profile/citizenship");
-const CERTIFICATE_DIR = path.join(process.cwd(), "uploads/profile/certificate");
-const PAN_DIR = path.join(process.cwd(), "uploads/profile/PAN");
-
 export async function get(type: "intern" | "employee" | "all") {
   return onboardRepo.getOnboardProfile(type);
 }
@@ -60,7 +46,15 @@ export async function create(
   filenames: OnboardFilenames,
 ) {
   const raw = typeof data === "string" ? data : data.payload;
-  const parsedData = typeof raw === "string" ? JSON.parse(raw) : raw;
+  let parsedData: any;
+  try {
+    parsedData = typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch {
+    throw new AppError("payload must be valid JSON.", 400);
+  }
+  if (!parsedData || typeof parsedData !== "object") {
+    throw new AppError("payload is required.", 400);
+  }
   return onboardRepo.saveOnboardProfile(parsedData, filenames);
 }
 
@@ -84,48 +78,64 @@ export async function approve(onboardId: number) {
   return profile;
 }
 
-export async function remove(id: number) {
-  return onboardRepo.deleteOnboardProfile(id);
+export async function deactivateOnboardProfile(id: number) {
+  return onboardRepo.deactivateOnboardProfile(id);
 }
 
-export async function getContractFilePath(
-  actor: any,
-  id: number,
-  type: "photo" | "nda" | "citizenship" | "pan" | "certificate",
-) {
-  // if(actor.role !== 'intern') throw new AppError(`${actor.role} cannot access the file`)
+const NDA_DIR = path.join(process.cwd(), "uploads/nda");
+const PHOTO_DIR = path.join(process.cwd(), "uploads/profile/photo");
+const ID_DIR = path.join(process.cwd(), "uploads/profile/id");
+const PAN_DIR = path.join(process.cwd(), "uploads/profile/PAN");
+const ADDITIONAL_DIR = path.join(process.cwd(), "uploads/profile/additional");
+const OTHER_DIR = path.join(process.cwd(), "uploads/profile/other");
+const CERTIFICATE_DIR = path.join(process.cwd(), "uploads/profile/certificate");
+const EXPERIENCE_DIR = path.join(process.cwd(), "uploads/profile/experience");
+
+/**
+ * Resolves an uploaded file for the viewer. `type` is the upload field name,
+ * e.g. "idFront", "educationCertificate_0", "experienceLetter_1" or "otherDocument_2".
+ */
+export async function getContractFilePath(id: number, type: string) {
+  const files = await onboardRepo.getOnboardFiles(id);
+  if (!files) throw new AppError("File not found.", 404);
 
   const map = [
-    { name: "nda", typePath: "nda_path", directory: NDA_DIR },
-    { name: "photo", typePath: "photo_path", directory: PHOTO_DIR },
-    {
-      name: "citizenship",
-      typePath: "citizenship_front_path",
-      directory: CITIZENSHIP_DIR,
-    },
-    {
-      name: "certificate",
-      typePath: "passout_certificate_path",
+    { name: "passportPhoto", filename: files.photoPath, directory: PHOTO_DIR },
+    { name: "idFront", filename: files.idFrontPath, directory: ID_DIR },
+    { name: "idBack", filename: files.idBackPath, directory: ID_DIR },
+    { name: "panFront", filename: files.panFrontPath, directory: PAN_DIR },
+    { name: "panBack", filename: files.panBackPath, directory: PAN_DIR },
+    { name: "additionalDocument", filename: files.additionalDocumentPath, directory: ADDITIONAL_DIR },
+    { name: "contract", filename: files.contractPath, directory: NDA_DIR },
+    ...(files.otherDocumentPaths ?? []).map((filename, i) => ({
+      name: `otherDocument_${i}`,
+      filename,
+      directory: OTHER_DIR,
+    })),
+    ...(files.educationInfo ?? []).map((entry, i) => ({
+      name: `educationCertificate_${i}`,
+      filename: entry?.certificate,
       directory: CERTIFICATE_DIR,
-    },
-    { name: "pan", typePath: "pan_path", directory: PAN_DIR },
+    })),
+    ...(files.previousExperienceInfo ?? []).map((entry, i) => ({
+      name: `experienceLetter_${i}`,
+      filename: entry?.experience_letter,
+      directory: EXPERIENCE_DIR,
+    })),
   ];
   const fileType = map.find((m) => m.name === type);
 
-  if (!fileType) throw new AppError("Invalid File Type", 400);
-  const profile = await onboardRepo.getOnboardProfileById(id);
-
-  if (!profile || !profile[fileType.typePath]) {
+  if (!fileType?.filename) {
     throw new AppError("File not found.", 404);
   }
 
-  const filePath = path.join(fileType.directory, profile[fileType.typePath]);
+  const filePath = path.join(fileType.directory, fileType.filename);
 
   if (!fs.existsSync(filePath)) {
     throw new AppError("File is missing.", 404);
   }
 
-  return { filePath, filename: profile[fileType.typePath] };
+  return { filePath, filename: fileType.filename };
 }
 
 export async function onboardAdmin(name: string, email:string, role: string, g:string) {

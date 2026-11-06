@@ -4,18 +4,23 @@ import fs from "fs";
 
 // Make sure the 'uploads/' directory exists
 const FIELD_DESTINATIONS: Record<string, string> = {
-  contract: "uploads/nda",
-  citizenshipFront: "uploads/profile/citizenship",
-  citizenshipBack: "uploads/profile/citizenship",
-  panCard: "uploads/profile/PAN",
-  passoutCertificate: "uploads/profile/certificate",
   passportPhoto: "uploads/profile/photo",
+  idFront: "uploads/profile/id",
+  idBack: "uploads/profile/id",
+  panFront: "uploads/profile/PAN",
+  panBack: "uploads/profile/PAN",
+  additionalDocument: "uploads/profile/additional",
+  contract: "uploads/nda",
+  otherDocument: "uploads/profile/other",
+  // Per-entry files arrive as educationCertificate_0, experienceLetter_1, ...
+  educationCertificate: "uploads/profile/certificate",
+  experienceLetter: "uploads/profile/experience",
 };
 
 // Define storage engine and destination directory
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const relativeDest = FIELD_DESTINATIONS[file.fieldname];
+    const relativeDest = FIELD_DESTINATIONS[file.fieldname.replace(/_\d+$/, "")];
     if (!relativeDest) {
       cb(new Error(`Unexpected file field: ${file.fieldname}`), "");
       return;
