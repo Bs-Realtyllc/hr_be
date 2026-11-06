@@ -213,7 +213,9 @@ export const employeeOnboardingProfile = mysqlTable("employee_onboarding_profile
 	additionalDocumentPath: varchar("additional_document_path", { length: 255 }),
 	//6. OTHER DOCUMENTS
 	contractPath: varchar("contract_path", { length: 255 }),
-	otherDocumentPath: varchar("other_document_path", { length: 255 }),
+	// otherDocumentPath: varchar("other_document_path", { length: 255 }),
+	otherDocumentPaths: json("other_document_paths").$type<string[] | null>(),
+
 	confirmed: boolean("confirmed").default(false),
 
 	isActive: boolean("is_active").default(true),

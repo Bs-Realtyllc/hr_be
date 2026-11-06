@@ -12,7 +12,7 @@ ALTER TABLE `employee_onboarding_profile` ADD `pan_front_path` varchar(255);--> 
 ALTER TABLE `employee_onboarding_profile` ADD `pan_back_path` varchar(255);--> statement-breakpoint
 ALTER TABLE `employee_onboarding_profile` ADD `additional_document_path` varchar(255);--> statement-breakpoint
 ALTER TABLE `employee_onboarding_profile` ADD `contract_path` varchar(255);--> statement-breakpoint
-ALTER TABLE `employee_onboarding_profile` ADD `other_document_path` varchar(255);--> statement-breakpoint
+ALTER TABLE `employee_onboarding_profile` ADD `other_document_paths` json;--> statement-breakpoint
 ALTER TABLE `employee_onboarding_profile` ADD `confirmed` boolean DEFAULT false;--> statement-breakpoint
 ALTER TABLE `forms_layout` ADD `updated_at` timestamp DEFAULT (now()) NOT NULL ON UPDATE CURRENT_TIMESTAMP;--> statement-breakpoint
 ALTER TABLE `forms_layout` ADD `updated_by` int;--> statement-breakpoint

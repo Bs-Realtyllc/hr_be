@@ -6,6 +6,7 @@ import {
   requireRole,
 } from "../../middleware/auth";
 import { upload } from "../../middleware/uplod";
+import { MAX_OTHER_DOCUMENTS } from "../../repositories/onboard.repository";
 const router = express.Router();
 
 router.get("/", authenticate, requireRole('admin', 'lead'), ctrl.list);
@@ -15,6 +16,7 @@ router.get("/", authenticate, requireRole('admin', 'lead'), ctrl.list);
 router.get("/draft", ctrl.getDraft);
 // All uploads are optional. educationCertificate_<i> / experienceLetter_<i> belong to
 // education_info[i] / previous_experience_info[i] in the payload (up to 5 each).
+// otherDocument may be sent up to MAX_OTHER_DOCUMENTS times (same field name).
 router.post(
   "/",
   upload.fields([
@@ -25,7 +27,7 @@ router.post(
     { name: "panBack", maxCount: 1 },
     { name: "additionalDocument", maxCount: 1 },
     { name: "contract", maxCount: 1 },
-    { name: "otherDocument", maxCount: 1 },
+    { name: "otherDocument", maxCount: MAX_OTHER_DOCUMENTS },
     { name: "educationCertificate_0", maxCount: 1 },
     { name: "educationCertificate_1", maxCount: 1 },
     { name: "educationCertificate_2", maxCount: 1 },

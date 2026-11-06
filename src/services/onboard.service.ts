@@ -93,7 +93,7 @@ const EXPERIENCE_DIR = path.join(process.cwd(), "uploads/profile/experience");
 
 /**
  * Resolves an uploaded file for the viewer. `type` is the upload field name,
- * e.g. "idFront", "educationCertificate_0" or "experienceLetter_1".
+ * e.g. "idFront", "educationCertificate_0", "experienceLetter_1" or "otherDocument_2".
  */
 export async function getContractFilePath(id: number, type: string) {
   const files = await onboardRepo.getOnboardFiles(id);
@@ -107,7 +107,11 @@ export async function getContractFilePath(id: number, type: string) {
     { name: "panBack", filename: files.panBackPath, directory: PAN_DIR },
     { name: "additionalDocument", filename: files.additionalDocumentPath, directory: ADDITIONAL_DIR },
     { name: "contract", filename: files.contractPath, directory: NDA_DIR },
-    { name: "otherDocument", filename: files.otherDocumentPath, directory: OTHER_DIR },
+    ...(files.otherDocumentPaths ?? []).map((filename, i) => ({
+      name: `otherDocument_${i}`,
+      filename,
+      directory: OTHER_DIR,
+    })),
     ...(files.educationInfo ?? []).map((entry, i) => ({
       name: `educationCertificate_${i}`,
       filename: entry?.certificate,

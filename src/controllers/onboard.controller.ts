@@ -46,7 +46,8 @@ export const add = asyncHandler(async (req: Request, res: Response) => {
     panBack: fileName("panBack"),
     additionalDocument: fileName("additionalDocument"),
     contract: fileName("contract"),
-    otherDocument: fileName("otherDocument"),
+    // Several files under the one field name, in upload order.
+    otherDocuments: (files?.otherDocument ?? []).map((f) => f.filename),
     // index i belongs to education_info[i] / previous_experience_info[i]
     educationCertificates: Array.from({ length: MAX_ENTRY_FILES }, (_, i) =>
       fileName(`educationCertificate_${i}`),

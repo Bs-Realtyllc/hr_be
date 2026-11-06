@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "e083be13-bacb-4101-879d-531e4621638f",
+  "id": "2c8b8865-a433-4d73-af33-e9310cd65cbd",
   "prevId": "4675ce8d-70fe-443c-aab9-dff80f134c70",
   "tables": {
     "access_log": {
@@ -1452,9 +1452,9 @@
           "notNull": false,
           "autoincrement": false
         },
-        "other_document_path": {
-          "name": "other_document_path",
-          "type": "varchar(255)",
+        "other_document_paths": {
+          "name": "other_document_paths",
+          "type": "json",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

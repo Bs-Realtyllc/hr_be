@@ -11,6 +11,9 @@ import * as employeeRepo from "./employee.repository";
 
 // Uploaded filenames from POST /onboard (undefined = not uploaded). The entry
 // arrays are indexed like education_info / previous_experience_info.
+/** Max files in other_document_paths (multer maxCount for "otherDocument"). */
+export const MAX_OTHER_DOCUMENTS = 4;
+
 export interface OnboardFilenames {
   passportPhoto?: string;
   idFront?: string;
@@ -19,7 +22,7 @@ export interface OnboardFilenames {
   panBack?: string;
   additionalDocument?: string;
   contract?: string;
-  otherDocument?: string;
+  otherDocuments: string[];
   educationCertificates: (string | undefined)[];
   experienceLetters: (string | undefined)[];
 }
@@ -51,7 +54,7 @@ const employeeOnboardingProfileColumns = {
   pan_back_path: employeeOnboardingProfile.panBackPath,
   additional_document_path: employeeOnboardingProfile.additionalDocumentPath,
   contract_path: employeeOnboardingProfile.contractPath,
-  other_document_path: employeeOnboardingProfile.otherDocumentPath,
+  other_document_paths: employeeOnboardingProfile.otherDocumentPaths,
   confirmed: employeeOnboardingProfile.confirmed,
   is_active: employeeOnboardingProfile.isActive,
   role: employeeOnboardingProfile.role,
@@ -205,7 +208,9 @@ function toProfileRow(data: OnboardPayload, filenames: OnboardFilenames) {
     panBackPath: filenames.panBack,
     additionalDocumentPath: filenames.additionalDocument,
     contractPath: filenames.contract,
-    otherDocumentPath: filenames.otherDocument,
+    otherDocumentPaths: filenames.otherDocuments.length
+      ? filenames.otherDocuments.slice(0, MAX_OTHER_DOCUMENTS)
+      : undefined,
   };
 }
 
@@ -412,7 +417,7 @@ export async function getOnboardFiles(id: number) {
       panBackPath: employeeOnboardingProfile.panBackPath,
       additionalDocumentPath: employeeOnboardingProfile.additionalDocumentPath,
       contractPath: employeeOnboardingProfile.contractPath,
-      otherDocumentPath: employeeOnboardingProfile.otherDocumentPath,
+      otherDocumentPaths: employeeOnboardingProfile.otherDocumentPaths,
       educationInfo: employeeOnboardingProfile.educationInfo,
       previousExperienceInfo: employeeOnboardingProfile.previousExperienceInfo,
     })
