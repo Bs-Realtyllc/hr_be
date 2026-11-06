@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "30ef714e-8802-40e9-b1b7-ae91aee8f704",
-  "prevId": "4675ce8d-70fe-443c-aab9-dff80f134c70",
+  "id": "9c1a6e35-4f8b-4a2d-9e7c-1b3f5a8d2c6e",
+  "prevId": "30ef714e-8802-40e9-b1b7-ae91aee8f704",
   "tables": {
     "access_log": {
       "name": "access_log",
