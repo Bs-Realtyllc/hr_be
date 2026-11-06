@@ -12,8 +12,22 @@
     {
       "idx": 1,
       "version": "5",
+      "when": 1793862356941,
+      "tag": "0001_strange_iron_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1793863000000,
+      "tag": "0002_seed_company_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
       "when": 1793937313333,
-      "tag": "0001_onboarding_flow",
+      "tag": "0003_onboarding_flow",
       "breakpoints": true
     }
   ]
