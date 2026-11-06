@@ -113,6 +113,25 @@ export async function findAllActiveNames() {
   return rows;
 }
 
+// Lean projection for the admin "Team Access" list — avoids the doc/manager
+// joins findAllActive() pulls in, since this view only shows who can log in.
+export async function findForTeamAccess() {
+  return db
+    .select({
+      id: employees.id,
+      name: employees.name,
+      email: employees.email,
+      designation: designations.title,
+      role: employees.role,
+      status: employees.status,
+      start_date: employees.startDate,
+    })
+    .from(employees)
+    .leftJoin(designations, eq(employees.designationId, designations.id))
+    .where(ACTIVE_ROSTER)
+    .orderBy(employees.name);
+}
+
 export async function findAllOnboarding() {
   return baseQueryWithManager()
     .where(eq(employees.status, "onboarding"))
@@ -382,6 +401,7 @@ const EMPLOYEES_TABLE_FIELDS: Record<string, keyof typeof employees.$inferInsert
   start_date: "startDate",
   github_url: "githubUrl",
   discord_username: "discordUsername",
+  role: "role",
 };
 
 export async function update(

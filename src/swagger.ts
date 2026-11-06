@@ -1995,7 +1995,7 @@ const options = {
         NotificationPreference: {
           type: "object",
           description:
-            "The returned list is filtered by the caller's role — admin sees only security + employee_updates; lead additionally sees the approver types (leave_request_submitted, overtime_request_submitted), which fire for every leave/overtime request submitted company-wide (every employee with role 'lead' is notified, independent of manager_id/reporting chain); employee/intern see security + employee_updates + requester types (leave_request, overtime_request, documents_signature, onboarding_updated, offboarding_updated).",
+            "One row per notification type relevant to the caller's role. `group` controls which UI section a type belongs to: `security` (login/password alerts) or `email` (everything else). Full type → label → group → audience mapping: new_login_detected → \"New Login Detected\" (security, all roles); password_changed → \"Password Changed\" (security, all roles); employee_updates → \"Role, Department & Salary Changes\" (email, all roles — fires whenever the caller's own designation, department, or salary/pay details are updated by an admin, every time, not just the first time); leave_request → \"Leave Request Status\" (email, employee/intern — fires when their own leave request is approved/rejected); overtime_request → \"Overtime Request Status\" (email, employee/intern — same, for overtime); documents_signature → \"Signed Document Rejected\" (email, employee/intern — fires only when a signed document they submitted is rejected; there is no separate \"ready to sign\" notification); onboarding_updated → \"Onboarding Updated\" (email, employee/intern — fires on onboarding approval); offboarding_updated → \"Offboarding Updated\" (email, employee/intern — fires on both offboarding start and completion); leave_request_submitted → \"New Leave Request to Review\" (email, lead only — fires when any employee/intern submits a leave request, sent to every lead regardless of reporting chain); overtime_request_submitted → \"New Overtime Request to Review\" (email, lead only — same, for overtime). So admin sees only the 2 security types + employee_updates; lead additionally sees the 2 *_submitted types; employee/intern see security + employee_updates + the 5 requester types. Note: even when `enabled` is true, no email is actually sent unless the server's MAIL_HOST is configured — this flag only controls whether a configured mail server is used for that recipient/type.",
           properties: {
             type: {
               type: "string",
@@ -2014,7 +2014,19 @@ const options = {
             },
             group: { type: "string", enum: ["security", "email"] },
             label: { type: "string", example: "New Login Detected" },
+            description: {
+              type: "string",
+              description: "Plain-language explanation of what triggers this notification, meant for a UI tooltip.",
+              example: "Email me when my account is signed into from a device or location not seen before.",
+            },
             enabled: { type: "boolean" },
+          },
+          example: {
+            type: "leave_request",
+            group: "email",
+            label: "Leave Request Status",
+            description: "Email me when a leave request I submitted is approved or rejected.",
+            enabled: true,
           },
         },
         NotificationPreferencesUpdateInput: {
@@ -2027,11 +2039,64 @@ const options = {
                 type: "object",
                 required: ["type", "enabled"],
                 properties: {
-                  type: { type: "string", example: "leave_request" },
+                  type: {
+                    type: "string",
+                    description:
+                      "Must be a type relevant to the caller's role (see the NotificationPreference schema for the full type/role mapping). A type that doesn't exist, or belongs to a different role, fails the whole request with a 400.",
+                    enum: [
+                      "new_login_detected",
+                      "password_changed",
+                      "employee_updates",
+                      "leave_request",
+                      "overtime_request",
+                      "documents_signature",
+                      "onboarding_updated",
+                      "offboarding_updated",
+                      "leave_request_submitted",
+                      "overtime_request_submitted",
+                    ],
+                    example: "leave_request",
+                  },
                   enabled: { type: "boolean" },
                 },
               },
+              example: [
+                { type: "leave_request", enabled: false },
+                { type: "employee_updates", enabled: true },
+              ],
             },
+          },
+        },
+        CompanySettings: {
+          type: "object",
+          description: "Singleton company profile. All fields are null until an admin saves it for the first time.",
+          properties: {
+            name: { type: "string", nullable: true, example: "GITGI" },
+            email: { type: "string", format: "email", nullable: true, example: "hello@gitgi.com" },
+            website: { type: "string", nullable: true, example: "https://gitgi.com" },
+            updated_at: { type: "string", format: "date-time", nullable: true },
+          },
+        },
+        CompanySettingsSaveInput: {
+          type: "object",
+          required: ["name", "email", "website"],
+          properties: {
+            name: { type: "string", example: "GITGI" },
+            email: { type: "string", format: "email", example: "hello@gitgi.com" },
+            website: { type: "string", example: "https://gitgi.com" },
+          },
+        },
+        TeamAccessMember: {
+          type: "object",
+          description: "Read-only — every non-terminated employee. There is no revoke/grant action yet; this only lists who currently has an account.",
+          properties: {
+            id: { type: "integer" },
+            name: { type: "string" },
+            email: { type: "string", format: "email" },
+            designation: { type: "string", nullable: true },
+            role: { type: "string", enum: ["admin", "lead", "employee", "intern"] },
+            status: { type: "string", enum: ["onboarding", "active", "on_leave", "probation", "offboarding", "terminated"] },
+            start_date: { type: "string", format: "date", nullable: true },
           },
         },
       },
@@ -2060,12 +2125,78 @@ const options = {
         },
       },
 
+      "/api/company": {
+        get: {
+          tags: ["Company"],
+          summary: "Get company profile",
+          description: "Available to every authenticated role as read-only. All fields are null until an admin saves this for the first time.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/CompanySettings" } },
+              },
+            },
+          },
+        },
+        put: {
+          tags: ["Company"],
+          summary: "Update company profile",
+          description: "Admin only. Upserts the singleton company_settings row — there is only ever one.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/CompanySettingsSaveInput" } },
+            },
+          },
+          responses: {
+            200: {
+              description: "Updated",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
+            },
+            400: {
+              description: "Missing or invalid name/email/website",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            403: {
+              description: "Insufficient permissions",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+
+      "/api/company/team-access": {
+        get: {
+          tags: ["Company"],
+          summary: "List employees who currently have platform access",
+          description: "Admin only. Read-only snapshot of every non-terminated employee — there is no revoke/grant endpoint yet.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": {
+                  schema: { type: "array", items: { $ref: "#/components/schemas/TeamAccessMember" } },
+                },
+              },
+            },
+            403: {
+              description: "Insufficient permissions",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+
       "/api/notifications/preferences": {
         get: {
           tags: ["Notifications"],
           summary: "Get the logged-in employee's notification preferences",
           description:
-            "Returns only the notification types relevant to the caller's role (see the NotificationPreference schema description), each with its current on/off state. Types with no stored row default to enabled.",
+            "Returns only the notification types relevant to the caller's role (see the NotificationPreference schema description for the full type/label/role mapping), each with its current on/off state. Types with no stored row default to enabled. Even when enabled, delivery still requires the server's MAIL_HOST to be configured.",
           security: [{ bearerAuth: [] }],
           responses: {
             200: {
@@ -2073,6 +2204,16 @@ const options = {
               content: {
                 "application/json": {
                   schema: { type: "array", items: { $ref: "#/components/schemas/NotificationPreference" } },
+                  example: [
+                    { type: "new_login_detected", group: "security", label: "New Login Detected", description: "Email me when my account is signed into from a device or location not seen before.", enabled: true },
+                    { type: "password_changed", group: "security", label: "Password Changed", description: "Email me a confirmation whenever my account password is changed.", enabled: true },
+                    { type: "employee_updates", group: "email", label: "Role, Department & Salary Changes", description: "Email me whenever my own designation, department, or salary/pay details are updated by an admin.", enabled: true },
+                    { type: "leave_request", group: "email", label: "Leave Request Status", description: "Email me when a leave request I submitted is approved or rejected.", enabled: true },
+                    { type: "overtime_request", group: "email", label: "Overtime Request Status", description: "Email me when an overtime request I submitted is approved or rejected.", enabled: false },
+                    { type: "documents_signature", group: "email", label: "Signed Document Rejected", description: "Email me if a signed document I submitted gets rejected and needs to be corrected.", enabled: true },
+                    { type: "onboarding_updated", group: "email", label: "Onboarding Updated", description: "Email me when there is an update to my onboarding process.", enabled: true },
+                    { type: "offboarding_updated", group: "email", label: "Offboarding Updated", description: "Email me when there is an update to my offboarding process.", enabled: true },
+                  ],
                 },
               },
             },
@@ -2081,12 +2222,20 @@ const options = {
         put: {
           tags: ["Notifications"],
           summary: "Update one or more notification preferences",
+          description:
+            "Upserts the on/off state for one or more notification types. Each type must be relevant to the caller's role (see the NotificationPreference schema) — an unknown type, or one belonging to a different role, fails the whole request with a 400. Even when enabled, delivery still requires the server's MAIL_HOST to be configured.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
             content: {
               "application/json": {
                 schema: { $ref: "#/components/schemas/NotificationPreferencesUpdateInput" },
+                example: {
+                  preferences: [
+                    { type: "leave_request", enabled: false },
+                    { type: "employee_updates", enabled: true },
+                  ],
+                },
               },
             },
           },
@@ -2099,7 +2248,12 @@ const options = {
             },
             400: {
               description: "Unknown notification type, or a type that doesn't apply to the caller's role",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                  example: { error: "Unknown notification type(s): attendance_alerts" },
+                },
+              },
             },
           },
         },
@@ -2415,7 +2569,7 @@ const options = {
           tags: ["Auth"],
           summary: "Get own login history",
           description:
-            "Returns a paginated list of sign-in attempts (successful and failed) for the currently authenticated employee, sorted newest first.",
+            "Returns a paginated list of sign-in attempts (successful and failed) for the currently authenticated employee, sorted newest first. Available to every role, including admin — this always returns only the caller's own sessions. For the company-wide list, see GET /api/auth/admin/login-history.",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -2452,7 +2606,8 @@ const options = {
         get: {
           tags: ["Auth"],
           summary: "Get login history for all employees",
-          description: "Admin only.",
+          description:
+            "Admin only. Returns every employee's sign-in attempts, including the admin's own, with employee_name/email attached to each row. To see just the caller's own sessions, use GET /api/auth/login-history instead.",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -2497,7 +2652,7 @@ const options = {
         get: {
           tags: ["Auth"],
           summary: "Get login history for a specific employee",
-          description: "Admin only.",
+          description: "Admin only. Same shape as GET /api/auth/login-history, but scoped to the given employeeId instead of the caller.",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -3241,7 +3396,7 @@ const options = {
           tags: ["Employees"],
           summary: "Update an employee",
           description:
-            "If designation or department changes, emails the employee an employee_updates notification if that preference is enabled (see /api/notifications/preferences). Admin or lead. Partial update. Department and designation are set by name (created if new).",
+            "If designation or department changes, emails the employee an employee_updates notification if that preference is enabled (see /api/notifications/preferences). Admin or lead for most fields — partial update, department and designation are set by name (created if new). The `role` field is stricter: it's admin-only even though the rest of this endpoint is open to leads, and a caller can never change their own role — not even an admin — to prevent accidental self-lockout.",
             security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -3269,7 +3424,7 @@ const options = {
               },
             },
             400: {
-              description: "Nothing to update, own-manager, or reporting cycle",
+              description: "Nothing to update, own-manager, reporting cycle, or an attempt to change your own role",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },
@@ -3285,7 +3440,7 @@ const options = {
               },
             },
             403: {
-              description: "Forbidden",
+              description: "Forbidden — caller isn't admin/lead, or a lead attempted to change the role field (admin-only)",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },
@@ -7252,7 +7407,9 @@ const options = {
       },
     },
   },
-  apis: ["./routes/*.js", "./controllers/*.js"],
+  // This spec is entirely hand-written above — no jsdoc comments are scanned,
+  // but swagger-jsdoc requires `apis` to be present even when unused.
+  apis: [],
 };
 
 export default swaggerJsdoc(options);

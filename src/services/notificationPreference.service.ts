@@ -10,6 +10,7 @@ export async function getPreferences(employeeId: number, role: string) {
     type: type.key,
     group: type.group,
     label: type.label,
+    description: type.description,
     enabled: overrides.has(type.key) ? overrides.get(type.key) : true,
   }));
 }

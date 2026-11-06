@@ -97,6 +97,10 @@ export async function listAllNames() {
   return employeeRepo.findAllActiveNames();
 }
 
+export async function listTeamAccess() {
+  return employeeRepo.findForTeamAccess();
+}
+
 export async function listOnboarding() {
   return employeeRepo.findAllOnboarding();
 }
@@ -136,9 +140,24 @@ export async function update(
   id: string,
   updates: EmployeeUpdateInput,
   actorId: number | null,
+  actorRole: string | null = null,
 ) {
   if (!Object.keys(updates).length) {
     throw new AppError("Nothing to update", 400);
+  }
+
+  if ("role" in updates) {
+    // Blocked regardless of caller — self-service role changes are how an
+    // admin accidentally locks themselves out, since the UI-only disable on
+    // this button can always be bypassed by calling the API directly.
+    if (actorId != null && String(actorId) === String(id)) {
+      throw new AppError("You cannot change your own role", 400);
+    }
+    // This route is also open to 'lead' for designation/department edits —
+    // granting or revoking admin access needs the stricter admin-only bar.
+    if (actorRole !== "admin") {
+      throw new AppError("Only an admin can change an employee's role", 403);
+    }
   }
 
   const before = await employeeRepo.findById(id);
@@ -149,21 +168,45 @@ export async function update(
       (field) => field in updates && (updates as any)[field] !== (before as any)[field],
     );
     if (changedFields.length) {
-      notifyEmployeeUpdatedIfNeeded(before, changedFields);
+      notifyEmployeeUpdatedIfNeeded(before, changedFields, updates);
     }
   }
 }
 
-async function notifyEmployeeUpdatedIfNeeded(employee: { id: number; name: string; email: string }, changedFields: readonly string[]) {
+const EMPLOYEE_UPDATE_FIELD_LABELS: Record<string, string> = {
+  designation: "Designation",
+  department: "Department",
+};
+
+// designation/department are free-text and admin-settable — escape before
+// interpolating into email HTML so a value can't inject markup.
+function escapeHtml(value: unknown): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+async function notifyEmployeeUpdatedIfNeeded(
+  employee: { id: number; name: string; email: string },
+  changedFields: readonly string[],
+  updates: EmployeeUpdateInput,
+) {
   if (!process.env.MAIL_HOST) return;
   try {
     const enabled = await notificationPreferenceService.isEnabled(employee.id, "employee_updates");
     if (!enabled) return;
+    const changeLines = changedFields
+      .map((field) => `<li><strong>${EMPLOYEE_UPDATE_FIELD_LABELS[field] ?? field}</strong> is now <strong>${escapeHtml((updates as any)[field])}</strong></li>`)
+      .join("");
     await sendPlatformMail(
       employee.email,
-      "HR Platform — Your Profile Was Updated",
+      "HR Platform — Your Designation or Department Changed",
       `<p>Hi ${employee.name},</p>
-       <p>The following field(s) on your employee record were updated by an admin: <strong>${changedFields.join(", ")}</strong>.</p>
+       <p>An admin updated the following on your employee record:</p>
+       <ul>${changeLines}</ul>
        <p>If you have questions about this change, contact HR.</p>
        <p style="color:#888;font-size:12px">HR Platform</p>`,
     );
