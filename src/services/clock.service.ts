@@ -332,7 +332,13 @@ export async function getAttendance(query: AttendanceQuery) {
        grossSeconds - totalPauseDuration,
      );
 
-     return { ...record, totalPauseDuration, totalClockInDuration, isLate: isLate(record.clockIn, record.clockDate) };
+     return {
+       ...record,
+       clockOutEstimated: Boolean(record.clockOutEstimated),
+       totalPauseDuration,
+       totalClockInDuration,
+       isLate: isLate(record.clockIn, record.clockDate),
+     };
    });
  
   return {
