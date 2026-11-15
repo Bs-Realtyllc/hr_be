@@ -1,7 +1,7 @@
 import AppError from "../pkg/AppError";
+import { nepalDateString, nepalTimeToUtc } from "../pkg/timezone";
 import * as employeeDailyClockRepo from "../repositories/clock.repository";
-
-type ClockStatus = "idle" | "running" | "paused" | "done";
+import * as companySettingsRepo from "../repositories/companySettings.repository";
 
 export interface AttendanceQuery {
   employeeId?: string;
@@ -15,10 +15,6 @@ export interface AttendanceQuery {
 interface RawRow {
   employeeId: number;
   name: string;
-  email: string;
-  address: string;
-  // profilePicture: string | null;
-  phone: string | null;
   clockId: number;
   clockIn: Date | string;
   clockOut: Date | string | null;
@@ -32,26 +28,11 @@ interface RawRow {
 interface GroupedClockRecord {
   employeeId: number;
   name: string;
-  email: string;
-  address: string;
-  // profilePicture: string | null;
-  phone: string | null;
   clockId: number;
   clockIn: Date | string;
   clockOut: Date | string | null;
   clockDate: string;
   pauses: { pause: Date | string | null; resume: Date | string | null; reason: string | null, pauseDuration: number | null }[];
-}
-
-function deriveStatus(rows): ClockStatus {
-  if (rows.length === 0) return "idle"; // no clock-in record at all today — treat as not clocked in
-
-  const { clockOut } = rows[0]; // same across all rows for this clock session
-
-  if (clockOut) return "done";
-
-  const isCurrentlyPaused = rows.some((r) => r.pause && !r.resume);
-  return isCurrentlyPaused ? "paused" : "running";
 }
 
 function groupByClockId(rows: RawRow[]): GroupedClockRecord[] {
@@ -61,10 +42,6 @@ function groupByClockId(rows: RawRow[]): GroupedClockRecord[] {
     const {
       employeeId,
       name,
-      email,
-      address,
-      // profilePicture,
-      phone,
       clockId,
       clockIn,
       clockOut,
@@ -79,10 +56,6 @@ function groupByClockId(rows: RawRow[]): GroupedClockRecord[] {
       map.set(clockId, {
         employeeId,
         name,
-        email,
-        address,
-        // profilePicture,
-        phone,
         clockId,
         clockIn,
         clockOut,
@@ -98,6 +71,22 @@ function groupByClockId(rows: RawRow[]): GroupedClockRecord[] {
   }
 
   return Array.from(map.values());
+}
+
+// Company working hours are optional — until an admin sets them, nothing
+// is ever flagged late. When set, "late" means the clock-in happened after
+// work_start + the configured grace period, on that shift's own Nepal day.
+async function buildLateChecker() {
+  const settings = await companySettingsRepo.find();
+  const workStart = settings?.work_start;
+  if (!workStart) return () => false;
+
+  const graceMinutes = settings?.late_grace_minutes ?? 0;
+  return (clockIn: Date | string, clockDate: string) => {
+    const threshold = nepalTimeToUtc(clockDate, workStart);
+    threshold.setMinutes(threshold.getMinutes() + graceMinutes);
+    return new Date(clockIn).getTime() > threshold.getTime();
+  };
 }
 
 function parseCoordinates(lat: unknown, lng: unknown) {
@@ -124,33 +113,112 @@ function parseCoordinates(lat: unknown, lng: unknown) {
 }
 
 export async function clockIn(empId: number, lat: number, lng: number) {
-  const hour = new Date().getHours();
-  // no backend validation for now
-  // if (hour < 8 || hour >= 12) {
-  //   throw new AppError("Clock-in is only allowed between 8 AM and 12 PM.", 400);
-  // }
-
-  //latitude and longitude validation:
   const coords = parseCoordinates(lat, lng);
 
-  return await employeeDailyClockRepo.addClockIn(empId,coords);
+  // Split shifts are allowed (clock in again later the same day), but never
+  // two open shifts at once.
+  const existingOpen = await employeeDailyClockRepo.getOpenShift(empId);
+  if (existingOpen) {
+    throw new AppError("You're already clocked in — clock out first.", 409);
+  }
+
+  return await employeeDailyClockRepo.addClockIn(empId, coords);
 }
 
-export async function getClock(empId: number, date: string) {
-  const today = date || new Date().toISOString().split("T")[0];
-  const result = await employeeDailyClockRepo.getClock(empId, today);
+interface LiveShift {
+  clockIn: Date | string;
+  clockOut: Date | string | null;
+  clockOutEstimated: boolean;
+  pauses: { pause: Date | string | null; resume: Date | string | null; reason: string | null; pauseDuration: number | null }[];
+}
 
-  let totalPauseDuration = 0;
-  result.map((data)=>{totalPauseDuration += data.pauseDuration})
+// Rows come back one-per-pause (or one bare row if there's no pause),
+// joined across potentially several shifts on the same date — group them
+// back into one entry per shift (per clock_id).
+function groupShiftsForDate(rows: any[]): LiveShift[] {
+  const shiftMap = new Map<number, LiveShift>();
+  for (const row of rows) {
+    if (!shiftMap.has(row.clock_id)) {
+      shiftMap.set(row.clock_id, { clockIn: row.clockIn, clockOut: row.clockOut, clockOutEstimated: Boolean(row.clockOutEstimated), pauses: [] });
+    }
+    if (row.pause) {
+      shiftMap.get(row.clock_id)!.pauses.push({ pause: row.pause, resume: row.resume, reason: row.reason, pauseDuration: row.pauseDuration });
+    }
+  }
+  return Array.from(shiftMap.values());
+}
+
+function sumClockedSeconds(shifts: LiveShift[]): number {
+  const now = Date.now();
+  return shifts.reduce((total, shift) => {
+    const pauseTotal = shift.pauses.reduce((sum, p) => sum + (p.pauseDuration ?? 0), 0);
+    const start = new Date(shift.clockIn).getTime();
+    const end = shift.clockOut ? new Date(shift.clockOut).getTime() : now;
+    return total + Math.max(0, Math.floor((end - start) / 1000) - pauseTotal);
+  }, 0);
+}
+
+// Total time actually clocked on a given date — used to verify overtime
+// claims against real attendance instead of trusting a typed-in number.
+// `estimated` is true if any contributing shift's clock_out was guessed by
+// the stale-shift auto-close job rather than actually reported — callers
+// should treat the comparison as unreliable, not a confirmed mismatch.
+export async function getTotalClockedSecondsForDate(empId: number, date: string): Promise<{ seconds: number; estimated: boolean }> {
+  const rows = await employeeDailyClockRepo.getClock(empId, date);
+  const shifts = groupShiftsForDate(rows);
+  return { seconds: sumClockedSeconds(shifts), estimated: shifts.some((s) => s.clockOutEstimated) };
+}
+
+// One specific recorded shift, by its own clock_id — lets an employee claim
+// overtime against a real session (picked from their own Tracker history)
+// instead of typing a number, and lets the server independently verify that
+// claim rather than trusting whatever work_date/hours the client sends.
+export async function getShiftSummary(clockId: number): Promise<{
+  employeeId: number;
+  clockDate: string;
+  clockIn: Date | string;
+  clockOut: Date | string | null;
+  clockOutEstimated: boolean;
+  totalSeconds: number;
+} | null> {
+  const rows = await employeeDailyClockRepo.getShiftWithPauses(clockId);
+  if (rows.length === 0) return null;
+
+  const { employeeId, clockIn, clockOut, clockOutEstimated, clockDate } = rows[0];
+  const pauses = rows
+    .filter((r) => r.pause)
+    .map((r) => ({ pause: r.pause, resume: r.resume, reason: null, pauseDuration: r.pauseDuration }));
+  const totalSeconds = sumClockedSeconds([{ clockIn, clockOut, clockOutEstimated: Boolean(clockOutEstimated), pauses }]);
+
+  return { employeeId, clockDate, clockIn, clockOut, clockOutEstimated: Boolean(clockOutEstimated), totalSeconds };
+}
+
+export async function getClock(empId: number, date?: string) {
+  const today = date || nepalDateString();
+  const rows = await employeeDailyClockRepo.getClock(empId, today);
+  const shifts = groupShiftsForDate(rows);
+
+  const openShift = shifts.find((s) => !s.clockOut) ?? null;
+
+  // Shifts that already finished earlier today are "banked" — the frontend
+  // only needs to live-tick the currently open one on top of this.
+  const totalSecondsEarlierToday = sumClockedSeconds(shifts.filter((s) => s !== openShift));
+
+  const status: "idle" | "running" | "paused" = !openShift
+    ? "idle"
+    : openShift.pauses.some((p) => p.pause && !p.resume)
+      ? "paused"
+      : "running";
+
+  const openPauses = openShift?.pauses ?? [];
 
   return {
-    status: deriveStatus(result),
-    clockIn: result[0]?.clockIn ?? null,
-    clockOut: result[0]?.clockOut ?? null,
-    totalPauseDuration,
-    employeeId: result[0]?.employeeId ?? null,
-    pauses: result.map(({ id, pause, resume, reason, pauseDuration }) => ({
-      id,
+    status,
+    employeeId: empId,
+    clockIn: openShift?.clockIn ?? null,
+    totalSecondsEarlierToday,
+    totalPauseDuration: openPauses.reduce((sum, p) => sum + (p.pauseDuration ?? 0), 0),
+    pauses: openPauses.map(({ pause, resume, reason, pauseDuration }) => ({
       pause,
       resume,
       reason,
@@ -159,88 +227,72 @@ export async function getClock(empId: number, date: string) {
   };
 }
 
-export async function clockOut(empId: number) {
-  const existing = await employeeDailyClockRepo.getClock(
-    empId,
-    new Date().toISOString().split("T")[0],
-  );
-  if (!existing) {
-    throw new AppError("You haven't clocked in today.", 400);
+export async function clockOut(empId: number, lat: number, lng: number) {
+  const coords = parseCoordinates(lat, lng);
+
+  const shift = await employeeDailyClockRepo.getOpenShift(empId);
+  if (!shift) {
+    throw new AppError("You're not clocked in.", 400);
   }
-  if (existing.some((r) => r.clockIn && r.clockOut)) {
-    throw new AppError("You have already clocked out today.", 409);
-  }
-  return await employeeDailyClockRepo.addClockOut(empId);
+  return await employeeDailyClockRepo.addClockOut(shift.id, coords);
 }
 
 export async function pause(empId: number, reason: string) {
-  const today = new Date().toISOString().split("T")[0];
-  const record = await employeeDailyClockRepo.getClock(empId, today);
-  const isClockedOut = record.some((r)=> r.clockOut)
-  const isPaused = record.some((r)=> r.pause && !r.resume);
-  const clockId = record[0].clock_id;
-
-  // console.log(record, isClockedOut, isPaused);
-
-  if (!record) {
-    throw new AppError("You haven't clocked in today.", 400);
+  const shift = await employeeDailyClockRepo.getOpenShift(empId);
+  if (!shift) {
+    throw new AppError("You're not clocked in.", 400);
   }
-  if (isClockedOut) {
-    throw new AppError("You have already clocked out today.", 409);
-  }
-    if (isPaused) {
+
+  const pauses = await employeeDailyClockRepo.getPauseRow(shift.id);
+  const isPaused = pauses.some((p) => p.pause && !p.resume);
+  if (isPaused) {
     throw new AppError("You have already paused the timer", 400);
   }
-  if (!reason?.trim())
+  if (!reason?.trim()) {
     throw new AppError("Cannot pause clock without valid reason", 400);
+  }
 
-  return await employeeDailyClockRepo.addPause(clockId, empId, reason);
+  return await employeeDailyClockRepo.addPause(shift.id, empId, reason);
 }
 
 export async function resume(empId: number) {
-  const today = new Date().toISOString().split("T")[0];
-  const record = await employeeDailyClockRepo.getClock(empId, today);
-  const isClockedOut = record.some((r)=>r.employeeId=== empId && r.clockOut)
-  const isPaused = record.some((r)=>r.employeeId ===empId && r.pause && !r.resume);
-  // console.log(record, isClockedOut, isPaused)
-  
-  if (!record) {
-    throw new AppError("You haven't clocked in today.", 400);
+  const shift = await employeeDailyClockRepo.getOpenShift(empId);
+  if (!shift) {
+    throw new AppError("You're not clocked in.", 400);
   }
-  if (isClockedOut) {
-    throw new AppError("You have already clocked out today.", 409);
-  }
-    if (!isPaused) {
+
+  const pauses = await employeeDailyClockRepo.getPauseRow(shift.id);
+  const openPause = pauses.find((p) => p.pause && !p.resume);
+  if (!openPause) {
     throw new AppError("You have not paused the clock.", 400);
   }
-  const [filteredRecord] = record.filter((r)=> r.pause && !r.resume)
-  // console.log(filteredRecord)
 
   const now = new Date();
-  if (now < new Date(filteredRecord.pause)) {
+  if (now < new Date(openPause.pause)) {
     throw new AppError("Resume time cannot be before pause time.", 400);
   }
 
-  return await employeeDailyClockRepo.addResume(filteredRecord.id, filteredRecord.clock_id);
+  return await employeeDailyClockRepo.addResume(openPause.id, shift.id);
 }
 
+export async function closeStaleOpenShifts(): Promise<number> {
+  return await employeeDailyClockRepo.closeStaleOpenShifts();
+}
 
-export async function getAllForToday( date: string) {
-  const today = date || new Date().toISOString().split("T")[0];
-  const data = await employeeDailyClockRepo.getAllForToday(today);
+export async function getActiveNow() {
+  // The repo query already filters to open shifts only, so status here is
+  // always one of these two — never "done".
+  const [data, isLate] = await Promise.all([
+    employeeDailyClockRepo.getActiveNow(),
+    buildLateChecker(),
+  ]);
   const grouped = groupByClockId(data);
   const result = grouped.map((row) => {
-    let status: 'done' | 'paused' | 'running' = 'running';
-
-    if (row.clockOut) {
-      status = 'done';
-    } else if (row.pauses?.some((r) => r.pause && !r.resume)) {
-      status = 'paused';
-    }
-
+    const status: 'paused' | 'running' = row.pauses?.some((r) => r.pause && !r.resume) ? 'paused' : 'running';
     return {
       ...row,
       status,
+      isLate: isLate(row.clockIn, row.clockDate),
     };
   });
   return result;
@@ -257,9 +309,11 @@ export async function getAttendance(query: AttendanceQuery) {
     sortDir: query.sortDir === "asc" ? ("asc" as const) : ("desc" as const),
   };
  
-  const { data, total, page, limit } =
-    await employeeDailyClockRepo.getAttendance(filters);
- 
+  const [{ data, total, page, limit }, isLate] = await Promise.all([
+    employeeDailyClockRepo.getAttendance(filters),
+    buildLateChecker(),
+  ]);
+
   // groupByClockId is no longer needed here — the repo already returns
   // one entry per clock record with its pauses embedded, correctly paginated.
 
@@ -278,7 +332,7 @@ export async function getAttendance(query: AttendanceQuery) {
        grossSeconds - totalPauseDuration,
      );
 
-     return { ...record, totalPauseDuration, totalClockInDuration };
+     return { ...record, totalPauseDuration, totalClockInDuration, isLate: isLate(record.clockIn, record.clockDate) };
    });
  
   return {

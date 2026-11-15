@@ -1,0 +1,2 @@
+ALTER TABLE `overtime_requests` ADD `clock_id` int;--> statement-breakpoint
+ALTER TABLE `overtime_requests` ADD CONSTRAINT `overtime_requests_clock_id_employee_daily_clock_id_fk` FOREIGN KEY (`clock_id`) REFERENCES `employee_daily_clock`(`id`) ON DELETE set null ON UPDATE no action;

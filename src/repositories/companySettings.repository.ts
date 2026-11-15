@@ -6,6 +6,9 @@ const columns = {
   name: companySettings.name,
   email: companySettings.email,
   website: companySettings.website,
+  work_start: companySettings.workStart,
+  work_end: companySettings.workEnd,
+  late_grace_minutes: companySettings.lateGraceMinutes,
   updated_at: companySettings.updatedAt,
 };
 
@@ -16,7 +19,10 @@ export async function find() {
   return rows[0] || null;
 }
 
-export async function upsert(data: { name: string; email: string; website: string }, actorId: number | null) {
+export async function upsert(
+  data: { name: string; email: string; website: string; workStart: string | null; workEnd: string | null; lateGraceMinutes: number | null },
+  actorId: number | null,
+) {
   await db.transaction(async (tx) => {
     const [row] = await tx
       .select({ id: companySettings.id })
@@ -27,7 +33,15 @@ export async function upsert(data: { name: string; email: string; website: strin
 
     await tx
       .update(companySettings)
-      .set({ name: data.name, email: data.email, website: data.website, updatedBy: actorId })
+      .set({
+        name: data.name,
+        email: data.email,
+        website: data.website,
+        workStart: data.workStart,
+        workEnd: data.workEnd,
+        lateGraceMinutes: data.lateGraceMinutes,
+        updatedBy: actorId,
+      })
       .where(eq(companySettings.id, row.id));
   });
 }
