@@ -32,6 +32,7 @@ export interface ClockRow {
   clockIn: Date;
   clockOut: Date | null;
   clockDate: string;
+  clockOutEstimated: boolean;
   clockInLat: number | null;
   clockInLng: number | null;
   clockOutLat: number | null;
@@ -286,6 +287,7 @@ export async function getAttendance(
       clockIn: employeeDailyClock.clockIn,
       clockOut: employeeDailyClock.clockOut,
       clockDate: employeeDailyClock.clockDate,
+      clockOutEstimated: employeeDailyClock.clockOutEstimated,
       clockInLat: employeeDailyClock.clockInLat,
       clockInLng: employeeDailyClock.clockInLng,
       clockOutLat: employeeDailyClock.clockOutLat,
