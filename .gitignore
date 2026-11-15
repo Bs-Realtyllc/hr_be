@@ -1,4 +1,5 @@
 .env.*
+!.env.example
 node_modules/
 .env
 dist/
@@ -13,3 +14,4 @@ uploads/**
 !uploads/**/.gitkeep
 
 instruction.md
+.claude/

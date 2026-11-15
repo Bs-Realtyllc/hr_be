@@ -5,6 +5,7 @@ import {
   employees,
   EducationInfoEntry,
   PreviousExperienceEntry,
+  employeeDocuments,
 } from "../../drizzle/schema";
 import AppError from "../pkg/AppError";
 import * as employeeRepo from "./employee.repository";
@@ -379,30 +380,82 @@ export async function approveOnboardProfile(id: number) {
     if (!profile) {
       throw new AppError("Onboarding profile not found.", 404);
     }
-
+    //copy onboard data to employees table.
     const [insertResult] = await tx.insert(employees).values({
       name: profile.name,
       gender: profile.gender,
       dob: profile.dob,
+      nationality: profile.nationality,
+
       email: profile.email,
       phone: profile.phone,
-      address: profile.current_address,
-      emergencyContact: formatEmergencyContact(profile),
+      currentAddress: profile.current_address,
+      permanentAddress: profile.permanent_address,
+      // emergencyContact: formatEmergencyContact(profile),
       githubUrl: profile.github_url,
+      linkedinUrl: profile.linkedin_url,
+      portfolioUrl: profile.portfolio_url,
+      educationInfo: profile.education_info,
+      previousExperienceInfo: profile.previous_experience_info,
+
+      emergencyContactName: profile.emergency_contact_name,
+      emergencyContactEmail: profile.emergency_contact_email,
+      emergencyContactPhone: profile.emergency_contact_phone,
+      emergencyContactRelation: profile.emergency_contact_relation,
+      emergencyContactAddress: profile.emergency_contact_address,
       role: profile.role,
       status: "onboarding",
       startDate: new Date().toISOString().split('T')[0]
     });
 
-    // const newEmployeeId = insertResult.insertId;
+    //copy onboard data to employee_documents table.
+    // Slot names are camelCase and match the onboarding file viewer's upload field
+    // names. Empty slots are skipped since employee_documents.filename is NOT NULL.
+    const docSlots: { name: string; filename: string | null | undefined }[] = [
+      { name: "passportPhoto", filename: profile.photo_path },
+      { name: "idFront", filename: profile.id_front_path },
+      { name: "idBack", filename: profile.id_back_path },
+      { name: "panFront", filename: profile.pan_front_path },
+      { name: "panBack", filename: profile.pan_back_path },
+      { name: "additionalDocument", filename: profile.additional_document_path },
+      { name: "contract", filename: profile.contract_path },
+      ...(profile.other_document_paths ?? []).map((filename, i) => ({
+        name: `otherDocument${i}`,
+        filename,
+      })),
+      ...(profile.education_info ?? []).map((entry, i) => ({
+        name: `educationCertificate${i}`,
+        filename: entry?.certificate,
+      })),
+      ...(profile.previous_experience_info ?? []).map((entry, i) => ({
+        name: `experienceLetter${i}`,
+        filename: entry?.experience_letter,
+      })),
+    ];
 
-    // await tx
-      // .delete(employeeOnboardingProfile)
-      // .where(eq(employeeOnboardingProfile.id, id));
+    const employeeDocs: (typeof employeeDocuments.$inferInsert)[] = docSlots
+      .filter((doc): doc is { name: string; filename: string } => !!doc.filename)
+      .map((doc) => ({
+        empId: insertResult.insertId,
+        name: doc.name,
+        filename: doc.filename,
+      }));
 
-      await tx.update(employeeOnboardingProfile).set({isActive : false}).where(eq(employeeOnboardingProfile.id, id))
+    if (employeeDocs.length) {
+      await tx.insert(employeeDocuments).values(employeeDocs);
+    }
 
-    return profile;
+    await tx
+      .update(employeeOnboardingProfile)
+      .set({ isActive: false })
+      .where(eq(employeeOnboardingProfile.id, id));
+
+    const [employee] = await tx
+      .select()
+      .from(employees)
+      .where(eq(employees.id, insertResult.insertId));
+
+    return employee;
   });
 }
 

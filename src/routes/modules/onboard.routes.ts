@@ -32,12 +32,10 @@ router.post(
     { name: "educationCertificate_1", maxCount: 1 },
     { name: "educationCertificate_2", maxCount: 1 },
     { name: "educationCertificate_3", maxCount: 1 },
-    { name: "educationCertificate_4", maxCount: 1 },
     { name: "experienceLetter_0", maxCount: 1 },
     { name: "experienceLetter_1", maxCount: 1 },
     { name: "experienceLetter_2", maxCount: 1 },
     { name: "experienceLetter_3", maxCount: 1 },
-    { name: "experienceLetter_4", maxCount: 1 },
   ]),
   ctrl.add,
 );

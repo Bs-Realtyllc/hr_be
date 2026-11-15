@@ -137,8 +137,8 @@ export interface EmployeeResponse extends OnboardingProfileFields {
   address: string | null;
   panNo: string | null;
   profile_picture: string | null;
-  citizenship_front: string | null;
-  citizenship_back: string | null;
+  id_front: string | null;
+  id_back: string | null;
   designation: string | null;
   designation_id: number | null;
   department: string | null;

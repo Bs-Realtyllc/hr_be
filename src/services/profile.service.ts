@@ -23,18 +23,18 @@ export async function uploadPhoto(userId: number, filename: string) {
   await employeeRepo.updateProfilePicture(userId, filename);
 }
 
-export async function uploadCitizenship(userId: number, side: string, filename: string) {
-  if (!['front', 'back'].includes(side)) throw new AppError('Invalid side', 400);
-  const col = side === 'front' ? 'citizenship_front' : 'citizenship_back';
-
-  const oldDoc = await employeeRepo.findCitizenshipDocById(userId, col);
-  if (oldDoc) deleteUpload('docs', oldDoc);
-  await employeeRepo.updateCitizenshipDoc(userId, col, filename);
-}
-
 export function deleteUpload(folder: string, filename: string) {
   const fs = require('fs');
   const path = require('path');
   const full = path.join(process.cwd(), 'uploads', folder, filename);
   fs.unlink(full, () => {});
+}
+
+// Saves each document for the employee. If a document with the same name
+// already exists, only its filename is replaced. Old files stay in /uploads.
+export async function saveDocuments(
+  userId: number,
+  documents: { name: string; filename: string }[],
+) {
+  await employeeRepo.upsertDocuments(userId, documents);
 }

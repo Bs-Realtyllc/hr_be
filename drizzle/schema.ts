@@ -190,7 +190,7 @@ export type PreviousExperienceEntry= {
 	start_date: string;
 	end_date: string | null;
 	employment_type: 'part-time'|'full-time';
-	work_location: 'remote'| 'physical'| 'hybrid';
+	work_location: 'remote'| 'onsite'| 'hybrid';
 	description: string | null;
 	experience_letter: string | null;
 	still_working: boolean;
@@ -270,7 +270,7 @@ export const employees = mysqlTable("employees", {
 	email: varchar({ length: 150 }).notNull(),
 	secondaryEmail: varchar("secondary_email", { length: 150 }),
 	phone: varchar({ length: 20 }),
-	emergencyContact: varchar("emergency_contact", { length: 150 }),
+	// emergencyContact: varchar("emergency_contact", { length: 150 }),
 	profilePicture: varchar("profile_picture", { length: 255 }),
 	designation: varchar({ length: 100 }),
 	designationId: int("designation_id").references(() => designations.id, { onDelete: "set null" } ),
@@ -282,7 +282,7 @@ export const employees = mysqlTable("employees", {
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
 	dob: date({ mode: 'string' }),
 	githubUrl: varchar("github_url", { length: 255 }),
-	address: text(),
+	// address: text(),
 	discordUsername: varchar("discord_username", { length: 100 }),
 	panNo: varchar({ length: 50 }),
 	timezone: varchar({ length: 50 }).default('UTC'),
@@ -297,6 +297,27 @@ export const employees = mysqlTable("employees", {
 	twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
 	twoFactorSecret: varchar("two_factor_secret", { length: 255 }),
 	twoFactorBackupCodes: json("two_factor_backup_codes"),
+
+	//new columns - Nov 13th, 2026 -- to map onboarding profile after accept.
+	employeeId: varchar('employee_id',{length:8}),
+	nationality: varchar({length: 40}),
+	currentAddress: varchar("current_address", { length: 60 }),
+	permanentAddress: varchar("permanent_address", { length: 60 }),
+	emergencyContactName: varchar("emergency_contact_name", { length: 150 }),
+	emergencyContactRelation: varchar("emergency_contact_relation", {length: 30}),
+	emergencyContactPhone: varchar("emergency_contact_phone", {length: 20}),
+	emergencyContactEmail: varchar("emergency_contact_email", {length: 150}),
+	emergencyContactAddress: varchar("emergency_contact_address", {length: 60}),
+	workLocation: mysqlEnum("work_location", ["remote", "onsite", "hybrid"]).default("onsite"),
+	accountHolderName: varchar("account_holder_name", {length: 100}),
+	accountNumber: varchar("account_number", {length: 50}),
+	bankName: varchar("bank_name", {length:50}),
+	bankBranchName: varchar("bank_branch_name", {length:50}),
+	accountType: varchar("account_type", {length:50}),
+	linkedinUrl: varchar("linkedin_url", { length: 255 }),
+	portfolioUrl: varchar("portfolio_url", { length: 255 }),
+	educationInfo: json("education_info").$type<EducationInfoEntry[] | null>(),
+	previousExperienceInfo: json("previous_experience_info").$type<PreviousExperienceEntry[]| null>(),
 },
 (table) => [
 	index("manager_id").on(table.managerId),

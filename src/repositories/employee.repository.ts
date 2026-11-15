@@ -30,8 +30,8 @@ function insertedId(result: any): number {
 
 const manager = alias(employees, "manager");
 const docPic = alias(employeeDocuments, "doc_pic");
-const docCf = alias(employeeDocuments, "doc_cf");
-const docCb = alias(employeeDocuments, "doc_cb");
+const docIdFront = alias(employeeDocuments, "doc_id_front");
+const docIdBack = alias(employeeDocuments, "doc_id_back");
 
 const ACTIVE_ROSTER = sql`${employees.status} NOT IN ('terminated')`; //filter only terminated employee not onboarding
 
@@ -50,15 +50,16 @@ const BASE_COLUMNS = {
   dob: employees.dob,
   gender: employees.gender,
   github_url: employees.githubUrl,
-  address: employees.address,
+  address: employees.currentAddress,
+  permanentAddress: employees.permanentAddress,
   discord_username: employees.discordUsername,
   panNo: employees.panNo,
   role: employees.role,
   password_hash: employees.passwordHash,
   status: employees.status,
   profile_picture: docPic.filename,
-  citizenship_front: docCf.filename,
-  citizenship_back: docCb.filename,
+  id_front: docIdFront.filename,
+  id_back: docIdBack.filename,
 };
 
 function withDocJoins<T extends { leftJoin: any }>(query: T): T {
@@ -68,12 +69,12 @@ function withDocJoins<T extends { leftJoin: any }>(query: T): T {
       and(eq(docPic.empId, employees.id), eq(docPic.name, "profile_picture")),
     )
     .leftJoin(
-      docCf,
-      and(eq(docCf.empId, employees.id), eq(docCf.name, "citizenship_front")),
+      docIdFront,
+      and(eq(docIdFront.empId, employees.id), eq(docIdFront.name, "idFront")),
     )
     .leftJoin(
-      docCb,
-      and(eq(docCb.empId, employees.id), eq(docCb.name, "citizenship_back")),
+      docIdBack,
+      and(eq(docIdBack.empId, employees.id), eq(docIdBack.name, "idBack")),
     );
 }
 
@@ -388,7 +389,7 @@ export async function seedLeaveBalances(
 // Update-request field (snake_case, as sent by the frontend) -> employees column key.
 const EMPLOYEES_TABLE_FIELDS: Record<string, keyof typeof employees.$inferInsert> = {
   dob: "dob",
-  address: "address",
+  address: "currentAddress",
   name: "name",
   gender: "gender",
   email: "email",
@@ -563,7 +564,27 @@ export async function updateSalary(
   }
 }
 
-const { password_hash: _omitPasswordHash, ...PROFILE_COLUMNS } = BASE_COLUMNS;
+const { password_hash: _omitPasswordHash, ...BASE_PROFILE_COLUMNS } = BASE_COLUMNS;
+const PROFILE_COLUMNS = {
+  ...BASE_PROFILE_COLUMNS,
+  nationality: employees.nationality,
+  employee_id: employees.employeeId,
+  work_location: employees.workLocation,
+  emergency_contact_name: employees.emergencyContactName,
+  emergency_contact_relation: employees.emergencyContactRelation,
+  emergency_contact_phone: employees.emergencyContactPhone,
+  emergency_contact_email: employees.emergencyContactEmail,
+  emergency_contact_address: employees.emergencyContactAddress,
+  manager: manager.name,
+  account_holder_name: employees.accountHolderName,
+  account_number: employees.accountNumber,
+  account_type: employees.accountType,
+  bank_name: employees.bankName,
+  bank_branch_name: employees.bankBranchName,
+  work_hours: employees.workHours
+
+  
+};
 
 export async function findProfileById(id: number | string) {
   const rows = await withDocJoins(
@@ -571,15 +592,14 @@ export async function findProfileById(id: number | string) {
       .select(PROFILE_COLUMNS)
       .from(employees)
       .leftJoin(designations, eq(employees.designationId, designations.id))
-      .leftJoin(
-        departments,
-        eq(employees.departmentId, departments.id),
-      ) as any,
+      .leftJoin(departments, eq(employees.departmentId, departments.id))
+      .leftJoin(manager, eq(employees.managerId, manager.id)) as any,
   )
     .where(and(eq(employees.id, Number(id)), ACTIVE_ROSTER))
     .limit(1);
   return rows[0] || null;
 }
+
 
 export async function findProfilePictureById(id: number | string) {
   const rows = await db
@@ -600,34 +620,6 @@ export async function updateProfilePicture(
   filename: string,
 ) {
   await recordDocumentUpload(id, "profile_picture", filename);
-}
-
-const CITIZENSHIP_SLOTS = ["citizenship_front", "citizenship_back"];
-export async function findCitizenshipDocById(
-  id: number | string,
-  column: string,
-) {
-  if (!CITIZENSHIP_SLOTS.includes(column))
-    throwStatus("Invalid document column", 400);
-  const rows = await db
-    .select({ filename: employeeDocuments.filename })
-    .from(employeeDocuments)
-    .where(
-      and(
-        eq(employeeDocuments.empId, Number(id)),
-        eq(employeeDocuments.name, column),
-      ),
-    )
-    .limit(1);
-  return rows[0]?.filename || null;
-}
-
-export async function updateCitizenshipDoc(
-  id: number | string,
-  column: string,
-  filename: string,
-) {
-  await recordDocumentUpload(id, column, filename);
 }
 
 export async function findApprovedLeaveRangesForEmployee(
@@ -727,6 +719,40 @@ export async function recordDocumentUpload(
     name: slot,
     filename,
     url: null,
+  });
+}
+
+// Saves documents for one employee. If the employee already has a document
+// with the same name, its filename is updated instead of adding a new row.
+export async function upsertDocuments(
+  employeeId: number | string,
+  documents: { name: string; filename: string }[],
+) {
+  await db.transaction(async (tx) => {
+    for (const doc of documents) {
+      const [existing] = await tx
+        .select({ id: employeeDocuments.id })
+        .from(employeeDocuments)
+        .where(
+          and(
+            eq(employeeDocuments.empId, Number(employeeId)),
+            eq(employeeDocuments.name, doc.name),
+          ),
+        );
+
+      if (existing) {
+        await tx
+          .update(employeeDocuments)
+          .set({ filename: doc.filename })
+          .where(eq(employeeDocuments.id, existing.id));
+      } else {
+        await tx.insert(employeeDocuments).values({
+          empId: Number(employeeId),
+          name: doc.name,
+          filename: doc.filename,
+        });
+      }
+    }
   });
 }
 

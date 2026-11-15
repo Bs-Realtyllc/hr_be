@@ -59,23 +59,23 @@ export async function create(
 }
 
 export async function approve(onboardId: number) {
-  const profile = await onboardRepo.approveOnboardProfile(onboardId);
-  // console.log(profile);
+  const employee = await onboardRepo.approveOnboardProfile(onboardId);
+  // console.log(employee);
   if (!process.env.MAIL_HOST) {
     console.info(
-      `[auth] MAIL_HOST not set — Failed to send notification mail to ${profile.email}`,
+      `[auth] MAIL_HOST not set — Failed to send notification mail to ${employee.email}`,
     );
-  } else if (await notificationPreferenceService.isEnabled(profile.id, 'onboarding_updated')) {
+  } else if (await notificationPreferenceService.isEnabled(employee.id, 'onboarding_updated')) {
     try {
-      await sendApproveMail(profile.name, profile.email, profile.role);
+      await sendApproveMail(employee.name, employee.email, employee.role);
     } catch (mailErr: any) {
       console.error("[auth] Failed to send reset email:", mailErr.message);
     }
   }
 
   const year = new Date().getFullYear();
-  await employeeRepo.seedLeaveBalances(profile.id, year);
-  return profile;
+  await employeeRepo.seedLeaveBalances(employee.id, year);
+  return employee;
 }
 
 export async function deactivateOnboardProfile(id: number) {

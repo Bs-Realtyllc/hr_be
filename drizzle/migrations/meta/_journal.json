@@ -29,6 +29,13 @@
       "when": 1793937313333,
       "tag": "0003_onboarding_flow",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1794567893002,
+      "tag": "0004_employees_columns_add",
+      "breakpoints": true
     }
   ]
 }

@@ -180,12 +180,12 @@ const options = {
               nullable: true,
               description: "Filename of the uploaded document.",
             },
-            citizenship_front: {
+            id_front: {
               type: "string",
               nullable: true,
               description: "Filename of the uploaded document.",
             },
-            citizenship_back: {
+            id_back: {
               type: "string",
               nullable: true,
               description: "Filename of the uploaded document.",
@@ -1375,12 +1375,12 @@ const options = {
               description: "Stored filename, not a URL",
               example: "1792056880927_ibbowzmnkwb.jpeg",
             },
-            citizenship_front: {
+            id_front: {
               type: "string",
               nullable: true,
               description: "Stored filename",
             },
-            citizenship_back: {
+            id_back: {
               type: "string",
               nullable: true,
               description: "Stored filename",
@@ -5852,53 +5852,36 @@ const options = {
           },
         },
       },
-      "/api/profile/citizenship/{side}": {
-        post: {
-          tags: ["Profile"],
-          summary: "Upload a citizenship document image (front or back)",
-          description:
-            "Multipart upload. Accepts .jpg/.jpeg/.png/.webp up to 5 MB. Deletes the previous file for that side.",
-          security: [{ bearerAuth: [] }],
-          parameters: [
-            {
-              name: "side",
-              in: "path",
-              required: true,
-              schema: { type: "string", enum: ["front", "back"] },
-            },
-          ],
-          requestBody: {
-            required: true,
-            content: {
-              "multipart/form-data": {
-                schema: {
-                  type: "object",
-                  required: ["doc"],
-                  properties: { doc: { type: "string", format: "binary" } },
-                },
-              },
-            },
-          },
-          responses: {
-            200: {
-              description: "Uploaded",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/UploadResponse" },
-                },
-              },
-            },
-            400: {
-              description: "Invalid side or no file uploaded",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/Error" },
-                },
-              },
-            },
-          },
-        },
-      },
+      "/api/profile/docs/id": profileDocsPath(
+        "Upload ID (citizenship or NID) — front and/or back",
+        ["idFront", "idBack"],
+        "JPG, JPEG, PNG or WEBP",
+      ),
+      "/api/profile/docs/pan": profileDocsPath(
+        "Upload PAN card — front and/or back",
+        ["panFront", "panBack"],
+        "JPG, JPEG, PNG or WEBP",
+      ),
+      "/api/profile/docs/educational": profileDocsPath(
+        "Upload educational documents (up to 4)",
+        ["educationCertificate_0", "educationCertificate_1", "educationCertificate_2", "educationCertificate_3"],
+        "JPG, JPEG, PNG, WEBP or PDF",
+      ),
+      "/api/profile/docs/employment": profileDocsPath(
+        "Upload previous experience letters (up to 4)",
+        ["experienceLetter_0", "experienceLetter_1", "experienceLetter_2", "experienceLetter_3"],
+        "JPG, JPEG, PNG, WEBP or PDF",
+      ),
+      "/api/profile/docs/contract": profileDocsPath(
+        "Upload employment / internship contract",
+        ["contract"],
+        "JPG, JPEG, PNG, WEBP or PDF",
+      ),
+      "/api/profile/docs/other": profileDocsPath(
+        "Upload other documents (up to 4)",
+        ["otherDocument_0", "otherDocument_1", "otherDocument_2", "otherDocument_3"],
+        "JPG, JPEG, PNG, WEBP or PDF",
+      ),
 
       "/api/reports": {
         get: {
@@ -7413,3 +7396,62 @@ const options = {
 };
 
 export default swaggerJsdoc(options);
+
+/** Swagger entry for one PATCH /api/profile/docs/* route. */
+function profileDocsPath(summary: string, fields: string[], fileTypes: string) {
+  return {
+    patch: {
+      tags: ["Profile"],
+      summary,
+      description:
+        `Multipart upload for the logged-in employee. ${fileTypes}, max 5 MB each. ` +
+        "Every field is optional, but send at least one file. Saved in employee_documents " +
+        'with the field name minus "_" as the name (educationCertificate_0 → educationCertificate0). ' +
+        "If that name already exists for the employee, only the filename is replaced. Old files are kept in /uploads.",
+      security: [{ bearerAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: {
+              type: "object",
+              properties: Object.fromEntries(
+                fields.map((f) => [f, { type: "string", format: "binary" }]),
+              ),
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: "Saved",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  documents: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string", example: "idFront" },
+                        filename: { type: "string", example: "idFront-1794713986605-124611939.jpeg" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        400: {
+          description: "No file uploaded, wrong file type, file too large, or unexpected field",
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/Error" } },
+          },
+        },
+      },
+    },
+  };
+}
