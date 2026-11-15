@@ -1,0 +1,1 @@
+ALTER TABLE `employee_daily_clock` ADD `clock_out_estimated` boolean DEFAULT false NOT NULL;

@@ -1,4 +1,4 @@
-import { mysqlTable, primaryKey, bigint, varchar, smallint, int, timestamp, index, foreignKey, mysqlEnum, date, text, unique, decimal, tinyint, boolean, json, datetime, year } from "drizzle-orm/mysql-core"
+import { mysqlTable, primaryKey, bigint, varchar, smallint, int, timestamp, index, foreignKey, mysqlEnum, date, text, unique, decimal, tinyint, boolean, json, datetime, year, time } from "drizzle-orm/mysql-core"
 import { sql } from "drizzle-orm"
 
 export const accessLog = mysqlTable("access_log", {
@@ -27,6 +27,15 @@ export const companySettings = mysqlTable("company_settings", {
 	name: varchar({ length: 150 }),
 	email: varchar({ length: 150 }),
 	website: varchar({ length: 255 }),
+	// Company-wide default working hours — Nepal time, same as every other
+	// attendance timestamp in this app. Always both set or both null; "late"
+	// is only ever computed against workStart, workEnd exists so the shape
+	// matches every reference HR tool (BambooHR/Deputy) rather than being a
+	// single lopsided field, and because an end time becomes load-bearing
+	// the moment overtime or an expected-hours report gets built later.
+	workStart: time("work_start"),
+	workEnd: time("work_end"),
+	lateGraceMinutes: int("late_grace_minutes").default(15),
 	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
 	updatedBy: int("updated_by"),
 },
@@ -153,12 +162,29 @@ export const employeeDailyClock = mysqlTable("employee_daily_clock", {
 	clockDate: date("clock_date", { mode: 'string' }).default(sql`(curdate())`),
 	clockInLat: decimal("clock_in_lat", { precision: 9, scale: 6, mode: "number" }),
 	clockInLng: decimal("clock_in_lng", { precision: 9, scale: 6, mode: "number" }),
+	// Null for shifts closed by the stale-shift auto-close job — there's no
+	// real clock-out report to attach a location to.
+	clockOutLat: decimal("clock_out_lat", { precision: 9, scale: 6, mode: "number" }),
+	clockOutLng: decimal("clock_out_lng", { precision: 9, scale: 6, mode: "number" }),
+	// 1 while the shift is open (clock_out IS NULL), NULL once it's closed.
+	// A unique index on (employee_id, open_flag) then enforces "at most one
+	// open shift per employee" at the database level — MySQL treats every
+	// NULL as distinct, so any number of closed shifts stay unconstrained.
+	openFlag: tinyint("open_flag").generatedAlwaysAs(sql`(case when \`clock_out\` is null then 1 else null end)`, { mode: 'stored' }),
+	// True when clock_out was guessed by the stale-shift auto-close job (or a
+	// one-off manual cleanup), not actually reported by the employee — so
+	// anything that derives real hours worked from this row (overtime
+	// verification, reports) knows the baseline itself is uncertain here.
+	clockOutEstimated: boolean("clock_out_estimated").default(false).notNull(),
 	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "employee_daily_clock_id"}),
-	unique("unique_employee_day").on(table.employeeId, table.clockDate),
+	// Split shifts are allowed (multiple closed shifts per employee per day);
+	// kept as a plain index (not unique) since employee_id is still an FK column.
+	index("employee_daily_clock_employee_id_idx").on(table.employeeId),
+	unique("one_open_shift_per_employee").on(table.employeeId, table.openFlag),
 ]);
 
 export const employeeDocuments = mysqlTable("employee_documents", {
@@ -748,13 +774,35 @@ export const overtimeRequests = mysqlTable("overtime_requests", {
 	employeeId: int("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" } ),
 	projectId: int("project_id").references(() => projects.id, { onDelete: "set null" } ),
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	// For a 'worked' request this is the shared calendar date of every
+	// linked session (see overtime_request_sessions below) — a request
+	// covers exactly one day; claiming overtime across several days means
+	// submitting one request per day.
 	workDate: date("work_date", { mode: 'string' }).notNull(),
+	// 'planned' = requested before the work happens (today or a future date),
+	// reviewed as pre-authorization, paid only after reconciliation against
+	// actual clocked hours once the date has passed. 'worked' = the original
+	// retroactive flow — logged after the fact for a past date, paid
+	// immediately on approval. Every pre-existing row is 'worked'.
+	requestType: mysqlEnum("request_type", ['planned', 'worked']).default('worked').notNull(),
 	hours: decimal({ precision: 4, scale: 2 }).notNull(),
 	reason: text().notNull(),
-	approvedByName: varchar("approved_by_name", { length: 150 }).notNull(),
+	// Nullable now — superseded by the real digital approval workflow below;
+	// kept only so old rows that recorded a verbal-approval note aren't lost.
+	approvedByName: varchar("approved_by_name", { length: 150 }),
 	status: mysqlEnum(['pending','approved','rejected']).default('pending'),
 	reviewedBy: int("reviewed_by").references(() => employees.id, { onDelete: "set null" } ),
 	reviewedAt: timestamp("reviewed_at", { mode: 'date' }),
+	// Set when a reviewer approved despite a flagged clocked-hours mismatch —
+	// an audit trail for "this wasn't a clean match, someone signed off anyway".
+	approvedDespiteMismatch: boolean("approved_despite_mismatch").default(false).notNull(),
+	// Reconciliation (only meaningful for 'planned' requests): the real
+	// clocked overtime once the work_date has passed, capped at the
+	// originally approved `hours` — pre-approval authorizes a ceiling, it
+	// doesn't guarantee payment for hours beyond what was actually worked.
+	actualHours: decimal("actual_hours", { precision: 4, scale: 2 }),
+	reconciledAt: timestamp("reconciled_at", { mode: 'date' }),
+	reconciledBy: int("reconciled_by").references(() => employees.id, { onDelete: "set null" } ),
 	hourlyRate: decimal("hourly_rate", { precision: 12, scale: 2 }),
 	overtimeRate: decimal("overtime_rate", { precision: 12, scale: 2 }),
 	amount: decimal({ precision: 12, scale: 2 }),
@@ -773,6 +821,28 @@ export const overtimeRequests = mysqlTable("overtime_requests", {
 ]);
 export type OvertimeRequest = typeof overtimeRequests.$inferSelect;
 export type NewOvertimeRequest = typeof overtimeRequests.$inferInsert;
+
+// Many-to-many: a single 'worked' overtime request can be built from more
+// than one clock session on the same day (e.g. two short split shifts that
+// were both overtime) — this table is the link, replacing a single FK
+// column so a request isn't artificially capped at one session.
+export const overtimeRequestSessions = mysqlTable("overtime_request_sessions", {
+	id: int().autoincrement().notNull(),
+	overtimeRequestId: int("overtime_request_id").notNull(),
+	clockId: int("clock_id").notNull(),
+	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+},
+(table) => [
+	index("overtime_request_id").on(table.overtimeRequestId),
+	index("clock_id").on(table.clockId),
+	// Explicit short names — the auto-generated ones exceed MySQL's 64-char
+	// identifier limit once you combine both table names.
+	foreignKey({ columns: [table.overtimeRequestId], foreignColumns: [overtimeRequests.id], name: "ot_req_sessions_request_fk" }).onDelete("cascade"),
+	foreignKey({ columns: [table.clockId], foreignColumns: [employeeDailyClock.id], name: "ot_req_sessions_clock_fk" }),
+	primaryKey({ columns: [table.id], name: "overtime_request_sessions_id"}),
+]);
+export type OvertimeRequestSession = typeof overtimeRequestSessions.$inferSelect;
+export type NewOvertimeRequestSession = typeof overtimeRequestSessions.$inferInsert;
 
 export const passwordResetTokens = mysqlTable("password_reset_tokens", {
 	id: int().autoincrement().notNull(),

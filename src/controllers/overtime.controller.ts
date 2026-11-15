@@ -10,8 +10,8 @@ export const list = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const create = asyncHandler(async (req: any, res: Response) => {
-  const input = overtimeDto.toCreateInput(req.body);
-  const id = await overtimeService.create(input);
+  const input = overtimeDto.toCreateInput(req.body, req.user.id);
+  const id = await overtimeService.create(input, req.user.role);
   res.status(201).json({ id });
 });
 
@@ -25,9 +25,13 @@ export const reject = asyncHandler(async (req: any, res: Response) => {
   res.json({ success: true });
 });
 
+export const reconcile = asyncHandler(async (req: any, res: Response) => {
+  const { actualHours, amount, clockedSecondsEstimated } = await overtimeService.reconcile(req.params.id, req.user);
+  res.json({ success: true, actual_hours: actualHours, amount, clocked_seconds_estimated: clockedSecondsEstimated });
+});
+
 export const update = asyncHandler(async (req: any, res: Response) => {
-  const input = overtimeDto.toUpdateInput(req.body);
-  await overtimeService.update(req.params.id, input, req.user.id);
+  await overtimeService.update(req.params.id, req.body, req.user.id);
   res.json({ success: true });
 });
 
