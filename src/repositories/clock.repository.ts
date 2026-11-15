@@ -2,7 +2,7 @@ import { employeeClockPauses, employeeDailyClock, employees } from "../../drizzl
 import { db } from "../config/database";
 import AppError from "../pkg/AppError";
 import { nepalDateString, NEPAL_END_OF_DAY_UTC_OFFSET_SECONDS } from "../pkg/timezone";
-import { and, eq, inArray, asc, desc, isNull, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, asc, desc, isNull, sql } from "drizzle-orm";
 
 export interface AttendanceFilters {
   employeeId?: number;
@@ -213,11 +213,14 @@ export async function addResume(clockPauseId: number, clockId: number) {
 
   return getPauseRow(clockId);
 }
-export async function getActiveNow() {
-// Every employee can see this (it's just "who's active right now"), so it
+export async function getTodayActivity() {
+// Every employee can see this (it's just today's roster), so it
 // deliberately excludes email/phone/address — only the admin/lead-only
-// attendance history exposes contact details. Filtered to currently open
-// shifts only — a finished shift from earlier today isn't "active".
+// attendance history exposes contact details. Scoped to today's shifts
+// (open or already closed) rather than just open ones, so someone who
+// already clocked out still shows up as "done" instead of disappearing —
+// the service layer collapses split shifts down to one row per employee.
+const today = nepalDateString();
 const result = await db
   .select({
     employeeId: employees.id,
@@ -229,17 +232,15 @@ const result = await db
     pause: employeeClockPauses.pause,
     resume: employeeClockPauses.resume,
     reason: employeeClockPauses.reason,
+    pauseDuration: sql<number | null>`TIMESTAMPDIFF(SECOND, ${employeeClockPauses.pause}, COALESCE(${employeeClockPauses.resume}, ${employeeDailyClock.clockOut}))`.mapWith(Number),
   })
-  .from(employees)
-  .leftJoin(
-    employeeDailyClock,
-    eq(employeeDailyClock.employeeId, employees.id)
-  )
+  .from(employeeDailyClock)
+  .innerJoin(employees, eq(employeeDailyClock.employeeId, employees.id))
   .leftJoin(
     employeeClockPauses,
     eq(employeeClockPauses.clockId, employeeDailyClock.id)
   )
-  .where(and(isNotNull(employeeDailyClock.id), isNull(employeeDailyClock.clockOut)));
+  .where(eq(employeeDailyClock.clockDate, today));
 
   return result;
 }

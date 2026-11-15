@@ -280,22 +280,63 @@ export async function closeStaleOpenShifts(): Promise<number> {
 }
 
 export async function getActiveNow() {
-  // The repo query already filters to open shifts only, so status here is
-  // always one of these two — never "done".
   const [data, isLate] = await Promise.all([
-    employeeDailyClockRepo.getActiveNow(),
+    employeeDailyClockRepo.getTodayActivity(),
     buildLateChecker(),
   ]);
-  const grouped = groupByClockId(data);
-  const result = grouped.map((row) => {
-    const status: 'paused' | 'running' = row.pauses?.some((r) => r.pause && !r.resume) ? 'paused' : 'running';
+  const shifts = groupByClockId(data);
+
+  // A split-shift day can have several shift rows for the same employee —
+  // the roster shows each person exactly once, not once per shift.
+  const shiftsByEmployee = new Map<number, typeof shifts>();
+  for (const shift of shifts) {
+    const list = shiftsByEmployee.get(shift.employeeId) ?? [];
+    list.push(shift);
+    shiftsByEmployee.set(shift.employeeId, list);
+  }
+
+  return Array.from(shiftsByEmployee.values()).map((employeeShifts) => {
+    const openShift = employeeShifts.find((s) => s.clockOut == null);
+    if (openShift) {
+      const status: 'paused' | 'running' = openShift.pauses.some((p) => p.pause && !p.resume) ? 'paused' : 'running';
+      return {
+        employeeId: openShift.employeeId,
+        name: openShift.name,
+        clockId: openShift.clockId,
+        clockIn: openShift.clockIn,
+        clockOut: null,
+        clockDate: openShift.clockDate,
+        pauses: openShift.pauses,
+        status,
+        isLate: isLate(openShift.clockIn, openShift.clockDate),
+        totalSeconds: null as number | null,
+      };
+    }
+
+    // Every shift today is closed for this employee — summarize across all
+    // of them instead of just the most recent, in case they split the day
+    // into more than one session.
+    const earliestShift = employeeShifts.reduce((a, b) => (new Date(a.clockIn) < new Date(b.clockIn) ? a : b));
+    const latestShift = employeeShifts.reduce((a, b) => (new Date(a.clockOut!) > new Date(b.clockOut!) ? a : b));
+    const totalSeconds = employeeShifts.reduce((sum, s) => {
+      const pauseTotal = s.pauses.reduce((pSum, p) => pSum + (p.pauseDuration ?? 0), 0);
+      const seconds = Math.floor((new Date(s.clockOut!).getTime() - new Date(s.clockIn).getTime()) / 1000);
+      return sum + Math.max(0, seconds - pauseTotal);
+    }, 0);
+
     return {
-      ...row,
-      status,
-      isLate: isLate(row.clockIn, row.clockDate),
+      employeeId: latestShift.employeeId,
+      name: latestShift.name,
+      clockId: latestShift.clockId,
+      clockIn: latestShift.clockIn,
+      clockOut: latestShift.clockOut,
+      clockDate: latestShift.clockDate,
+      pauses: [],
+      status: 'done' as const,
+      isLate: isLate(earliestShift.clockIn, earliestShift.clockDate),
+      totalSeconds,
     };
   });
-  return result;
 }
 
 // service
