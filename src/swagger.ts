@@ -89,6 +89,11 @@ const options = {
         description: "Public onboarding applications and contract review",
       },
       {
+        name: "Offboarding",
+        description:
+          "Exit process initiation, checklist tasks, completion, and cancellation (admin/lead)",
+      },
+      {
         name: "Clock",
         description:
           "Daily clock-in/out, pause/resume tracking, today's team status, and paginated attendance history.",
@@ -1978,6 +1983,145 @@ const options = {
               description: "Defaults to prefer_not_to_say.",
               example: "prefer_not_to_say",
             },
+          },
+        },
+
+        OffboardingTask: {
+          type: "object",
+          description:
+            "One checklist item on an offboarding record. The full checklist (8 fixed items across hr/it/finance/manager) is created automatically when offboarding is initiated.",
+          properties: {
+            id: { type: "integer", example: 12 },
+            offboarding_id: { type: "integer", example: 4 },
+            category: {
+              type: "string",
+              enum: ["hr", "it", "finance", "manager"],
+            },
+            title: {
+              type: "string",
+              example: "Revoke system access, email, and 2FA/trusted devices",
+            },
+            status: {
+              type: "string",
+              enum: ["pending", "completed", "not_applicable"],
+              default: "pending",
+            },
+            notes: { type: "string", nullable: true },
+            completed_by: {
+              type: "integer",
+              nullable: true,
+              description: "Null unless status is completed or not_applicable.",
+            },
+            completed_at: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+            },
+            created_at: { type: "string", format: "date-time" },
+            updated_at: { type: "string", format: "date-time", nullable: true },
+            created_by: { type: "integer", nullable: true },
+            updated_by: { type: "integer", nullable: true },
+          },
+        },
+
+        OffboardingRecord: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 4 },
+            emp_id: { type: "integer", example: 19 },
+            exit_type: {
+              type: "string",
+              enum: [
+                "resignation",
+                "termination",
+                "end_of_contract",
+                "non_renewal",
+              ],
+            },
+            reason: { type: "string", nullable: true },
+            notice_date: { type: "string", format: "date" },
+            last_working_day: { type: "string", format: "date" },
+            status: {
+              type: "string",
+              enum: ["in_progress", "completed", "cancelled"],
+              default: "in_progress",
+            },
+            previous_status: {
+              type: "string",
+              description:
+                "The employee's status before offboarding started (e.g. active, probation) — restored on cancel.",
+              example: "active",
+            },
+            relieving_letter_path: { type: "string", nullable: true },
+            completed_at: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+            },
+            cancelled_at: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+            },
+            created_at: { type: "string", format: "date-time" },
+            updated_at: { type: "string", format: "date-time", nullable: true },
+            created_by: { type: "integer", nullable: true },
+            updated_by: { type: "integer", nullable: true },
+          },
+        },
+
+        OffboardingWithTasks: {
+          allOf: [
+            { $ref: "#/components/schemas/OffboardingRecord" },
+            {
+              type: "object",
+              properties: {
+                tasks: {
+                  type: "array",
+                  items: { $ref: "#/components/schemas/OffboardingTask" },
+                },
+              },
+            },
+          ],
+        },
+
+        OffboardingInitiateRequest: {
+          type: "object",
+          required: ["employee_id", "exit_type", "notice_date", "last_working_day"],
+          properties: {
+            employee_id: { type: "integer", example: 19 },
+            exit_type: {
+              type: "string",
+              enum: [
+                "resignation",
+                "termination",
+                "end_of_contract",
+                "non_renewal",
+              ],
+            },
+            reason: { type: "string", nullable: true },
+            notice_date: {
+              type: "string",
+              format: "date",
+              description: "YYYY-MM-DD.",
+            },
+            last_working_day: {
+              type: "string",
+              format: "date",
+              description: "YYYY-MM-DD. Must not be before notice_date.",
+            },
+          },
+        },
+
+        OffboardingTaskUpdateRequest: {
+          type: "object",
+          required: ["status"],
+          properties: {
+            status: {
+              type: "string",
+              enum: ["pending", "completed", "not_applicable"],
+            },
+            notes: { type: "string", nullable: true },
           },
         },
 
@@ -7133,6 +7277,412 @@ const options = {
           },
         },
       },
+
+      "/offboarding": {
+        get: {
+          tags: ["Offboarding"],
+          summary: "List offboarding records",
+          description: "Admin or lead only.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "status",
+              in: "query",
+              required: false,
+              schema: {
+                type: "string",
+                enum: ["in_progress", "completed", "cancelled"],
+              },
+              description: "Filter by status. Omit to return every record.",
+            },
+          ],
+          responses: {
+            200: {
+              description: "List of offboarding records, newest first",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/OffboardingRecord" },
+                  },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin/lead only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+        post: {
+          tags: ["Offboarding"],
+          summary: "Initiate offboarding for an employee",
+          description:
+            "Admin or lead only. Creates the offboarding record plus a fixed 8-item checklist (hr/it/finance/manager categories), and sets the employee's status to offboarding. Fails if the employee is already terminated or already has an offboarding in progress.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/OffboardingInitiateRequest" },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description: "Offboarding initiated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/OffboardingRecord" },
+                },
+              },
+            },
+            400: {
+              description:
+                "Validation error, or the employee is already terminated / already offboarding",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin/lead only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Employee not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/offboarding/employee/{employeeId}": {
+        get: {
+          tags: ["Offboarding"],
+          summary: "List offboarding records for a specific employee",
+          description:
+            "Admin or lead only. An employee can have more than one row over time (e.g. a cancelled attempt followed by a real one).",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "employeeId",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "List of offboarding records for that employee, newest first",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/OffboardingRecord" },
+                  },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin/lead only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/offboarding/{id}": {
+        get: {
+          tags: ["Offboarding"],
+          summary: "Get one offboarding record with its checklist tasks",
+          description: "Admin or lead only.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Offboarding record with tasks",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/OffboardingWithTasks" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin/lead only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Offboarding record not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/offboarding/{id}/tasks/{taskId}": {
+        patch: {
+          tags: ["Offboarding"],
+          summary: "Update a checklist task's status/notes",
+          description:
+            "Admin or lead only. Returns the full updated task list for the offboarding record. completed_by/completed_at are set automatically whenever status is set to anything other than pending, and cleared when set back to pending.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+              description: "Offboarding record id.",
+            },
+            {
+              name: "taskId",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/OffboardingTaskUpdateRequest" },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Updated task list for this offboarding record",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/OffboardingTask" },
+                  },
+                },
+              },
+            },
+            400: {
+              description: "Validation error",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin/lead only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Offboarding record or task not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/offboarding/{id}/complete": {
+        put: {
+          tags: ["Offboarding"],
+          summary: "Complete an offboarding (admin only)",
+          description:
+            "Admin only — not lead. Fails if any checklist task is still pending, or if the record isn't in_progress. Sets the employee's status to terminated.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Offboarding marked completed",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/OffboardingRecord" },
+                },
+              },
+            },
+            400: {
+              description:
+                "Record is not in_progress, or one or more checklist tasks are still pending",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Offboarding record not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/offboarding/{id}/cancel": {
+        put: {
+          tags: ["Offboarding"],
+          summary: "Cancel an in-progress offboarding (admin only)",
+          description:
+            "Admin only — not lead. Restores the employee's previous status (e.g. back to active) and marks the record cancelled.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Offboarding marked cancelled",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/OffboardingRecord" },
+                },
+              },
+            },
+            400: {
+              description: "Record is not in_progress",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Offboarding record not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
       "/clock/in": {
         post: {
           tags: ["Clock"],

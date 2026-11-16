@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "c63ada1d-28b4-407b-b83a-5c8627c524c6",
+  "id": "5121ccf5-76dd-4a2a-bcd3-7434ed834d13",
   "prevId": "7d4b1f02-6e3a-4b9c-9f21-5c8e2a9d3b4e",
   "tables": {
     "access_log": {
@@ -906,7 +906,15 @@
           "default": "(now())"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "employee_daily_clock_employee_id_idx": {
+          "name": "employee_daily_clock_employee_id_idx",
+          "columns": [
+            "employee_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "employee_daily_clock_employee_id_employees_id_fk": {
           "name": "employee_daily_clock_employee_id_employees_id_fk",
@@ -930,15 +938,7 @@
           ]
         }
       },
-      "uniqueConstraints": {
-        "unique_employee_day": {
-          "name": "unique_employee_day",
-          "columns": [
-            "employee_id",
-            "clock_date"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "checkConstraint": {}
     },
     "employee_documents": {

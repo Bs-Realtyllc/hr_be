@@ -6,7 +6,7 @@ import asyncHandler from '../middleware/asyncHandler';
 
 export const get = asyncHandler(async (req: Request, res: Response) => {
   const row = await companySettingsService.get();
-  res.json(row || { name: null, email: null, website: null, updated_at: null });
+  res.json(row || { name: null, email: null, website: null, work_start: null, work_end: null, late_grace_minutes: 15, updated_at: null });
 });
 
 export const save = asyncHandler(async (req: any, res: Response) => {

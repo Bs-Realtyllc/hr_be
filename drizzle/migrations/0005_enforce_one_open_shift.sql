@@ -1,0 +1,2 @@
+ALTER TABLE `employee_daily_clock` ADD `open_flag` tinyint GENERATED ALWAYS AS ((case when `clock_out` is null then 1 else null end)) STORED;--> statement-breakpoint
+ALTER TABLE `employee_daily_clock` ADD CONSTRAINT `one_open_shift_per_employee` UNIQUE(`employee_id`,`open_flag`);

@@ -17,7 +17,8 @@ export const getClock = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const clockOut = asyncHandler(async (req: any, res: Response) => {
-  const result = await clockServices.clockOut(req.user.id);
+  const { lat, lng } = req.body;
+  const result = await clockServices.clockOut(req.user.id, lat, lng);
   res.status(200).json({ message: "clock out sucessfull", result });
 });
 
@@ -32,14 +33,20 @@ export const resume = asyncHandler(async (req: any, res: Response) => {
   res.status(200).json({ result });
 });
 
-export const getAllForToday = asyncHandler(async (req: any, res: Response) => {
-  const date = req.query.date as string;
-  const result = await clockServices.getAllForToday(date);
+export const getActiveNow = asyncHandler(async (req: any, res: Response) => {
+  const result = await clockServices.getActiveNow();
   res.status(200).json({ result });
 });
 
 // controller
 export const getAttendance = asyncHandler(async (req: Request, res: Response) => {
   const result = await clockServices.getAttendance(req.query);
+  res.status(200).json(result);
+});
+
+export const getMyAttendance = asyncHandler(async (req: any, res: Response) => {
+  // employeeId always comes from the token, never the query string —
+  // this is the one attendance route every employee can call for themselves.
+  const result = await clockServices.getAttendance({ ...req.query, employeeId: String(req.user.id) });
   res.status(200).json(result);
 });
