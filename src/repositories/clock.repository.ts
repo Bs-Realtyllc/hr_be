@@ -282,7 +282,7 @@ export async function getAttendance(
       employeeId: employees.id,
       name: employees.name,
       email: employees.email,
-      address: employees.address,
+      address: employees.currentAddress,
       // profilePicture: employees.profile_picture,
       phone: employees.phone,
       clockIn: employeeDailyClock.clockIn,
