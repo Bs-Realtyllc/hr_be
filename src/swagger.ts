@@ -52,6 +52,8 @@ const options = {
         description: "Peer, manager, and public recognition feedback notes",
       },
       { name: "Profile", description: "The logged-in employee's own profile" },
+      { name: "Departments", description: "Active departments" },
+      { name: "Designations", description: "Active designations" },
       { name: "Reports", description: "Monthly report file submissions" },
       { name: "Dashboard", description: "Aggregate stats and trends" },
       {
@@ -3264,6 +3266,37 @@ const options = {
         },
       },
 
+      "/employees/names/staff": {
+        get: {
+          tags: ["Employees"],
+          summary: "List staff names (admin, lead, employee)",
+          description:
+            "Any authenticated user. Id and name of every non-terminated user whose role is `admin`, `lead` or `employee` (interns excluded), sorted by name.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Names",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/EmployeeNameItem" },
+                  },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
       "/employees/onboarding": {
         get: {
           tags: ["Employees"],
@@ -5755,6 +5788,60 @@ const options = {
         },
       },
 
+      "/api/departments": {
+        get: {
+          tags: ["Departments"],
+          summary: "List active departments",
+          description: "Any logged-in user. Only rows with is_active = true, sorted by name.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "List of departments",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "integer", example: 1 },
+                        name: { type: "string", example: "Engineering" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/designations": {
+        get: {
+          tags: ["Designations"],
+          summary: "List active designations",
+          description: "Any logged-in user. Only rows with is_active = true, sorted by name.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "List of designations",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "integer", example: 1 },
+                        name: { type: "string", example: "Software Engineer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       "/api/profile": {
         get: {
           tags: ["Profile"],

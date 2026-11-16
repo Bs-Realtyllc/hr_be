@@ -97,6 +97,10 @@ export async function listAllNames() {
   return employeeRepo.findAllActiveNames();
 }
 
+export async function listStaffNames() {
+  return employeeRepo.findActiveStaffNames();
+}
+
 export async function listTeamAccess() {
   return employeeRepo.findForTeamAccess();
 }

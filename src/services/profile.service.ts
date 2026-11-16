@@ -11,7 +11,7 @@ export async function getProfile(userId: number) {
 
 export async function updateProfile(userId: number, updates: ProfileUpdateInput, dobFromBody: string | undefined) {
   if (!Object.keys(updates).length) throw new AppError('Nothing to update', 400);
-
+  
   await employeeRepo.update(userId, updates as any, userId);
 
   if (dobFromBody) await cultureEventService.upsertBirthdayEvent(userId, dobFromBody);

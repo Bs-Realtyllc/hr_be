@@ -50,8 +50,8 @@ const BASE_COLUMNS = {
   dob: employees.dob,
   gender: employees.gender,
   github_url: employees.githubUrl,
-  address: employees.currentAddress,
-  permanentAddress: employees.permanentAddress,
+  current_address: employees.currentAddress,
+  permanent_address: employees.permanentAddress,
   discord_username: employees.discordUsername,
   panNo: employees.panNo,
   role: employees.role,
@@ -112,6 +112,20 @@ export async function findAllActiveNames() {
     .where(ACTIVE_ROSTER)
     .orderBy(employees.name);
   return rows;
+}
+
+// Id + name of non-terminated staff (admin, lead, employee) — excludes interns.
+export async function findActiveStaffNames() {
+  return db
+    .select({ id: employees.id, name: employees.name })
+    .from(employees)
+    .where(
+      and(
+        inArray(employees.role, ["admin", "lead", "employee"]),
+        ACTIVE_ROSTER,
+      ),
+    )
+    .orderBy(employees.name);
 }
 
 // Lean projection for the admin "Team Access" list — avoids the doc/manager
@@ -389,20 +403,35 @@ export async function seedLeaveBalances(
 // Update-request field (snake_case, as sent by the frontend) -> employees column key.
 const EMPLOYEES_TABLE_FIELDS: Record<string, keyof typeof employees.$inferInsert> = {
   dob: "dob",
-  address: "currentAddress",
+  current_address: "currentAddress",
+  permanent_address: "permanentAddress",
   name: "name",
   gender: "gender",
   email: "email",
+  nationality:"nationality",
   secondary_email: "secondaryEmail",
   phone: "phone",
   designation: "designation",
   department: "department",
   department_id: "departmentId",
+  designation_id: "designationId",
   manager_id: "managerId",
+  work_location: "workLocation",
   start_date: "startDate",
   github_url: "githubUrl",
+  work_hours: "workHours",
   discord_username: "discordUsername",
+  emergency_contact_name: "emergencyContactName",
+  emergency_contact_relation: "emergencyContactRelation",
+  emergency_contact_address:"emergencyContactAddress",
+  emergency_contact_phone: "emergencyContactPhone",
+  emergency_contact_email: "emergencyContactEmail",
   role: "role",
+  account_holder_name: "accountHolderName",
+  account_number: "accountNumber",
+  account_type : "accountType",
+  bank_name: "bankName",
+  bank_branch_name: "bankBranchName"
 };
 
 export async function update(
@@ -412,6 +441,7 @@ export async function update(
 ) {
   const fields = Object.keys(updates);
   if (!fields.length) return;
+  // console.log(fields)
   const employeeId = Number(id);
 
   await db.transaction(async (tx) => {
