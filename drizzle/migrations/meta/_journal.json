@@ -85,6 +85,13 @@
       "when": 1794679836462,
       "tag": "0011_clock_out_location",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1794680000000,
+      "tag": "0012_employees_columns_add",
+      "breakpoints": true
     }
   ]
 }

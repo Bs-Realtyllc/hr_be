@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "5121ccf5-76dd-4a2a-bcd3-7434ed834d13",
-  "prevId": "7d4b1f02-6e3a-4b9c-9f21-5c8e2a9d3b4e",
+  "id": "633732af-0638-45a9-b601-3d5a7f9b71d6",
+  "prevId": "d9876466-9227-433f-9694-4bd0b50904a4",
   "tables": {
     "access_log": {
       "name": "access_log",
@@ -129,6 +129,28 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "work_start": {
+          "name": "work_start",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "work_end": {
+          "name": "work_end",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "late_grace_minutes": {
+          "name": "late_grace_minutes",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 15
         },
         "updated_at": {
           "name": "updated_at",
@@ -888,6 +910,39 @@
           "notNull": false,
           "autoincrement": false
         },
+        "clock_out_lat": {
+          "name": "clock_out_lat",
+          "type": "decimal(9,6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "clock_out_lng": {
+          "name": "clock_out_lng",
+          "type": "decimal(9,6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "open_flag": {
+          "name": "open_flag",
+          "type": "tinyint",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "(case when `clock_out` is null then 1 else null end)",
+            "type": "stored"
+          }
+        },
+        "clock_out_estimated": {
+          "name": "clock_out_estimated",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -938,7 +993,15 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "one_open_shift_per_employee": {
+          "name": "one_open_shift_per_employee",
+          "columns": [
+            "employee_id",
+            "open_flag"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "employee_documents": {
@@ -4689,6 +4752,94 @@
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
+    "overtime_request_sessions": {
+      "name": "overtime_request_sessions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "overtime_request_id": {
+          "name": "overtime_request_id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "clock_id": {
+          "name": "clock_id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "overtime_request_id": {
+          "name": "overtime_request_id",
+          "columns": [
+            "overtime_request_id"
+          ],
+          "isUnique": false
+        },
+        "clock_id": {
+          "name": "clock_id",
+          "columns": [
+            "clock_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "ot_req_sessions_request_fk": {
+          "name": "ot_req_sessions_request_fk",
+          "tableFrom": "overtime_request_sessions",
+          "tableTo": "overtime_requests",
+          "columnsFrom": [
+            "overtime_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ot_req_sessions_clock_fk": {
+          "name": "ot_req_sessions_clock_fk",
+          "tableFrom": "overtime_request_sessions",
+          "tableTo": "employee_daily_clock",
+          "columnsFrom": [
+            "clock_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "overtime_request_sessions_id": {
+          "name": "overtime_request_sessions_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
     "overtime_requests": {
       "name": "overtime_requests",
       "columns": {
@@ -4720,6 +4871,14 @@
           "notNull": true,
           "autoincrement": false
         },
+        "request_type": {
+          "name": "request_type",
+          "type": "enum('planned','worked')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'worked'"
+        },
         "hours": {
           "name": "hours",
           "type": "decimal(4,2)",
@@ -4738,7 +4897,7 @@
           "name": "approved_by_name",
           "type": "varchar(150)",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "status": {
@@ -4759,6 +4918,35 @@
         "reviewed_at": {
           "name": "reviewed_at",
           "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "approved_despite_mismatch": {
+          "name": "approved_despite_mismatch",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "actual_hours": {
+          "name": "actual_hours",
+          "type": "decimal(4,2)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reconciled_at": {
+          "name": "reconciled_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reconciled_by": {
+          "name": "reconciled_by",
+          "type": "int",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -4887,6 +5075,19 @@
           "tableTo": "employees",
           "columnsFrom": [
             "reviewed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "overtime_requests_reconciled_by_employees_id_fk": {
+          "name": "overtime_requests_reconciled_by_employees_id_fk",
+          "tableFrom": "overtime_requests",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "reconciled_by"
           ],
           "columnsTo": [
             "id"
