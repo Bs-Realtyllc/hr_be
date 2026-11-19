@@ -18,6 +18,7 @@ import routes from "./src/routes";
 import { db } from "./src/config/database";
 import { renewWebhookChannelIfNeeded } from "./src/services/googleCalendar";
 import * as weeklyReminder from "./src/services/weeklyReminder";
+import * as shiftAutoClose from "./src/services/shiftAutoClose";
 import errorHandler from "./src/middleware/errorHandler";
 import { authenticate, requireRole } from "./src/middleware/auth";
 import { RequestContext } from "./src/pkg/requestContext";
@@ -119,7 +120,8 @@ app.use(
     },
   }),
 );
-app.use("/api", trace, routes); 
+app.use(cookieParser());
+app.use("/api", trace, routes);
 
 app.get("/api/health", (req, res) =>
   res.json({ status: "ok", timestamp: new Date() }),
@@ -175,6 +177,7 @@ async function start() {
   );
 
   weeklyReminder.start();
+  shiftAutoClose.start();
 }
 
 start();

@@ -1,4 +1,4 @@
-import { mysqlTable, primaryKey, bigint, varchar, smallint, int, timestamp, index, foreignKey, mysqlEnum, date, text, unique, decimal, tinyint, boolean, json, datetime, year } from "drizzle-orm/mysql-core"
+import { mysqlTable, primaryKey, bigint, varchar, smallint, int, timestamp, index, foreignKey, mysqlEnum, date, text, unique, decimal, tinyint, boolean, json, datetime, year, time } from "drizzle-orm/mysql-core"
 import { sql } from "drizzle-orm"
 
 export const accessLog = mysqlTable("access_log", {
@@ -19,6 +19,31 @@ export const accessLog = mysqlTable("access_log", {
 ]);
 export type AccessLog = typeof accessLog.$inferSelect;
 export type NewAccessLog = typeof accessLog.$inferInsert;
+
+// Singleton settings row, same pattern as google_settings — the app always
+// reads/updates whichever row exists rather than enforcing a single id.
+export const companySettings = mysqlTable("company_settings", {
+	id: int().autoincrement().notNull(),
+	name: varchar({ length: 150 }),
+	email: varchar({ length: 150 }),
+	website: varchar({ length: 255 }),
+	// Company-wide default working hours — Nepal time, same as every other
+	// attendance timestamp in this app. Always both set or both null; "late"
+	// is only ever computed against workStart, workEnd exists so the shape
+	// matches every reference HR tool (BambooHR/Deputy) rather than being a
+	// single lopsided field, and because an end time becomes load-bearing
+	// the moment overtime or an expected-hours report gets built later.
+	workStart: time("work_start"),
+	workEnd: time("work_end"),
+	lateGraceMinutes: int("late_grace_minutes").default(15),
+	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
+	updatedBy: int("updated_by"),
+},
+(table) => [
+	primaryKey({ columns: [table.id], name: "company_settings_id"}),
+]);
+export type CompanySettings = typeof companySettings.$inferSelect;
+export type NewCompanySettings = typeof companySettings.$inferInsert;
 
 export const cultureEvents = mysqlTable("culture_events", {
 	id: int().autoincrement().notNull(),
@@ -137,12 +162,29 @@ export const employeeDailyClock = mysqlTable("employee_daily_clock", {
 	clockDate: date("clock_date", { mode: 'string' }).default(sql`(curdate())`),
 	clockInLat: decimal("clock_in_lat", { precision: 9, scale: 6, mode: "number" }),
 	clockInLng: decimal("clock_in_lng", { precision: 9, scale: 6, mode: "number" }),
+	// Null for shifts closed by the stale-shift auto-close job — there's no
+	// real clock-out report to attach a location to.
+	clockOutLat: decimal("clock_out_lat", { precision: 9, scale: 6, mode: "number" }),
+	clockOutLng: decimal("clock_out_lng", { precision: 9, scale: 6, mode: "number" }),
+	// 1 while the shift is open (clock_out IS NULL), NULL once it's closed.
+	// A unique index on (employee_id, open_flag) then enforces "at most one
+	// open shift per employee" at the database level — MySQL treats every
+	// NULL as distinct, so any number of closed shifts stay unconstrained.
+	openFlag: tinyint("open_flag").generatedAlwaysAs(sql`(case when \`clock_out\` is null then 1 else null end)`, { mode: 'stored' }),
+	// True when clock_out was guessed by the stale-shift auto-close job (or a
+	// one-off manual cleanup), not actually reported by the employee — so
+	// anything that derives real hours worked from this row (overtime
+	// verification, reports) knows the baseline itself is uncertain here.
+	clockOutEstimated: boolean("clock_out_estimated").default(false).notNull(),
 	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "employee_daily_clock_id"}),
-	unique("unique_employee_day").on(table.employeeId, table.clockDate),
+	// Split shifts are allowed (multiple closed shifts per employee per day);
+	// kept as a plain index (not unique) since employee_id is still an FK column.
+	index("employee_daily_clock_employee_id_idx").on(table.employeeId),
+	unique("one_open_shift_per_employee").on(table.employeeId, table.openFlag),
 ]);
 
 export const employeeDocuments = mysqlTable("employee_documents", {
@@ -159,38 +201,67 @@ export const employeeDocuments = mysqlTable("employee_documents", {
 export type EmployeeDocument = typeof employeeDocuments.$inferSelect;
 export type NewEmployeeDocument = typeof employeeDocuments.$inferInsert;
 
+
+export type EducationInfoEntry = {
+	education_level: string;
+	institution_name: string;
+	field_of_study: string;
+	still_enrolled: boolean;
+	graduation_date: string | null; // 'YYYY-MM-DD'
+	certificate: string | null; // stored file path/url, null if none uploaded
+};
+export type PreviousExperienceEntry= {
+	company: string;
+	role: string;
+	start_date: string;
+	end_date: string | null;
+	employment_type: 'part-time'|'full-time';
+	work_location: 'remote'| 'onsite'| 'hybrid';
+	description: string | null;
+	experience_letter: string | null;
+	still_working: boolean;
+}
 export const employeeOnboardingProfile = mysqlTable("employee_onboarding_profile", {
+	//1. PERSONAL INFORMATION
 	id: int().autoincrement().notNull(),
 	name: varchar({ length: 100 }).notNull(),
-	gender: mysqlEnum(['male','female','other','prefer_not_to_say']),
-	// you can use { mode: 'date' }, if you want to have Date as type for this column
 	dob: date({ mode: 'string' }),
+	gender: mysqlEnum(['male','female','other','prefer_not_to_say']),
+	nationality: varchar({length: 40}),
 	email: varchar({ length: 150 }).notNull(),
 	phone: varchar({ length: 20 }),
 	currentAddress: varchar("current_address", { length: 60 }),
 	permanentAddress: varchar("permanent_address", { length: 60 }),
-	emergencyContact: varchar("emergency_contact", { length: 150 }),
-	educationLevel: varchar("education_level", { length: 50 }),
-	institutionName: varchar("institution_name", { length: 50 }),
-	fieldOfStudy: varchar("field_of_study", { length: 50 }),
-	// you can use { mode: 'date' }, if you want to have Date as type for this column
-	graduationDate: date("graduation_date", { mode: 'string' }),
-	previousExperience: text("previous_experience"),
-	isActive: boolean("is_active").default(true),
-	areasOfInterest: text("areas_of_interest"),
 	linkedinUrl: varchar("linkedin_url", { length: 255 }),
 	githubUrl: varchar("github_url", { length: 255 }),
 	portfolioUrl: varchar("portfolio_url", { length: 255 }),
-	role: mysqlEnum(['intern','employee','admin']).notNull(),
-	additionalInfo: text("additional_info"),
-	techStack: json("tech_stack"),
-	ndaPath: varchar("nda_path", { length: 255 }),
-	citizenshipFrontPath: varchar("citizenship_front_path", { length: 255 }),
-	citizenshipBackPath: varchar("citizenship_back_path", { length: 255 }),
-	panPath: varchar("pan_path", { length: 255 }),
-	passoutCertificatePath: varchar("passout_certificate_path", { length: 255 }),
+	//2. EDUCATIONAL INFORMATION
+	educationInfo: json("education_info").$type<EducationInfoEntry[] | null>(),
+	//3. PREVIOUS EXPERIENCE INFORMATION
+	previousExperienceInfo: json("previous_experience_info").$type<PreviousExperienceEntry[]| null>(),
+
+	//4. EMERGENCY CONTACT
+	emergencyContactName: varchar("emergency_contact_name", { length: 150 }),
+	emergencyContactRelation: varchar("emergency_contact_relation", {length: 30}),
+	emergencyContactPhone: varchar("emergency_contact_phone", {length: 20}),
+	emergencyContactEmail: varchar("emergency_contact_email", {length: 150}),
+	emergencyContactAddress: varchar("emergency_contact_address", {length: 60}),
+	//5. UPLOAD DOCUMENTS
 	photoPath: varchar("photo_path", { length: 255 }),
-	designation: varchar({ length: 100 }),
+	idFrontPath: varchar("id_front_path", { length: 255 }),
+	idBackPath: varchar("id_back_path", { length: 255 }),
+	panFrontPath: varchar("pan_front_path", { length: 255 }),
+	panBackPath: varchar("pan_back_path", { length: 255 }),
+	additionalDocumentPath: varchar("additional_document_path", { length: 255 }),
+	//6. OTHER DOCUMENTS
+	contractPath: varchar("contract_path", { length: 255 }),
+	// otherDocumentPath: varchar("other_document_path", { length: 255 }),
+	otherDocumentPaths: json("other_document_paths").$type<string[] | null>(),
+
+	confirmed: boolean("confirmed").default(false),
+
+	isActive: boolean("is_active").default(true),
+	role: mysqlEnum(['intern','employee','admin']).notNull(),
 	source: varchar({ length: 20 }).default('manual').notNull(),
 	sourceApplicationId: varchar("source_application_id", { length: 100 }),
 },
@@ -225,7 +296,7 @@ export const employees = mysqlTable("employees", {
 	email: varchar({ length: 150 }).notNull(),
 	secondaryEmail: varchar("secondary_email", { length: 150 }),
 	phone: varchar({ length: 20 }),
-	emergencyContact: varchar("emergency_contact", { length: 150 }),
+	// emergencyContact: varchar("emergency_contact", { length: 150 }),
 	profilePicture: varchar("profile_picture", { length: 255 }),
 	designation: varchar({ length: 100 }),
 	designationId: int("designation_id").references(() => designations.id, { onDelete: "set null" } ),
@@ -237,7 +308,7 @@ export const employees = mysqlTable("employees", {
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
 	dob: date({ mode: 'string' }),
 	githubUrl: varchar("github_url", { length: 255 }),
-	address: text(),
+	// address: text(),
 	discordUsername: varchar("discord_username", { length: 100 }),
 	panNo: varchar({ length: 50 }),
 	timezone: varchar({ length: 50 }).default('UTC'),
@@ -252,6 +323,27 @@ export const employees = mysqlTable("employees", {
 	twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
 	twoFactorSecret: varchar("two_factor_secret", { length: 255 }),
 	twoFactorBackupCodes: json("two_factor_backup_codes"),
+
+	//new columns - Nov 13th, 2026 -- to map onboarding profile after accept.
+	employeeId: varchar('employee_id',{length:8}),
+	nationality: varchar({length: 40}),
+	currentAddress: varchar("current_address", { length: 60 }),
+	permanentAddress: varchar("permanent_address", { length: 60 }),
+	emergencyContactName: varchar("emergency_contact_name", { length: 150 }),
+	emergencyContactRelation: varchar("emergency_contact_relation", {length: 30}),
+	emergencyContactPhone: varchar("emergency_contact_phone", {length: 20}),
+	emergencyContactEmail: varchar("emergency_contact_email", {length: 150}),
+	emergencyContactAddress: varchar("emergency_contact_address", {length: 60}),
+	workLocation: mysqlEnum("work_location", ["remote", "onsite", "hybrid"]).default("onsite"),
+	accountHolderName: varchar("account_holder_name", {length: 100}),
+	accountNumber: varchar("account_number", {length: 50}),
+	bankName: varchar("bank_name", {length:50}),
+	bankBranchName: varchar("bank_branch_name", {length:50}),
+	accountType: varchar("account_type", {length:50}),
+	linkedinUrl: varchar("linkedin_url", { length: 255 }),
+	portfolioUrl: varchar("portfolio_url", { length: 255 }),
+	educationInfo: json("education_info").$type<EducationInfoEntry[] | null>(),
+	previousExperienceInfo: json("previous_experience_info").$type<PreviousExperienceEntry[]| null>(),
 },
 (table) => [
 	index("manager_id").on(table.managerId),
@@ -287,13 +379,20 @@ export const feedbackNotes = mysqlTable("feedback_notes", {
 export type FeedbackNote = typeof feedbackNotes.$inferSelect;
 export type NewFeedbackNote = typeof feedbackNotes.$inferInsert;
 
+export type FormFieldConfig = {
+	name: string;      // field key, e.g. "dob", "institution_name"
+	required: boolean;
+	// future examples: label?: string; type?: 'text' | 'date' | 'file'; maxLength?: number;
+};
 export const formsLayout = mysqlTable("forms_layout", {
 	id: int().autoincrement().notNull(),
-	name: varchar({ length: 255 }).notNull(),
-	data: json().notNull(),
+	name: varchar({ length: 255 }).notNull(), // e.g. "intern_onboard_personal"
+	data: json("data").$type<FormFieldConfig[] | null>().notNull(),
+	updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+	updatedBy: int("updated_by").references(() => employees.id, { onDelete: "set null" } ),
 },
 (table) => [
-	primaryKey({ columns: [table.id], name: "forms_layout_id"}),
+	primaryKey({ columns: [table.id], name: "forms_layout_id" }),
 	unique("name").on(table.name),
 ]);
 
@@ -696,13 +795,35 @@ export const overtimeRequests = mysqlTable("overtime_requests", {
 	employeeId: int("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" } ),
 	projectId: int("project_id").references(() => projects.id, { onDelete: "set null" } ),
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	// For a 'worked' request this is the shared calendar date of every
+	// linked session (see overtime_request_sessions below) — a request
+	// covers exactly one day; claiming overtime across several days means
+	// submitting one request per day.
 	workDate: date("work_date", { mode: 'string' }).notNull(),
+	// 'planned' = requested before the work happens (today or a future date),
+	// reviewed as pre-authorization, paid only after reconciliation against
+	// actual clocked hours once the date has passed. 'worked' = the original
+	// retroactive flow — logged after the fact for a past date, paid
+	// immediately on approval. Every pre-existing row is 'worked'.
+	requestType: mysqlEnum("request_type", ['planned', 'worked']).default('worked').notNull(),
 	hours: decimal({ precision: 4, scale: 2 }).notNull(),
 	reason: text().notNull(),
-	approvedByName: varchar("approved_by_name", { length: 150 }).notNull(),
+	// Nullable now — superseded by the real digital approval workflow below;
+	// kept only so old rows that recorded a verbal-approval note aren't lost.
+	approvedByName: varchar("approved_by_name", { length: 150 }),
 	status: mysqlEnum(['pending','approved','rejected']).default('pending'),
 	reviewedBy: int("reviewed_by").references(() => employees.id, { onDelete: "set null" } ),
 	reviewedAt: timestamp("reviewed_at", { mode: 'date' }),
+	// Set when a reviewer approved despite a flagged clocked-hours mismatch —
+	// an audit trail for "this wasn't a clean match, someone signed off anyway".
+	approvedDespiteMismatch: boolean("approved_despite_mismatch").default(false).notNull(),
+	// Reconciliation (only meaningful for 'planned' requests): the real
+	// clocked overtime once the work_date has passed, capped at the
+	// originally approved `hours` — pre-approval authorizes a ceiling, it
+	// doesn't guarantee payment for hours beyond what was actually worked.
+	actualHours: decimal("actual_hours", { precision: 4, scale: 2 }),
+	reconciledAt: timestamp("reconciled_at", { mode: 'date' }),
+	reconciledBy: int("reconciled_by").references(() => employees.id, { onDelete: "set null" } ),
 	hourlyRate: decimal("hourly_rate", { precision: 12, scale: 2 }),
 	overtimeRate: decimal("overtime_rate", { precision: 12, scale: 2 }),
 	amount: decimal({ precision: 12, scale: 2 }),
@@ -721,6 +842,28 @@ export const overtimeRequests = mysqlTable("overtime_requests", {
 ]);
 export type OvertimeRequest = typeof overtimeRequests.$inferSelect;
 export type NewOvertimeRequest = typeof overtimeRequests.$inferInsert;
+
+// Many-to-many: a single 'worked' overtime request can be built from more
+// than one clock session on the same day (e.g. two short split shifts that
+// were both overtime) — this table is the link, replacing a single FK
+// column so a request isn't artificially capped at one session.
+export const overtimeRequestSessions = mysqlTable("overtime_request_sessions", {
+	id: int().autoincrement().notNull(),
+	overtimeRequestId: int("overtime_request_id").notNull(),
+	clockId: int("clock_id").notNull(),
+	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+},
+(table) => [
+	index("overtime_request_id").on(table.overtimeRequestId),
+	index("clock_id").on(table.clockId),
+	// Explicit short names — the auto-generated ones exceed MySQL's 64-char
+	// identifier limit once you combine both table names.
+	foreignKey({ columns: [table.overtimeRequestId], foreignColumns: [overtimeRequests.id], name: "ot_req_sessions_request_fk" }).onDelete("cascade"),
+	foreignKey({ columns: [table.clockId], foreignColumns: [employeeDailyClock.id], name: "ot_req_sessions_clock_fk" }),
+	primaryKey({ columns: [table.id], name: "overtime_request_sessions_id"}),
+]);
+export type OvertimeRequestSession = typeof overtimeRequestSessions.$inferSelect;
+export type NewOvertimeRequestSession = typeof overtimeRequestSessions.$inferInsert;
 
 export const passwordResetTokens = mysqlTable("password_reset_tokens", {
 	id: int().autoincrement().notNull(),

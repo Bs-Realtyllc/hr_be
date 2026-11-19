@@ -6,6 +6,7 @@ import { authenticate, requireRole } from '../../middleware/auth';
 
 router.get('/', authenticate, ctrl.list);
 router.get('/names', authenticate, ctrl.getAllNames);
+router.get('/names/staff', authenticate, ctrl.getStaffNames);
 router.get('/onboarding', authenticate, requireRole('admin'), ctrl.listOnboarding);
 router.get('/:id', authenticate, ctrl.get);
 router.get('/:id/payroll-summary', authenticate, requireRole('admin', 'lead'), ctrl.payrollSummary);

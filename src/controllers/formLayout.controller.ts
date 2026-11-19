@@ -1,36 +1,39 @@
 import { Request, Response } from "express";
 import asyncHandler from "../middleware/asyncHandler";
 import * as formLayoutService from "../services/formLayout.service";
+import * as formLayoutDto from "../dtos/formLayout.dto";
 import AppError from "../pkg/AppError";
+
+const actorId = (req: Request): number | null =>
+  (req as any).user?.id ?? null;
 
 export const getFormLayout = asyncHandler(
   async (req: Request, res: Response) => {
-    const name = req.query.type as string;
-    // console.log(name)
-    const data = await formLayoutService.get(name);
-    res.status(200).json({ data });
+    const type = formLayoutDto.toLayoutType(req.query.type);
+    const { sections, contractTemplate } = await formLayoutService.get(type);
+    res.status(200).json(formLayoutDto.toLayoutResponse(sections, contractTemplate));
   },
 );
 
 export const setFormLayout = asyncHandler(
   async (req: Request, res: Response) => {
-    const { name, data } = req.body;
-    const form = await formLayoutService.create(name, data);
-    // console.log("created", form);
-    res.status(200).json({ message: "Form set sucessfully!" });
+    const input = formLayoutDto.toSaveInput(req.body);
+    await formLayoutService.save(input, actorId(req));
+    res.status(200).json({ message: "Form layout saved successfully!" });
   },
 );
 
 export const uploadContractTemplate = asyncHandler(
   async (req: any, res: Response) => {
-    const name = req.query.type as string;
+    const type = formLayoutDto.toLayoutType(req.query.type);
     if (!req.file) {
       throw new AppError("Template file is required.", 400);
     }
     await formLayoutService.saveContractTemplate(
-      name,
+      type,
       req.file.filename,
       req.file.originalname,
+      actorId(req),
     );
     res.status(200).json({ message: "Contract template saved successfully!" });
   },
@@ -38,17 +41,17 @@ export const uploadContractTemplate = asyncHandler(
 
 export const downloadContractTemplate = asyncHandler(
   async (req: Request, res: Response) => {
-    const name = req.query.type as string;
+    const type = formLayoutDto.toLayoutType(req.query.type);
     const { filePath, originalName } =
-      await formLayoutService.getContractTemplatePath(name);
+      await formLayoutService.getContractTemplatePath(type);
     res.download(filePath, originalName);
   },
 );
 
 export const deleteContractTemplate = asyncHandler(
   async (req: Request, res: Response) => {
-    const name = req.query.type as string;
-    await formLayoutService.removeContractTemplate(name);
+    const type = formLayoutDto.toLayoutType(req.query.type);
+    await formLayoutService.removeContractTemplate(type, actorId(req));
     res.status(200).json({ message: "Contract template removed." });
   },
 );

@@ -1,21 +1,27 @@
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import AppError from "../pkg/AppError";
 
 // Make sure the 'uploads/' directory exists
 const FIELD_DESTINATIONS: Record<string, string> = {
-  contract: "uploads/nda",
-  citizenshipFront: "uploads/profile/citizenship",
-  citizenshipBack: "uploads/profile/citizenship",
-  panCard: "uploads/profile/PAN",
-  passoutCertificate: "uploads/profile/certificate",
   passportPhoto: "uploads/profile/photo",
+  idFront: "uploads/profile/id",
+  idBack: "uploads/profile/id",
+  panFront: "uploads/profile/PAN",
+  panBack: "uploads/profile/PAN",
+  additionalDocument: "uploads/profile/additional",
+  contract: "uploads/nda",
+  otherDocument: "uploads/profile/other",
+  // Per-entry files arrive as educationCertificate_0, experienceLetter_1, ...
+  educationCertificate: "uploads/profile/certificate",
+  experienceLetter: "uploads/profile/experience",
 };
 
 // Define storage engine and destination directory
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const relativeDest = FIELD_DESTINATIONS[file.fieldname];
+    const relativeDest = FIELD_DESTINATIONS[file.fieldname.replace(/_\d+$/, "")];
     if (!relativeDest) {
       cb(new Error(`Unexpected file field: ${file.fieldname}`), "");
       return;
@@ -58,6 +64,33 @@ export const upload = multer({
   storage,
   fileFilter,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+});
+
+/* ── Profile documents (PATCH /profile/docs/*) ─────────────────
+ * Same storage as onboarding, so files are saved as
+ * "<field>-<timestamp>-<random>.<ext>", e.g. idFront-1794713986605-124611939.jpeg */
+
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const IMAGE_AND_PDF_TYPES = [...IMAGE_TYPES, "application/pdf"];
+
+// JPG, JPEG, PNG, WEBP only — max 5 MB (ID and PAN)
+export const uploadProfileImage = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (IMAGE_TYPES.includes(file.mimetype)) cb(null, true);
+    else cb(new AppError("Only JPG, JPEG, PNG or WEBP files are allowed.", 400));
+  },
+});
+
+// Images or PDF — max 5 MB (educational and employment documents)
+export const uploadProfileDocument = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (IMAGE_AND_PDF_TYPES.includes(file.mimetype)) cb(null, true);
+    else cb(new AppError("Only JPG, JPEG, PNG, WEBP or PDF files are allowed.", 400));
+  },
 });
 
 /* ── Audio upload (DM voice messages) ──────────────────────── */

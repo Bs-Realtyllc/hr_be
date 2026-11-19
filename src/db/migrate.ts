@@ -19,5 +19,6 @@ import { db, pool } from '../config/database';
   await pool.end();
 })().catch((err) => {
   console.error('drizzle-kit migration run aborted:', err.message);
+  if (err.cause) console.error('caused by:', err.cause.message ?? err.cause);
   process.exit(1);
 });

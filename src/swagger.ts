@@ -52,6 +52,8 @@ const options = {
         description: "Peer, manager, and public recognition feedback notes",
       },
       { name: "Profile", description: "The logged-in employee's own profile" },
+      { name: "Departments", description: "Active departments" },
+      { name: "Designations", description: "Active designations" },
       { name: "Reports", description: "Monthly report file submissions" },
       { name: "Dashboard", description: "Aggregate stats and trends" },
       {
@@ -85,6 +87,11 @@ const options = {
       {
         name: "Onboard",
         description: "Public onboarding applications and contract review",
+      },
+      {
+        name: "Offboarding",
+        description:
+          "Exit process initiation, checklist tasks, completion, and cancellation (admin/lead)",
       },
       {
         name: "Clock",
@@ -180,12 +187,12 @@ const options = {
               nullable: true,
               description: "Filename of the uploaded document.",
             },
-            citizenship_front: {
+            id_front: {
               type: "string",
               nullable: true,
               description: "Filename of the uploaded document.",
             },
-            citizenship_back: {
+            id_back: {
               type: "string",
               nullable: true,
               description: "Filename of the uploaded document.",
@@ -1375,12 +1382,12 @@ const options = {
               description: "Stored filename, not a URL",
               example: "1792056880927_ibbowzmnkwb.jpeg",
             },
-            citizenship_front: {
+            id_front: {
               type: "string",
               nullable: true,
               description: "Stored filename",
             },
-            citizenship_back: {
+            id_back: {
               type: "string",
               nullable: true,
               description: "Stored filename",
@@ -1559,20 +1566,47 @@ const options = {
         },
         FormLayoutField: {
           type: "object",
+          required: ["name", "required"],
           properties: {
-            key: { type: "string", example: "email" },
-            type: { type: "string", example: "text" },
-            label: { type: "string", example: "Email Address" },
-            section: { type: "string", example: "personal" },
-            required: { type: "boolean" },
+            name: { type: "string", example: "dob" },
+            required: { type: "boolean", example: true },
+          },
+        },
+        FormLayoutSections: {
+          type: "object",
+          description:
+            "One key per forms_layout row: `<intern|employee>_onboard_<personal|educational|experience|emergency|documents|other>`. All keys in a request must share the same type; only the sections sent are saved.",
+          additionalProperties: {
+            type: "array",
+            items: { $ref: "#/components/schemas/FormLayoutField" },
+          },
+          example: {
+            intern_onboard_personal: [
+              { name: "dob", required: true },
+              { name: "phone", required: false },
+            ],
+            intern_onboard_educational: [
+              { name: "institutionName", required: true },
+            ],
+          },
+        },
+        ContractTemplateInfo: {
+          type: "object",
+          nullable: true,
+          properties: {
+            filename: { type: "string" },
+            originalName: { type: "string", example: "intern_contract.pdf" },
           },
         },
         FormLayoutResponse: {
           type: "object",
-          description: "Fields grouped by section key",
-          additionalProperties: {
-            type: "array",
-            items: { $ref: "#/components/schemas/FormLayoutField" },
+          properties: {
+            data: {
+              allOf: [{ $ref: "#/components/schemas/FormLayoutSections" }],
+              description:
+                "Configured sections keyed by forms_layout.name, plus `contractTemplate`.",
+            },
+            contractTemplate: { $ref: "#/components/schemas/ContractTemplateInfo" },
           },
         },
         OnboardProfile: {
@@ -1952,6 +1986,145 @@ const options = {
           },
         },
 
+        OffboardingTask: {
+          type: "object",
+          description:
+            "One checklist item on an offboarding record. The full checklist (8 fixed items across hr/it/finance/manager) is created automatically when offboarding is initiated.",
+          properties: {
+            id: { type: "integer", example: 12 },
+            offboarding_id: { type: "integer", example: 4 },
+            category: {
+              type: "string",
+              enum: ["hr", "it", "finance", "manager"],
+            },
+            title: {
+              type: "string",
+              example: "Revoke system access, email, and 2FA/trusted devices",
+            },
+            status: {
+              type: "string",
+              enum: ["pending", "completed", "not_applicable"],
+              default: "pending",
+            },
+            notes: { type: "string", nullable: true },
+            completed_by: {
+              type: "integer",
+              nullable: true,
+              description: "Null unless status is completed or not_applicable.",
+            },
+            completed_at: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+            },
+            created_at: { type: "string", format: "date-time" },
+            updated_at: { type: "string", format: "date-time", nullable: true },
+            created_by: { type: "integer", nullable: true },
+            updated_by: { type: "integer", nullable: true },
+          },
+        },
+
+        OffboardingRecord: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 4 },
+            emp_id: { type: "integer", example: 19 },
+            exit_type: {
+              type: "string",
+              enum: [
+                "resignation",
+                "termination",
+                "end_of_contract",
+                "non_renewal",
+              ],
+            },
+            reason: { type: "string", nullable: true },
+            notice_date: { type: "string", format: "date" },
+            last_working_day: { type: "string", format: "date" },
+            status: {
+              type: "string",
+              enum: ["in_progress", "completed", "cancelled"],
+              default: "in_progress",
+            },
+            previous_status: {
+              type: "string",
+              description:
+                "The employee's status before offboarding started (e.g. active, probation) — restored on cancel.",
+              example: "active",
+            },
+            relieving_letter_path: { type: "string", nullable: true },
+            completed_at: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+            },
+            cancelled_at: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+            },
+            created_at: { type: "string", format: "date-time" },
+            updated_at: { type: "string", format: "date-time", nullable: true },
+            created_by: { type: "integer", nullable: true },
+            updated_by: { type: "integer", nullable: true },
+          },
+        },
+
+        OffboardingWithTasks: {
+          allOf: [
+            { $ref: "#/components/schemas/OffboardingRecord" },
+            {
+              type: "object",
+              properties: {
+                tasks: {
+                  type: "array",
+                  items: { $ref: "#/components/schemas/OffboardingTask" },
+                },
+              },
+            },
+          ],
+        },
+
+        OffboardingInitiateRequest: {
+          type: "object",
+          required: ["employee_id", "exit_type", "notice_date", "last_working_day"],
+          properties: {
+            employee_id: { type: "integer", example: 19 },
+            exit_type: {
+              type: "string",
+              enum: [
+                "resignation",
+                "termination",
+                "end_of_contract",
+                "non_renewal",
+              ],
+            },
+            reason: { type: "string", nullable: true },
+            notice_date: {
+              type: "string",
+              format: "date",
+              description: "YYYY-MM-DD.",
+            },
+            last_working_day: {
+              type: "string",
+              format: "date",
+              description: "YYYY-MM-DD. Must not be before notice_date.",
+            },
+          },
+        },
+
+        OffboardingTaskUpdateRequest: {
+          type: "object",
+          required: ["status"],
+          properties: {
+            status: {
+              type: "string",
+              enum: ["pending", "completed", "not_applicable"],
+            },
+            notes: { type: "string", nullable: true },
+          },
+        },
+
         Error: {
           type: "object",
           properties: { error: { type: "string" } },
@@ -1968,7 +2141,7 @@ const options = {
         NotificationPreference: {
           type: "object",
           description:
-            "The returned list is filtered by the caller's role — admin sees only security + employee_updates; lead additionally sees the approver types (leave_request_submitted, overtime_request_submitted), which fire for every leave/overtime request submitted company-wide (every employee with role 'lead' is notified, independent of manager_id/reporting chain); employee/intern see security + employee_updates + requester types (leave_request, overtime_request, documents_signature, onboarding_updated, offboarding_updated).",
+            "One row per notification type relevant to the caller's role. `group` controls which UI section a type belongs to: `security` (login/password alerts) or `email` (everything else). Full type → label → group → audience mapping: new_login_detected → \"New Login Detected\" (security, all roles); password_changed → \"Password Changed\" (security, all roles); employee_updates → \"Role, Department & Salary Changes\" (email, all roles — fires whenever the caller's own designation, department, or salary/pay details are updated by an admin, every time, not just the first time); leave_request → \"Leave Request Status\" (email, employee/intern — fires when their own leave request is approved/rejected); overtime_request → \"Overtime Request Status\" (email, employee/intern — same, for overtime); documents_signature → \"Signed Document Rejected\" (email, employee/intern — fires only when a signed document they submitted is rejected; there is no separate \"ready to sign\" notification); onboarding_updated → \"Onboarding Updated\" (email, employee/intern — fires on onboarding approval); offboarding_updated → \"Offboarding Updated\" (email, employee/intern — fires on both offboarding start and completion); leave_request_submitted → \"New Leave Request to Review\" (email, lead only — fires when any employee/intern submits a leave request, sent to every lead regardless of reporting chain); overtime_request_submitted → \"New Overtime Request to Review\" (email, lead only — same, for overtime). So admin sees only the 2 security types + employee_updates; lead additionally sees the 2 *_submitted types; employee/intern see security + employee_updates + the 5 requester types. Note: even when `enabled` is true, no email is actually sent unless the server's MAIL_HOST is configured — this flag only controls whether a configured mail server is used for that recipient/type.",
           properties: {
             type: {
               type: "string",
@@ -1987,7 +2160,19 @@ const options = {
             },
             group: { type: "string", enum: ["security", "email"] },
             label: { type: "string", example: "New Login Detected" },
+            description: {
+              type: "string",
+              description: "Plain-language explanation of what triggers this notification, meant for a UI tooltip.",
+              example: "Email me when my account is signed into from a device or location not seen before.",
+            },
             enabled: { type: "boolean" },
+          },
+          example: {
+            type: "leave_request",
+            group: "email",
+            label: "Leave Request Status",
+            description: "Email me when a leave request I submitted is approved or rejected.",
+            enabled: true,
           },
         },
         NotificationPreferencesUpdateInput: {
@@ -2000,11 +2185,64 @@ const options = {
                 type: "object",
                 required: ["type", "enabled"],
                 properties: {
-                  type: { type: "string", example: "leave_request" },
+                  type: {
+                    type: "string",
+                    description:
+                      "Must be a type relevant to the caller's role (see the NotificationPreference schema for the full type/role mapping). A type that doesn't exist, or belongs to a different role, fails the whole request with a 400.",
+                    enum: [
+                      "new_login_detected",
+                      "password_changed",
+                      "employee_updates",
+                      "leave_request",
+                      "overtime_request",
+                      "documents_signature",
+                      "onboarding_updated",
+                      "offboarding_updated",
+                      "leave_request_submitted",
+                      "overtime_request_submitted",
+                    ],
+                    example: "leave_request",
+                  },
                   enabled: { type: "boolean" },
                 },
               },
+              example: [
+                { type: "leave_request", enabled: false },
+                { type: "employee_updates", enabled: true },
+              ],
             },
+          },
+        },
+        CompanySettings: {
+          type: "object",
+          description: "Singleton company profile. All fields are null until an admin saves it for the first time.",
+          properties: {
+            name: { type: "string", nullable: true, example: "GITGI" },
+            email: { type: "string", format: "email", nullable: true, example: "hello@gitgi.com" },
+            website: { type: "string", nullable: true, example: "https://gitgi.com" },
+            updated_at: { type: "string", format: "date-time", nullable: true },
+          },
+        },
+        CompanySettingsSaveInput: {
+          type: "object",
+          required: ["name", "email", "website"],
+          properties: {
+            name: { type: "string", example: "GITGI" },
+            email: { type: "string", format: "email", example: "hello@gitgi.com" },
+            website: { type: "string", example: "https://gitgi.com" },
+          },
+        },
+        TeamAccessMember: {
+          type: "object",
+          description: "Read-only — every non-terminated employee. There is no revoke/grant action yet; this only lists who currently has an account.",
+          properties: {
+            id: { type: "integer" },
+            name: { type: "string" },
+            email: { type: "string", format: "email" },
+            designation: { type: "string", nullable: true },
+            role: { type: "string", enum: ["admin", "lead", "employee", "intern"] },
+            status: { type: "string", enum: ["onboarding", "active", "on_leave", "probation", "offboarding", "terminated"] },
+            start_date: { type: "string", format: "date", nullable: true },
           },
         },
       },
@@ -2033,12 +2271,78 @@ const options = {
         },
       },
 
+      "/api/company": {
+        get: {
+          tags: ["Company"],
+          summary: "Get company profile",
+          description: "Available to every authenticated role as read-only. All fields are null until an admin saves this for the first time.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/CompanySettings" } },
+              },
+            },
+          },
+        },
+        put: {
+          tags: ["Company"],
+          summary: "Update company profile",
+          description: "Admin only. Upserts the singleton company_settings row — there is only ever one.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/CompanySettingsSaveInput" } },
+            },
+          },
+          responses: {
+            200: {
+              description: "Updated",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } },
+            },
+            400: {
+              description: "Missing or invalid name/email/website",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            403: {
+              description: "Insufficient permissions",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+
+      "/api/company/team-access": {
+        get: {
+          tags: ["Company"],
+          summary: "List employees who currently have platform access",
+          description: "Admin only. Read-only snapshot of every non-terminated employee — there is no revoke/grant endpoint yet.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": {
+                  schema: { type: "array", items: { $ref: "#/components/schemas/TeamAccessMember" } },
+                },
+              },
+            },
+            403: {
+              description: "Insufficient permissions",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+          },
+        },
+      },
+
       "/api/notifications/preferences": {
         get: {
           tags: ["Notifications"],
           summary: "Get the logged-in employee's notification preferences",
           description:
-            "Returns only the notification types relevant to the caller's role (see the NotificationPreference schema description), each with its current on/off state. Types with no stored row default to enabled.",
+            "Returns only the notification types relevant to the caller's role (see the NotificationPreference schema description for the full type/label/role mapping), each with its current on/off state. Types with no stored row default to enabled. Even when enabled, delivery still requires the server's MAIL_HOST to be configured.",
           security: [{ bearerAuth: [] }],
           responses: {
             200: {
@@ -2046,6 +2350,16 @@ const options = {
               content: {
                 "application/json": {
                   schema: { type: "array", items: { $ref: "#/components/schemas/NotificationPreference" } },
+                  example: [
+                    { type: "new_login_detected", group: "security", label: "New Login Detected", description: "Email me when my account is signed into from a device or location not seen before.", enabled: true },
+                    { type: "password_changed", group: "security", label: "Password Changed", description: "Email me a confirmation whenever my account password is changed.", enabled: true },
+                    { type: "employee_updates", group: "email", label: "Role, Department & Salary Changes", description: "Email me whenever my own designation, department, or salary/pay details are updated by an admin.", enabled: true },
+                    { type: "leave_request", group: "email", label: "Leave Request Status", description: "Email me when a leave request I submitted is approved or rejected.", enabled: true },
+                    { type: "overtime_request", group: "email", label: "Overtime Request Status", description: "Email me when an overtime request I submitted is approved or rejected.", enabled: false },
+                    { type: "documents_signature", group: "email", label: "Signed Document Rejected", description: "Email me if a signed document I submitted gets rejected and needs to be corrected.", enabled: true },
+                    { type: "onboarding_updated", group: "email", label: "Onboarding Updated", description: "Email me when there is an update to my onboarding process.", enabled: true },
+                    { type: "offboarding_updated", group: "email", label: "Offboarding Updated", description: "Email me when there is an update to my offboarding process.", enabled: true },
+                  ],
                 },
               },
             },
@@ -2054,12 +2368,20 @@ const options = {
         put: {
           tags: ["Notifications"],
           summary: "Update one or more notification preferences",
+          description:
+            "Upserts the on/off state for one or more notification types. Each type must be relevant to the caller's role (see the NotificationPreference schema) — an unknown type, or one belonging to a different role, fails the whole request with a 400. Even when enabled, delivery still requires the server's MAIL_HOST to be configured.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
             content: {
               "application/json": {
                 schema: { $ref: "#/components/schemas/NotificationPreferencesUpdateInput" },
+                example: {
+                  preferences: [
+                    { type: "leave_request", enabled: false },
+                    { type: "employee_updates", enabled: true },
+                  ],
+                },
               },
             },
           },
@@ -2072,7 +2394,12 @@ const options = {
             },
             400: {
               description: "Unknown notification type, or a type that doesn't apply to the caller's role",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                  example: { error: "Unknown notification type(s): attendance_alerts" },
+                },
+              },
             },
           },
         },
@@ -2388,7 +2715,7 @@ const options = {
           tags: ["Auth"],
           summary: "Get own login history",
           description:
-            "Returns a paginated list of sign-in attempts (successful and failed) for the currently authenticated employee, sorted newest first.",
+            "Returns a paginated list of sign-in attempts (successful and failed) for the currently authenticated employee, sorted newest first. Available to every role, including admin — this always returns only the caller's own sessions. For the company-wide list, see GET /api/auth/admin/login-history.",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -2425,7 +2752,8 @@ const options = {
         get: {
           tags: ["Auth"],
           summary: "Get login history for all employees",
-          description: "Admin only.",
+          description:
+            "Admin only. Returns every employee's sign-in attempts, including the admin's own, with employee_name/email attached to each row. To see just the caller's own sessions, use GET /api/auth/login-history instead.",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -2470,7 +2798,7 @@ const options = {
         get: {
           tags: ["Auth"],
           summary: "Get login history for a specific employee",
-          description: "Admin only.",
+          description: "Admin only. Same shape as GET /api/auth/login-history, but scoped to the given employeeId instead of the caller.",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -3082,6 +3410,37 @@ const options = {
         },
       },
 
+      "/employees/names/staff": {
+        get: {
+          tags: ["Employees"],
+          summary: "List staff names (admin, lead, employee)",
+          description:
+            "Any authenticated user. Id and name of every non-terminated user whose role is `admin`, `lead` or `employee` (interns excluded), sorted by name.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Names",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/EmployeeNameItem" },
+                  },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
       "/employees/onboarding": {
         get: {
           tags: ["Employees"],
@@ -3214,7 +3573,7 @@ const options = {
           tags: ["Employees"],
           summary: "Update an employee",
           description:
-            "If designation or department changes, emails the employee an employee_updates notification if that preference is enabled (see /api/notifications/preferences). Admin or lead. Partial update. Department and designation are set by name (created if new).",
+            "If designation or department changes, emails the employee an employee_updates notification if that preference is enabled (see /api/notifications/preferences). Admin or lead for most fields — partial update, department and designation are set by name (created if new). The `role` field is stricter: it's admin-only even though the rest of this endpoint is open to leads, and a caller can never change their own role — not even an admin — to prevent accidental self-lockout.",
             security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -3242,7 +3601,7 @@ const options = {
               },
             },
             400: {
-              description: "Nothing to update, own-manager, or reporting cycle",
+              description: "Nothing to update, own-manager, reporting cycle, or an attempt to change your own role",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },
@@ -3258,7 +3617,7 @@ const options = {
               },
             },
             403: {
-              description: "Forbidden",
+              description: "Forbidden — caller isn't admin/lead, or a lead attempted to change the role field (admin-only)",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },
@@ -5573,6 +5932,60 @@ const options = {
         },
       },
 
+      "/api/departments": {
+        get: {
+          tags: ["Departments"],
+          summary: "List active departments",
+          description: "Any logged-in user. Only rows with is_active = true, sorted by name.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "List of departments",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "integer", example: 1 },
+                        name: { type: "string", example: "Engineering" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/designations": {
+        get: {
+          tags: ["Designations"],
+          summary: "List active designations",
+          description: "Any logged-in user. Only rows with is_active = true, sorted by name.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "List of designations",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "integer", example: 1 },
+                        name: { type: "string", example: "Software Engineer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       "/api/profile": {
         get: {
           tags: ["Profile"],
@@ -5670,53 +6083,36 @@ const options = {
           },
         },
       },
-      "/api/profile/citizenship/{side}": {
-        post: {
-          tags: ["Profile"],
-          summary: "Upload a citizenship document image (front or back)",
-          description:
-            "Multipart upload. Accepts .jpg/.jpeg/.png/.webp up to 5 MB. Deletes the previous file for that side.",
-          security: [{ bearerAuth: [] }],
-          parameters: [
-            {
-              name: "side",
-              in: "path",
-              required: true,
-              schema: { type: "string", enum: ["front", "back"] },
-            },
-          ],
-          requestBody: {
-            required: true,
-            content: {
-              "multipart/form-data": {
-                schema: {
-                  type: "object",
-                  required: ["doc"],
-                  properties: { doc: { type: "string", format: "binary" } },
-                },
-              },
-            },
-          },
-          responses: {
-            200: {
-              description: "Uploaded",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/UploadResponse" },
-                },
-              },
-            },
-            400: {
-              description: "Invalid side or no file uploaded",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/Error" },
-                },
-              },
-            },
-          },
-        },
-      },
+      "/api/profile/docs/id": profileDocsPath(
+        "Upload ID (citizenship or NID) — front and/or back",
+        ["idFront", "idBack"],
+        "JPG, JPEG, PNG or WEBP",
+      ),
+      "/api/profile/docs/pan": profileDocsPath(
+        "Upload PAN card — front and/or back",
+        ["panFront", "panBack"],
+        "JPG, JPEG, PNG or WEBP",
+      ),
+      "/api/profile/docs/educational": profileDocsPath(
+        "Upload educational documents (up to 4)",
+        ["educationCertificate_0", "educationCertificate_1", "educationCertificate_2", "educationCertificate_3"],
+        "JPG, JPEG, PNG, WEBP or PDF",
+      ),
+      "/api/profile/docs/employment": profileDocsPath(
+        "Upload previous experience letters (up to 4)",
+        ["experienceLetter_0", "experienceLetter_1", "experienceLetter_2", "experienceLetter_3"],
+        "JPG, JPEG, PNG, WEBP or PDF",
+      ),
+      "/api/profile/docs/contract": profileDocsPath(
+        "Upload employment / internship contract",
+        ["contract"],
+        "JPG, JPEG, PNG, WEBP or PDF",
+      ),
+      "/api/profile/docs/other": profileDocsPath(
+        "Upload other documents (up to 4)",
+        ["otherDocument_0", "otherDocument_1", "otherDocument_2", "otherDocument_3"],
+        "JPG, JPEG, PNG, WEBP or PDF",
+      ),
 
       "/api/reports": {
         get: {
@@ -6473,6 +6869,7 @@ const options = {
             {
               name: "type",
               in: "query",
+              required: true,
               schema: { type: "string", enum: ["intern", "employee"] },
               description: "Which onboarding form layout to fetch",
             },
@@ -6497,7 +6894,7 @@ const options = {
             required: true,
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/FormLayoutResponse" },
+                schema: { $ref: "#/components/schemas/FormLayoutSections" },
               },
             },
           },
@@ -6880,6 +7277,412 @@ const options = {
           },
         },
       },
+
+      "/offboarding": {
+        get: {
+          tags: ["Offboarding"],
+          summary: "List offboarding records",
+          description: "Admin or lead only.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "status",
+              in: "query",
+              required: false,
+              schema: {
+                type: "string",
+                enum: ["in_progress", "completed", "cancelled"],
+              },
+              description: "Filter by status. Omit to return every record.",
+            },
+          ],
+          responses: {
+            200: {
+              description: "List of offboarding records, newest first",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/OffboardingRecord" },
+                  },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin/lead only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+        post: {
+          tags: ["Offboarding"],
+          summary: "Initiate offboarding for an employee",
+          description:
+            "Admin or lead only. Creates the offboarding record plus a fixed 8-item checklist (hr/it/finance/manager categories), and sets the employee's status to offboarding. Fails if the employee is already terminated or already has an offboarding in progress.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/OffboardingInitiateRequest" },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description: "Offboarding initiated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/OffboardingRecord" },
+                },
+              },
+            },
+            400: {
+              description:
+                "Validation error, or the employee is already terminated / already offboarding",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin/lead only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Employee not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/offboarding/employee/{employeeId}": {
+        get: {
+          tags: ["Offboarding"],
+          summary: "List offboarding records for a specific employee",
+          description:
+            "Admin or lead only. An employee can have more than one row over time (e.g. a cancelled attempt followed by a real one).",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "employeeId",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "List of offboarding records for that employee, newest first",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/OffboardingRecord" },
+                  },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin/lead only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/offboarding/{id}": {
+        get: {
+          tags: ["Offboarding"],
+          summary: "Get one offboarding record with its checklist tasks",
+          description: "Admin or lead only.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Offboarding record with tasks",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/OffboardingWithTasks" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin/lead only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Offboarding record not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/offboarding/{id}/tasks/{taskId}": {
+        patch: {
+          tags: ["Offboarding"],
+          summary: "Update a checklist task's status/notes",
+          description:
+            "Admin or lead only. Returns the full updated task list for the offboarding record. completed_by/completed_at are set automatically whenever status is set to anything other than pending, and cleared when set back to pending.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+              description: "Offboarding record id.",
+            },
+            {
+              name: "taskId",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/OffboardingTaskUpdateRequest" },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Updated task list for this offboarding record",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/OffboardingTask" },
+                  },
+                },
+              },
+            },
+            400: {
+              description: "Validation error",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin/lead only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Offboarding record or task not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/offboarding/{id}/complete": {
+        put: {
+          tags: ["Offboarding"],
+          summary: "Complete an offboarding (admin only)",
+          description:
+            "Admin only — not lead. Fails if any checklist task is still pending, or if the record isn't in_progress. Sets the employee's status to terminated.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Offboarding marked completed",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/OffboardingRecord" },
+                },
+              },
+            },
+            400: {
+              description:
+                "Record is not in_progress, or one or more checklist tasks are still pending",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Offboarding record not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/offboarding/{id}/cancel": {
+        put: {
+          tags: ["Offboarding"],
+          summary: "Cancel an in-progress offboarding (admin only)",
+          description:
+            "Admin only — not lead. Restores the employee's previous status (e.g. back to active) and marks the record cancelled.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Offboarding marked cancelled",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/OffboardingRecord" },
+                },
+              },
+            },
+            400: {
+              description: "Record is not in_progress",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: {
+              description: "Unauthenticated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            403: {
+              description: "Forbidden (admin only)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            404: {
+              description: "Offboarding record not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
+
       "/clock/in": {
         post: {
           tags: ["Clock"],
@@ -7224,7 +8027,68 @@ const options = {
       },
     },
   },
-  apis: ["./routes/*.js", "./controllers/*.js"],
+  // This spec is entirely hand-written above — no jsdoc comments are scanned,
+  // but swagger-jsdoc requires `apis` to be present even when unused.
+  apis: [],
 };
 
 export default swaggerJsdoc(options);
+
+/** Swagger entry for one PATCH /api/profile/docs/* route. */
+function profileDocsPath(summary: string, fields: string[], fileTypes: string) {
+  return {
+    patch: {
+      tags: ["Profile"],
+      summary,
+      description:
+        `Multipart upload for the logged-in employee. ${fileTypes}, max 5 MB each. ` +
+        "Every field is optional, but send at least one file. Saved in employee_documents " +
+        'with the field name minus "_" as the name (educationCertificate_0 → educationCertificate0). ' +
+        "If that name already exists for the employee, only the filename is replaced. Old files are kept in /uploads.",
+      security: [{ bearerAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: {
+              type: "object",
+              properties: Object.fromEntries(
+                fields.map((f) => [f, { type: "string", format: "binary" }]),
+              ),
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: "Saved",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  documents: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string", example: "idFront" },
+                        filename: { type: "string", example: "idFront-1794713986605-124611939.jpeg" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        400: {
+          description: "No file uploaded, wrong file type, file too large, or unexpected field",
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/Error" } },
+          },
+        },
+      },
+    },
+  };
+}
