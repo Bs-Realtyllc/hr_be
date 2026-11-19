@@ -92,6 +92,13 @@
       "when": 1794680000000,
       "tag": "0012_employees_columns_add",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1794926374368,
+      "tag": "0013_policies_to_documents",
+      "breakpoints": true
     }
   ]
 }
