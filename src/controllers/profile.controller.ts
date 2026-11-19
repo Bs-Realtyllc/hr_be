@@ -49,3 +49,18 @@ export const uploadDocuments = asyncHandler(async (req: any, res: Response) => {
     throw err;
   }
 });
+
+export const getAllDocs = asyncHandler(async(req: any, res: Response)=>{
+  const id = req.user.id;
+  const apiBase = process.env.API_BASE_URL ?? `${req.protocol}://${req.get("host")}/api`;
+  const filesWithPath = await profileService.getAllDocs(Number(id), apiBase);
+  res.status(200).json({status: "success", files: filesWithPath})
+
+})
+
+// Opened directly by <img>/<a>; access is checked by the ?token in the route.
+export const getDocFile = asyncHandler(async (req: any, res: Response) => {
+  const { filePath, filename } = await profileService.getDocFilePath(Number(req.params.id));
+  res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+  res.sendFile(filePath);
+})

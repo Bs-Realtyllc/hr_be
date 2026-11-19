@@ -110,7 +110,7 @@ app.use(
   express.static(path.join(uploadsDir, "profile/photo")),
 );
 //for other docs --require auth
-app.use("/uploads", authenticate, requireRole("admin"), express.static(uploadsDir));
+app.use("/uploads", authenticate, express.static(uploadsDir));
 
 app.use(
   express.json({

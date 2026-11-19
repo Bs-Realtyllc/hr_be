@@ -977,3 +977,19 @@ export async function findEmailsByIds(ids: (number | string)[]) {
     .from(employees)
     .where(and(inArray(employees.id, numericIds), ACTIVE_ROSTER));
 }
+
+export async function getAllDocsOfId(id: number) {
+  return db
+    .select()
+    .from(employeeDocuments)
+    .where(eq(employeeDocuments.empId, id));
+}
+
+export async function getDocById(id: number) {
+  const [doc] = await db
+    .select()
+    .from(employeeDocuments)
+    .where(eq(employeeDocuments.id, id));
+  return doc;
+}
+
