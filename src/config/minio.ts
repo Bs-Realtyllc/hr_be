@@ -14,3 +14,10 @@ export async function ensureAudioBucket() {
   const exists = await minioClient.bucketExists(AUDIO_BUCKET);
   if (!exists) await minioClient.makeBucket(AUDIO_BUCKET, 'us-east-1');
 }
+
+export const TRACKER_BUCKET = process.env.MINIO_TRACKER_BUCKET || 'tracker-screenshots';
+
+export async function ensureTrackerBucket() {
+  const exists = await minioClient.bucketExists(TRACKER_BUCKET);
+  if (!exists) await minioClient.makeBucket(TRACKER_BUCKET, 'us-east-1');
+}

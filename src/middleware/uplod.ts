@@ -129,3 +129,20 @@ export const uploadAudioMemory = multer({
   fileFilter: audioFileFilter,
   limits: { fileSize: 25 * 1024 * 1024 },
 });
+
+/* ── Screenshot upload (desktop tracker) ────────────────────── */
+
+const screenshotFileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  const baseMime = file.mimetype.split(';')[0].trim();
+  if (allowed.includes(baseMime)) cb(null, true);
+  else cb(new Error('Only JPEG, PNG or WEBP screenshots are allowed'));
+};
+
+/* Memory storage — streams directly to MinIO, no local disk write.
+   Compressed screenshots run well under 1MB, so 5MB is a generous ceiling. */
+export const uploadScreenshotMemory = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: screenshotFileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
