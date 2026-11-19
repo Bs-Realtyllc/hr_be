@@ -1,4 +1,4 @@
-import { mysqlTable, primaryKey, bigint, varchar, smallint, int, timestamp, index, foreignKey, mysqlEnum, date, text, unique, decimal, tinyint, boolean, json, datetime, year, time } from "drizzle-orm/mysql-core"
+import { mysqlTable, primaryKey, bigint, varchar, smallint, int, timestamp, index, foreignKey, mysqlEnum, date, text, unique, decimal, tinyint, boolean, json, datetime, year, time, AnyMySqlColumn } from "drizzle-orm/mysql-core"
 import { sql } from "drizzle-orm"
 
 export const accessLog = mysqlTable("access_log", {
@@ -931,45 +931,50 @@ export const performanceReviews = mysqlTable("performance_reviews", {
 export type PerformanceReview = typeof performanceReviews.$inferSelect;
 export type NewPerformanceReview = typeof performanceReviews.$inferInsert;
 
-export const policies = mysqlTable("policies", {
+export const documents = mysqlTable("documents", {
 	id: int().autoincrement().notNull(),
-	type: varchar({ length: 50 }).notNull(),
+	type: mysqlEnum(["file", "folder"]).default("file").notNull(),
 	title: varchar({ length: 200 }).notNull(),
-	filePath: varchar("file_path", { length: 255 }).notNull(),
-	version: int().default(1).notNull(),
+	filePath: varchar("file_path", { length: 255 }),
 	uploadedBy: int("uploaded_by").references(() => employees.id, { onDelete: "set null" } ),
 	isActive: boolean("is_active").default(true),
-	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
-	category: varchar({ length: 30 }).default('policy').notNull(),
+	category: varchar({ length: 30 }),
+	sizeBytes: bigint("size_bytes", { mode: "number" }),
 	isPinned: boolean("is_pinned").default(false),
+    parentId: int("parent_id").references((): AnyMySqlColumn => documents.id, {
+		onDelete: "cascade",
+    }),
+	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().onUpdateNow().notNull(),
 },
+	
 (table) => [
 	index("uploaded_by").on(table.uploadedBy),
-	primaryKey({ columns: [table.id], name: "policies_id"}),
+	primaryKey({ columns: [table.id], name: "documents_id"}),
 ]);
-export type Policy = typeof policies.$inferSelect;
-export type NewPolicy = typeof policies.$inferInsert;
+export type Documents = typeof documents.$inferSelect;
+export type NewDocuments = typeof documents.$inferInsert;
 
-export const policyAcknowledgements = mysqlTable("policy_acknowledgements", {
-	id: int().autoincrement().notNull(),
-	policyId: int("policy_id").notNull().references(() => policies.id, { onDelete: "cascade" } ),
-	employeeId: int("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" } ),
-	signedFilePath: varchar("signed_file_path", { length: 255 }).notNull(),
-	status: mysqlEnum(['pending','approved','rejected']).default('pending'),
-	rejectionReason: text("rejection_reason"),
-	submittedAt: timestamp("submitted_at", { mode: 'date' }).defaultNow(),
-	reviewedBy: int("reviewed_by").references(() => employees.id, { onDelete: "set null" } ),
-	reviewedAt: timestamp("reviewed_at", { mode: 'date' }),
-},
-(table) => [
-	index("employee_id").on(table.employeeId),
-	index("reviewed_by").on(table.reviewedBy),
-	index("idx_policy_ack_status").on(table.status),
-	primaryKey({ columns: [table.id], name: "policy_acknowledgements_id"}),
-	unique("unique_policy_employee").on(table.policyId, table.employeeId),
-]);
-export type PolicyAcknowledgement = typeof policyAcknowledgements.$inferSelect;
-export type NewPolicyAcknowledgement = typeof policyAcknowledgements.$inferInsert;
+// export const policyAcknowledgements = mysqlTable("policy_acknowledgements", {
+// 	id: int().autoincrement().notNull(),
+// 	policyId: int("policy_id").notNull().references(() => policies.id, { onDelete: "cascade" } ),
+// 	employeeId: int("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" } ),
+// 	signedFilePath: varchar("signed_file_path", { length: 255 }).notNull(),
+// 	status: mysqlEnum(['pending','approved','rejected']).default('pending'),
+// 	rejectionReason: text("rejection_reason"),
+// 	submittedAt: timestamp("submitted_at", { mode: 'date' }).defaultNow(),
+// 	reviewedBy: int("reviewed_by").references(() => employees.id, { onDelete: "set null" } ),
+// 	reviewedAt: timestamp("reviewed_at", { mode: 'date' }),
+// },
+// (table) => [
+// 	index("employee_id").on(table.employeeId),
+// 	index("reviewed_by").on(table.reviewedBy),
+// 	index("idx_policy_ack_status").on(table.status),
+// 	primaryKey({ columns: [table.id], name: "policy_acknowledgements_id"}),
+// 	unique("unique_policy_employee").on(table.policyId, table.employeeId),
+// ]);
+// export type PolicyAcknowledgement = typeof policyAcknowledgements.$inferSelect;
+// export type NewPolicyAcknowledgement = typeof policyAcknowledgements.$inferInsert;
 
 export const projectAssignments = mysqlTable("project_assignments", {
 	id: int().autoincrement().notNull(),
