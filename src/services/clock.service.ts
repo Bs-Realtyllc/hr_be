@@ -89,9 +89,12 @@ async function buildLateChecker() {
   };
 }
 
-function parseCoordinates(lat: unknown, lng: unknown) {
-  // both missing: location is optional (remove this block if it's required)
-  // if (lat == null && lng == null) return null;
+function parseCoordinates(lat: unknown, lng: unknown, source: 'web' | 'desktop' = 'web') {
+  // Desktop has no real GPS hardware — activity/screenshots are the trust
+  // signal there instead, so location is only required for web clock-ins.
+  if (source === 'desktop' && lat == null && lng == null) {
+    return { lat: null, lng: null };
+  }
 
   // one without the other is a client bug
   if (lat == null || lng == null) {
@@ -112,8 +115,8 @@ function parseCoordinates(lat: unknown, lng: unknown) {
   return { lat: Number(la.toFixed(6)), lng: Number(ln.toFixed(6)) };
 }
 
-export async function clockIn(empId: number, lat: number, lng: number) {
-  const coords = parseCoordinates(lat, lng);
+export async function clockIn(empId: number, lat: number, lng: number, source: 'web' | 'desktop' = 'web') {
+  const coords = parseCoordinates(lat, lng, source);
 
   // Split shifts are allowed (clock in again later the same day), but never
   // two open shifts at once.
@@ -122,7 +125,7 @@ export async function clockIn(empId: number, lat: number, lng: number) {
     throw new AppError("You're already clocked in — clock out first.", 409);
   }
 
-  return await employeeDailyClockRepo.addClockIn(empId, coords);
+  return await employeeDailyClockRepo.addClockIn(empId, coords, source);
 }
 
 interface LiveShift {
@@ -228,12 +231,13 @@ export async function getClock(empId: number, date?: string) {
 }
 
 export async function clockOut(empId: number, lat: number, lng: number) {
-  const coords = parseCoordinates(lat, lng);
-
   const shift = await employeeDailyClockRepo.getOpenShift(empId);
   if (!shift) {
     throw new AppError("You're not clocked in.", 400);
   }
+  // Whichever source opened the shift decides whether location is required
+  // on the way out too — not a client-supplied flag, so it can't be spoofed.
+  const coords = parseCoordinates(lat, lng, shift.source as 'web' | 'desktop');
   return await employeeDailyClockRepo.addClockOut(shift.id, coords);
 }
 

@@ -77,11 +77,18 @@ app.use(
     (tokens, req, res) => {
       const ctx = res.locals.ctx as RequestContext | undefined;
 
+      // Strip the query string — signed media-token URLs (tracker
+      // screenshots, inbox audio) run well past the endpoint column's
+      // 255-char limit, and a single oversized row fails the whole
+      // batched insert, silently dropping everything flushed with it.
+      // Also keeps short-lived auth tokens out of a persisted log table.
+      const path = (tokens.url(req, res) ?? "").split("?")[0].slice(0, 255);
+
       enqueueAccessLog({
         traceId: ctx?.traceId ?? "-",
         employeeId: ctx?.employeeId ?? null,
         method: tokens.method(req, res),
-        endpoint: tokens.url(req, res),
+        endpoint: path,
         responseStatus: Number(tokens.status(req, res)),
         responseDurationMs: Number(tokens["response-time"](req, res)),
         ipAddress: tokens["remote-addr"](req, res),

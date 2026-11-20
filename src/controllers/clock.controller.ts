@@ -3,8 +3,8 @@ import { Request, Response } from "express";
 import * as clockServices from "../services/clock.service";
 
 export const clockIn = asyncHandler(async (req: any, res: Response) => {
-  const {lat, lng} = req.body;
-  const result = await clockServices.clockIn(req.user.id, lat, lng);
+  const {lat, lng, source} = req.body;
+  const result = await clockServices.clockIn(req.user.id, lat, lng, source === 'desktop' ? 'desktop' : 'web');
   res
     .status(201)
     .json({ message: "clock in sucessfull", clockInTime: result.clockIn });

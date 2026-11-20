@@ -16,6 +16,9 @@ router.use(authenticate);
 
 router.post('/activity', ctrl.recordActivity);
 router.post('/screenshots', uploadScreenshotMemory.single('screenshot'), ctrl.uploadScreenshot);
+// Self or admin/lead — permission is checked inside the service since it
+// depends on whose screenshot this is, not just the caller's role.
+router.delete('/screenshots/:id', ctrl.deleteScreenshot);
 
 // Any employee can see their own diary.
 router.get('/diary/me', ctrl.getMyDiary);

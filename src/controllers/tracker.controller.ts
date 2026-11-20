@@ -2,6 +2,10 @@ import { Response } from 'express';
 import asyncHandler from '../middleware/asyncHandler';
 import * as trackerService from '../services/tracker.service';
 
+function apiBaseFor(req: any) {
+  return process.env.API_BASE_URL ?? `${req.protocol}://${req.get('host')}/api`;
+}
+
 export const recordActivity = asyncHandler(async (req: any, res: Response) => {
   const result = await trackerService.recordActivity(req.user.id, req.body);
   res.status(201).json(result);
@@ -16,8 +20,16 @@ export const uploadScreenshot = asyncHandler(async (req: any, res: Response) => 
     capturedAt,
     activeSeconds: activeSeconds ? Number(activeSeconds) : undefined,
     idleSeconds: idleSeconds ? Number(idleSeconds) : undefined,
-  });
+  }, apiBaseFor(req));
   res.status(201).json(result);
+});
+
+export const deleteScreenshot = asyncHandler(async (req: any, res: Response) => {
+  const result = await trackerService.deleteScreenshot(
+    { id: req.user.id, role: req.user.role },
+    req.params.id,
+  );
+  res.status(200).json(result);
 });
 
 export const streamScreenshot = asyncHandler(async (req: any, res: Response) => {
@@ -41,17 +53,17 @@ export const streamScreenshot = asyncHandler(async (req: any, res: Response) => 
 
 export const getDiary = asyncHandler(async (req: any, res: Response) => {
   const employeeId = Number(req.query.employeeId);
-  const date = req.query.date as string;
-  if (!employeeId || !date) {
-    throw Object.assign(new Error('employeeId and date are required'), { status: 400 });
+  const clockId = Number(req.query.clockId);
+  if (!employeeId || !clockId) {
+    throw Object.assign(new Error('employeeId and clockId are required'), { status: 400 });
   }
-  const result = await trackerService.getDiary(employeeId, date);
+  const result = await trackerService.getDiary(employeeId, clockId, apiBaseFor(req));
   res.status(200).json(result);
 });
 
 export const getMyDiary = asyncHandler(async (req: any, res: Response) => {
-  const date = req.query.date as string;
-  if (!date) throw Object.assign(new Error('date is required'), { status: 400 });
-  const result = await trackerService.getDiary(req.user.id, date);
+  const clockId = Number(req.query.clockId);
+  if (!clockId) throw Object.assign(new Error('clockId is required'), { status: 400 });
+  const result = await trackerService.getDiary(req.user.id, clockId, apiBaseFor(req));
   res.status(200).json(result);
 });

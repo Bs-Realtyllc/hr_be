@@ -176,6 +176,10 @@ export const employeeDailyClock = mysqlTable("employee_daily_clock", {
 	// anything that derives real hours worked from this row (overtime
 	// verification, reports) knows the baseline itself is uncertain here.
 	clockOutEstimated: boolean("clock_out_estimated").default(false).notNull(),
+	// Where the shift was started — web clock-ins require geolocation,
+	// desktop tracker clock-ins don't (no real GPS hardware, activity/
+	// screenshots are the trust signal instead).
+	source: mysqlEnum("source", ['web', 'desktop']).default('web').notNull(),
 	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
 },
