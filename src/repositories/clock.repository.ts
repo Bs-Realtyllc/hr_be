@@ -80,16 +80,16 @@ export async function getPauseRow(clockId: number) {
 }
 
 interface coordsType {
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
 }
 
-export async function addClockIn(empId: number, coords: coordsType) {
+export async function addClockIn(empId: number, coords: coordsType, source: 'web' | 'desktop' = 'web') {
   let insertId: number;
   try {
     const [result] = await db
       .insert(employeeDailyClock)
-      .values({ employeeId: empId, clockDate: nepalDateString(), clockInLat: coords.lat, clockInLng: coords.lng });
+      .values({ employeeId: empId, clockDate: nepalDateString(), clockInLat: coords.lat, clockInLng: coords.lng, source });
     insertId = result.insertId;
   } catch (err: any) {
     // Belt-and-suspenders: the service layer already checks for an open
@@ -293,6 +293,7 @@ export async function getAttendance(
       clockInLng: employeeDailyClock.clockInLng,
       clockOutLat: employeeDailyClock.clockOutLat,
       clockOutLng: employeeDailyClock.clockOutLng,
+      source: employeeDailyClock.source,
     })
     .from(employeeDailyClock)
     .leftJoin(employees, eq(employeeDailyClock.employeeId, employees.id))

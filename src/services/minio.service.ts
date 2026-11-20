@@ -52,3 +52,7 @@ export async function streamScreenshotFromMinio(
     (stat.metaData?.['content-type'] as string | undefined) ?? 'image/jpeg';
   return { stream, size: stat.size, contentType };
 }
+
+export async function deleteScreenshotFromMinio(key: string) {
+  await minioClient.removeObject(TRACKER_BUCKET, key);
+}
