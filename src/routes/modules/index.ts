@@ -21,7 +21,7 @@ import profileRoutes from './profile.routes';
 import goalRoutes from './goal.routes';
 import performanceRoutes from './performance.routes';
 import feedbackRoutes from './feedback.routes';
-import policyRoutes from './policy.routes';
+import documentRoutes from './document.routes';
 import formLayoutRoutes from './formLayout.routes'
 import onboardRoutes from './onboard.routes'
 import roadmapRoutes from './roadmap.routes'
@@ -57,7 +57,7 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/goals', router: goalRoutes },
   { path: '/performance', router: performanceRoutes },
   { path: '/feedback', router: feedbackRoutes },
-  { path: '/policies', router: policyRoutes },
+  { path: '/documents', router: documentRoutes },
   { path: '/form-layout', router: formLayoutRoutes},
   { path: '/onboard', router: onboardRoutes},
   { path: '/roadmap', router: roadmapRoutes },

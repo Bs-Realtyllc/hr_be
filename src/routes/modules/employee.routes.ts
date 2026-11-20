@@ -1,7 +1,7 @@
 import express from 'express';
 const router = express.Router();
 import * as ctrl from '../../controllers/employee.controller';
-import * as ackCtrl from '../../controllers/policyAcknowledgement.controller';
+// import * as ackCtrl from '../../controllers/policyAcknowledgement.controller';
 import { authenticate, requireRole } from '../../middleware/auth';
 
 router.get('/', authenticate, ctrl.list);
@@ -10,7 +10,7 @@ router.get('/names/staff', authenticate, ctrl.getStaffNames);
 router.get('/onboarding', authenticate, requireRole('admin'), ctrl.listOnboarding);
 router.get('/:id', authenticate, ctrl.get);
 router.get('/:id/payroll-summary', authenticate, requireRole('admin', 'lead'), ctrl.payrollSummary);
-router.get('/:id/acknowledgements', authenticate, requireRole('admin'), ackCtrl.listForEmployeeAdmin);
+// router.get('/:id/acknowledgements', authenticate, requireRole('admin'), ackCtrl.listForEmployeeAdmin);
 
 router.post('/bulkAdd', authenticate, ctrl.createBulk);
 router.post('/', authenticate, requireRole('admin', 'lead'), ctrl.create);

@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import * as policyRepo from '../repositories/policy.repository';
+import * as policyRepo from '../repositories/document.repository';
 import * as employeeRepo from '../repositories/employee.repository';
 
 export async function notifyRejection(ack: { employee_id: number; policy_id: number }, reason: string) {
