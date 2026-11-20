@@ -54,6 +54,7 @@ const options = {
       { name: "Profile", description: "The logged-in employee's own profile" },
       { name: "Departments", description: "Active departments" },
       { name: "Designations", description: "Active designations" },
+      { name: "Org Chart", description: "Reporting structure for the org chart page" },
       { name: "Reports", description: "Monthly report file submissions" },
       { name: "Dashboard", description: "Aggregate stats and trends" },
       {
@@ -5980,6 +5981,66 @@ const options = {
                       },
                     },
                   },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/org-chart": {
+        get: {
+          tags: ["Org Chart"],
+          summary: "List everyone on the org chart",
+          description:
+            "Any logged-in user. Returns a flat list; the client builds the tree from manager_id. " +
+            "Excludes terminated and onboarding employees, and returns only non-sensitive fields. " +
+            "manager_id is cleaned so the list always forms a valid tree: it is null when the " +
+            "manager is not on the chart, and a reporting cycle in old data is broken.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "People on the org chart, sorted by name",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      required: ["id", "name", "manager_id", "status"],
+                      properties: {
+                        id: { type: "integer", example: 4 },
+                        name: { type: "string", example: "Sita Karki" },
+                        profile_picture: {
+                          type: "string",
+                          nullable: true,
+                          description: "File name under /uploads/profile/photo/",
+                          example: "4-1731500000000.jpg",
+                        },
+                        designation: { type: "string", nullable: true, example: "Head of Engineering" },
+                        department_id: { type: "integer", nullable: true, example: 1 },
+                        department: { type: "string", nullable: true, example: "IT" },
+                        manager_id: {
+                          type: "integer",
+                          nullable: true,
+                          description: "null for people at the top of the tree",
+                          example: 1,
+                        },
+                        status: {
+                          type: "string",
+                          enum: ["active", "on_leave", "probation", "offboarding"],
+                          example: "active",
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            401: {
+              description: "Not logged in",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
                 },
               },
             },
