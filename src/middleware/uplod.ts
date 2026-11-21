@@ -4,7 +4,7 @@ import fs from "fs";
 import AppError from "../pkg/AppError";
 
 // Make sure the 'uploads/' directory exists
-const FIELD_DESTINATIONS: Record<string, string> = {
+export const FIELD_DESTINATIONS: Record<string, string> = {
   passportPhoto: "uploads/profile/photo",
   idFront: "uploads/profile/id",
   idBack: "uploads/profile/id",
