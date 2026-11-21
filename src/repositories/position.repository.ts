@@ -1,7 +1,7 @@
 import { eq, and } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { positions, departments, employees } from '../../drizzle/schema';
+import { positions, departments, employees, employeePositions } from '../../drizzle/schema';
 import AppError from '../pkg/AppError';
 
 const MAX_POSITION_CHAIN_DEPTH = 20;
@@ -12,6 +12,7 @@ function insertedId(result: any): number {
 
 const reportsTo = alias(positions, 'reports_to');
 const incumbent = alias(employees, 'incumbent');
+const incumbentLink = alias(employeePositions, 'incumbent_ep');
 
 const positionColumns = {
   id: positions.id,
@@ -81,30 +82,30 @@ export async function findAllActive() {
     .from(positions)
     .leftJoin(departments, eq(positions.departmentId, departments.id))
     .leftJoin(reportsTo as any, eq(positions.reportsToPositionId, reportsTo.id))
-    .leftJoin(incumbent, eq(incumbent.positionId, positions.id))
+    .leftJoin(incumbentLink as any, eq(incumbentLink.positionId, positions.id))
+    .leftJoin(incumbent, eq(incumbent.id, incumbentLink.employeeId))
     .where(eq(positions.isActive, true))
     .orderBy(positions.title);
 }
 
 // Who currently fills this seat, if anyone — a position can legitimately be vacant.
+// position_id is unique in employee_positions, so this is always 0 or 1 person,
+// regardless of whether it's that person's primary or an additional position.
 export async function findIncumbent(positionId: number | string) {
   const rows = await db
     .select({ id: employees.id, name: employees.name, email: employees.email, role: employees.role })
-    .from(employees)
-    .where(eq(employees.positionId, Number(positionId)))
+    .from(employeePositions)
+    .innerJoin(employees, eq(employees.id, employeePositions.employeeId))
+    .where(eq(employeePositions.positionId, Number(positionId)))
     .limit(1);
   return rows[0] || null;
 }
 
-// Walks employee -> position -> reports_to_position -> whoever holds that seat.
-// Returns null if the employee has no position, the position has nothing above it, or that seat is vacant.
+// Walks employee -> primary position -> reports_to_position -> whoever holds that seat.
+// Keys off the primary position only, even for a multiposition employee — this is
+// what leave-approval/notification routing uses, so there's one unambiguous answer.
 export async function findManagerViaPosition(employeeId: number | string) {
-  const empRows = await db
-    .select({ position_id: employees.positionId })
-    .from(employees)
-    .where(eq(employees.id, Number(employeeId)))
-    .limit(1);
-  const positionId = empRows[0]?.position_id;
+  const positionId = await findPrimaryPositionId(employeeId);
   if (!positionId) return null;
 
   const posRows = await db
@@ -116,6 +117,65 @@ export async function findManagerViaPosition(employeeId: number | string) {
   if (!reportsToPositionId) return null;
 
   return findIncumbent(reportsToPositionId);
+}
+
+export async function findPrimaryPositionId(employeeId: number | string) {
+  const rows = await db
+    .select({ position_id: employeePositions.positionId })
+    .from(employeePositions)
+    .where(and(eq(employeePositions.employeeId, Number(employeeId)), eq(employeePositions.isPrimary, true)))
+    .limit(1);
+  return rows[0]?.position_id ?? null;
+}
+
+// All positions a "multiposition worker" currently holds, with is_primary flagged.
+export async function findPositionsForEmployee(employeeId: number | string) {
+  return db
+    .select({
+      id: positions.id,
+      title: positions.title,
+      department_id: positions.departmentId,
+      department_name: departments.name,
+      reports_to_position_id: positions.reportsToPositionId,
+      reports_to_title: reportsTo.title,
+      is_primary: employeePositions.isPrimary,
+    })
+    .from(employeePositions)
+    .innerJoin(positions, eq(employeePositions.positionId, positions.id))
+    .leftJoin(departments, eq(positions.departmentId, departments.id))
+    .leftJoin(reportsTo as any, eq(positions.reportsToPositionId, reportsTo.id))
+    .where(eq(employeePositions.employeeId, Number(employeeId)))
+    .orderBy(positions.title);
+}
+
+export async function addPosition(employeeId: number | string, positionId: number | string, isPrimary: boolean) {
+  await db.transaction(async (tx) => {
+    if (isPrimary) {
+      await tx.update(employeePositions).set({ isPrimary: false }).where(eq(employeePositions.employeeId, Number(employeeId)));
+    }
+    await tx.insert(employeePositions).values({
+      employeeId: Number(employeeId),
+      positionId: Number(positionId),
+      isPrimary,
+      createdAt: new Date(),
+    } as any);
+  });
+}
+
+export async function removePosition(employeeId: number | string, positionId: number | string) {
+  await db
+    .delete(employeePositions)
+    .where(and(eq(employeePositions.employeeId, Number(employeeId)), eq(employeePositions.positionId, Number(positionId))));
+}
+
+export async function setPrimaryPosition(employeeId: number | string, positionId: number | string) {
+  await db.transaction(async (tx) => {
+    await tx.update(employeePositions).set({ isPrimary: false }).where(eq(employeePositions.employeeId, Number(employeeId)));
+    await tx
+      .update(employeePositions)
+      .set({ isPrimary: true })
+      .where(and(eq(employeePositions.employeeId, Number(employeeId)), eq(employeePositions.positionId, Number(positionId))));
+  });
 }
 
 export async function findPositionsReportingTo(positionId: number | string) {

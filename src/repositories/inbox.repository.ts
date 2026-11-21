@@ -10,6 +10,7 @@ import {
   inboxVoicePresence,
   inboxPresence,
   employees,
+  employeePositions,
   positions,
 } from '../../drizzle/schema';
 
@@ -311,7 +312,8 @@ export async function listMessages(channelId: number, limit = 50, before?: Date)
     })
     .from(inboxMessages)
     .innerJoin(employees,    eq(inboxMessages.employeeId, employees.id))
-    .leftJoin(positions,  eq(employees.positionId, positions.id))
+    .leftJoin(employeePositions, and(eq(employeePositions.employeeId, employees.id), eq(employeePositions.isPrimary, true)))
+    .leftJoin(positions,  eq(employeePositions.positionId, positions.id))
     .where(and(...conditions))
     .orderBy(asc(inboxMessages.createdAt))
     .limit(limit);
@@ -406,7 +408,8 @@ export async function getFullMessageById(id: number) {
     })
     .from(inboxMessages)
     .innerJoin(employees,   eq(inboxMessages.employeeId, employees.id))
-    .leftJoin(positions, eq(employees.positionId, positions.id))
+    .leftJoin(employeePositions, and(eq(employeePositions.employeeId, employees.id), eq(employeePositions.isPrimary, true)))
+    .leftJoin(positions, eq(employeePositions.positionId, positions.id))
     .where(and(eq(inboxMessages.id, id), isNull(inboxMessages.deletedAt)))
     .limit(1);
 
@@ -493,7 +496,8 @@ export async function listDmConversations(employeeId: number) {
         WHERE m2.from_employee_id = e.id AND m2.to_employee_id = ${employeeId}
           AND m2.is_read = 0 AND m2.deleted_at IS NULL) AS unread
     FROM employees e
-    LEFT JOIN positions p ON e.position_id = p.id
+    LEFT JOIN employee_positions ep ON ep.employee_id = e.id AND ep.is_primary = 1
+    LEFT JOIN positions p ON ep.position_id = p.id
     WHERE e.id != ${employeeId}
       AND e.status = 'active'
       AND EXISTS (
@@ -693,7 +697,8 @@ export async function getEmployeeDesignation(employeeId: number): Promise<string
   const rows: any[] = await db.execute(sql`
     SELECT p.title
     FROM employees e
-    LEFT JOIN positions p ON e.position_id = p.id
+    LEFT JOIN employee_positions ep ON ep.employee_id = e.id AND ep.is_primary = 1
+    LEFT JOIN positions p ON ep.position_id = p.id
     WHERE e.id = ${employeeId}
   `);
   return ((rows[0] as any[])?.[0]?.title as string) ?? '';
@@ -704,7 +709,8 @@ export async function getEmployeesByIds(ids: number[]): Promise<{ id: number; na
   const rows: any[] = await db.execute(sql`
     SELECT e.id, e.name, COALESCE(p.title, '') AS designation
     FROM employees e
-    LEFT JOIN positions p ON e.position_id = p.id
+    LEFT JOIN employee_positions ep ON ep.employee_id = e.id AND ep.is_primary = 1
+    LEFT JOIN positions p ON ep.position_id = p.id
     WHERE e.id IN (${sql.raw(ids.join(','))})
   `);
   return (rows[0] as any[]) ?? [];

@@ -7,6 +7,7 @@ import {
   employeeDocuments,
   departments,
   positions,
+  employeePositions,
   leaveRequests,
 } from "../../drizzle/schema";
 import type {
@@ -30,7 +31,9 @@ function insertedId(result: any): number {
 
 const manager = alias(employees, "manager");
 const ownPosition = alias(positions, "own_position");
+const ownPositionLink = alias(employeePositions, "own_position_link");
 const reportsToPosition = alias(positions, "reports_to_position");
+const managerPositionLink = alias(employeePositions, "manager_position_link");
 const docPic = alias(employeeDocuments, "doc_pic");
 const docIdFront = alias(employeeDocuments, "doc_id_front");
 const docIdBack = alias(employeeDocuments, "doc_id_back");
@@ -48,7 +51,7 @@ const BASE_COLUMNS = {
   department_id: ownPosition.departmentId,
   department: departments.name,
   manager_id: manager.id,
-  position_id: employees.positionId,
+  position_id: ownPosition.id,
   start_date: employees.startDate,
   dob: employees.dob,
   gender: employees.gender,
@@ -85,10 +88,12 @@ function withDocJoins<T extends { leftJoin: any }>(query: T): T {
 // -> whoever currently holds that seat, for manager_id/manager_name.
 function withPositionJoins<T extends { leftJoin: any }>(query: T): T {
   return query
-    .leftJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .leftJoin(ownPositionLink as any, and(eq(ownPositionLink.employeeId, employees.id), eq(ownPositionLink.isPrimary, true)))
+    .leftJoin(ownPosition as any, eq(ownPositionLink.positionId, ownPosition.id))
     .leftJoin(departments, eq(ownPosition.departmentId, departments.id))
     .leftJoin(reportsToPosition, eq(ownPosition.reportsToPositionId, reportsToPosition.id))
-    .leftJoin(manager, eq(manager.positionId, reportsToPosition.id));
+    .leftJoin(managerPositionLink as any, eq(managerPositionLink.positionId, reportsToPosition.id))
+    .leftJoin(manager, eq(manager.id, managerPositionLink.employeeId));
 }
 
 function baseQuery() {
@@ -147,7 +152,8 @@ export async function findForTeamAccess() {
       start_date: employees.startDate,
     })
     .from(employees)
-    .leftJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .leftJoin(ownPositionLink as any, and(eq(ownPositionLink.employeeId, employees.id), eq(ownPositionLink.isPrimary, true)))
+    .leftJoin(ownPosition as any, eq(ownPositionLink.positionId, ownPosition.id))
     .where(ACTIVE_ROSTER)
     .orderBy(employees.name);
 }
@@ -184,28 +190,22 @@ export async function findAdmins() {
     .where(and(eq(employees.role, "admin"), ACTIVE_ROSTER));
 }
 
-// Employees whose position reports to this employee's own position.
+// Employees whose primary position reports to this employee's own primary position.
 export async function findDirectReportIds(employeeId: number | string) {
   const [self] = await db
-    .select({ position_id: employees.positionId })
-    .from(employees)
-    .where(eq(employees.id, Number(employeeId)))
+    .select({ position_id: employeePositions.positionId })
+    .from(employeePositions)
+    .where(and(eq(employeePositions.employeeId, Number(employeeId)), eq(employeePositions.isPrimary, true)))
     .limit(1);
   if (!self?.position_id) return [];
 
   const rows = await db
     .select({ id: employees.id })
     .from(employees)
-    .innerJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .innerJoin(ownPositionLink as any, and(eq(ownPositionLink.employeeId, employees.id), eq(ownPositionLink.isPrimary, true)))
+    .innerJoin(ownPosition as any, eq(ownPositionLink.positionId, ownPosition.id))
     .where(and(eq(ownPosition.reportsToPositionId, self.position_id), ACTIVE_ROSTER));
   return rows.map((r) => r.id);
-}
-
-export async function assignPosition(employeeId: number | string, positionId: number | null) {
-  await db
-    .update(employees)
-    .set({ positionId })
-    .where(eq(employees.id, Number(employeeId)));
 }
 
 export async function findBySecondaryEmail(email: string) {
@@ -228,7 +228,8 @@ export async function findAuthByEmail(email: string) {
       two_factor_enabled: employees.twoFactorEnabled,
     })
     .from(employees)
-    .leftJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .leftJoin(ownPositionLink as any, and(eq(ownPositionLink.employeeId, employees.id), eq(ownPositionLink.isPrimary, true)))
+    .leftJoin(ownPosition as any, eq(ownPositionLink.positionId, ownPosition.id))
     .leftJoin(departments, eq(ownPosition.departmentId, departments.id))
     .where(and(eq(employees.email, email), ACTIVE_ROSTER))
     .limit(1);
@@ -247,7 +248,8 @@ export async function findAuthById(id: number) {
       password_hash: employees.passwordHash,
     })
     .from(employees)
-    .leftJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .leftJoin(ownPositionLink as any, and(eq(ownPositionLink.employeeId, employees.id), eq(ownPositionLink.isPrimary, true)))
+    .leftJoin(ownPosition as any, eq(ownPositionLink.positionId, ownPosition.id))
     .leftJoin(departments, eq(ownPosition.departmentId, departments.id))
     .where(and(eq(employees.id, id), ACTIVE_ROSTER))
     .limit(1);
@@ -483,7 +485,8 @@ export async function findPayrollBaseById(id: number | string) {
       start_date: employees.startDate,
     })
     .from(employees)
-    .leftJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .leftJoin(ownPositionLink as any, and(eq(ownPositionLink.employeeId, employees.id), eq(ownPositionLink.isPrimary, true)))
+    .leftJoin(ownPosition as any, eq(ownPositionLink.positionId, ownPosition.id))
     .leftJoin(departments, eq(ownPosition.departmentId, departments.id))
     .leftJoin(
       employeeCompensationHistory,
@@ -513,7 +516,8 @@ export async function findPayrollColumns(id: number | string | null) {
   return db
     .select(cols)
     .from(employees)
-    .leftJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .leftJoin(ownPositionLink as any, and(eq(ownPositionLink.employeeId, employees.id), eq(ownPositionLink.isPrimary, true)))
+    .leftJoin(ownPosition as any, eq(ownPositionLink.positionId, ownPosition.id))
     .leftJoin(departments, eq(ownPosition.departmentId, departments.id))
     .leftJoin(
       employeeCompensationHistory,

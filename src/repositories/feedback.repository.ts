@@ -1,7 +1,7 @@
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { feedbackNotes, employees, positions, projects } from '../../drizzle/schema';
+import { feedbackNotes, employees, employeePositions, positions, projects } from '../../drizzle/schema';
 
 const feedbackNotesColumns = {
   id: feedbackNotes.id,
@@ -22,6 +22,8 @@ const sender = alias(employees, 'fb_from');
 const recipient = alias(employees, 'fb_to');
 const senderPosition = alias(positions, 'fb_from_pos');
 const recipientPosition = alias(positions, 'fb_to_pos');
+const senderPositionLink = alias(employeePositions, 'fb_from_ep');
+const recipientPositionLink = alias(employeePositions, 'fb_to_ep');
 
 export async function findFeed({
   scope,
@@ -49,9 +51,11 @@ export async function findFeed({
     })
     .from(feedbackNotes)
     .innerJoin(sender, eq(feedbackNotes.fromEmployeeId, sender.id))
-    .leftJoin(senderPosition as any, eq(sender.positionId, senderPosition.id))
+    .leftJoin(senderPositionLink as any, and(eq(senderPositionLink.employeeId, sender.id), eq(senderPositionLink.isPrimary, true)))
+    .leftJoin(senderPosition as any, eq(senderPositionLink.positionId, senderPosition.id))
     .innerJoin(recipient, eq(feedbackNotes.toEmployeeId, recipient.id))
-    .leftJoin(recipientPosition as any, eq(recipient.positionId, recipientPosition.id))
+    .leftJoin(recipientPositionLink as any, and(eq(recipientPositionLink.employeeId, recipient.id), eq(recipientPositionLink.isPrimary, true)))
+    .leftJoin(recipientPosition as any, eq(recipientPositionLink.positionId, recipientPosition.id))
     .leftJoin(projects, eq(feedbackNotes.projectId, projects.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(feedbackNotes.createdAt))

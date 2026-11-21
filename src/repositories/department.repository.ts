@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "../config/database";
-import { departments, positions, employees } from "../../drizzle/schema";
+import { departments, positions, employees, employeePositions } from "../../drizzle/schema";
 
 // All active departments, sorted by name — includes the designated head
 // position and whoever currently holds it, if anyone ("no head" shows as nulls).
@@ -16,7 +16,8 @@ export async function findAllActive() {
     })
     .from(departments)
     .leftJoin(positions, eq(departments.headPositionId, positions.id))
-    .leftJoin(employees, eq(employees.positionId, positions.id))
+    .leftJoin(employeePositions, eq(employeePositions.positionId, positions.id))
+    .leftJoin(employees, eq(employees.id, employeePositions.employeeId))
     .where(eq(departments.isActive, true))
     .orderBy(asc(departments.name));
 }
@@ -53,7 +54,8 @@ export async function findHeadIncumbent(departmentId: number | string) {
     .select({ id: employees.id, name: employees.name, email: employees.email, role: employees.role })
     .from(departments)
     .innerJoin(positions, eq(departments.headPositionId, positions.id))
-    .innerJoin(employees, eq(employees.positionId, positions.id))
+    .innerJoin(employeePositions, eq(employeePositions.positionId, positions.id))
+    .innerJoin(employees, eq(employees.id, employeePositions.employeeId))
     .where(eq(departments.id, Number(departmentId)))
     .limit(1);
   return rows[0] || null;

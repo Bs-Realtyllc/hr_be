@@ -1,7 +1,7 @@
 import { eq, and, sql, desc, inArray } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { leaveRequests, leaveBalances, employees, positions, departments, employeeDocuments } from '../../drizzle/schema';
+import { leaveRequests, leaveBalances, employees, employeePositions, positions, departments, employeeDocuments } from '../../drizzle/schema';
 
 const leaveBalancesColumns = {
   id: leaveBalances.id,
@@ -34,6 +34,7 @@ function insertedId(result: any): number {
 const requester = alias(employees, 'lr_employee');
 const reviewer = alias(employees, 'lr_reviewer');
 const requesterPosition = alias(positions, 'lr_employee_pos');
+const requesterPositionLink = alias(employeePositions, 'lr_employee_ep');
 const requesterDepartment = alias(departments, 'lr_employee_dept');
 const requesterDoc = alias(employeeDocuments, 'lr_employee_doc');
 
@@ -64,7 +65,8 @@ export async function findWithNames({
     })
     .from(leaveRequests)
     .innerJoin(requester, eq(leaveRequests.employeeId, requester.id))
-    .leftJoin(requesterPosition as any, eq(requester.positionId, requesterPosition.id))
+    .leftJoin(requesterPositionLink as any, and(eq(requesterPositionLink.employeeId, requester.id), eq(requesterPositionLink.isPrimary, true)))
+    .leftJoin(requesterPosition as any, eq(requesterPositionLink.positionId, requesterPosition.id))
     .leftJoin(reviewer, eq(leaveRequests.reviewedBy, reviewer.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(leaveRequests.createdAt));
@@ -132,7 +134,8 @@ export async function findOutToday(today: string) {
     })
     .from(leaveRequests)
     .innerJoin(requester, eq(leaveRequests.employeeId, requester.id))
-    .leftJoin(requesterPosition as any, eq(requester.positionId, requesterPosition.id))
+    .leftJoin(requesterPositionLink as any, and(eq(requesterPositionLink.employeeId, requester.id), eq(requesterPositionLink.isPrimary, true)))
+    .leftJoin(requesterPosition as any, eq(requesterPositionLink.positionId, requesterPosition.id))
     .leftJoin(requesterDoc, and(eq(requesterDoc.empId, requester.id), eq(requesterDoc.name, 'profile_picture')))
     .where(and(eq(leaveRequests.status, 'approved'), sql`${today} BETWEEN ${leaveRequests.startDate} AND ${leaveRequests.endDate}`));
 }
@@ -148,7 +151,8 @@ export async function findOutInRange(rangeStart: string, rangeEnd: string) {
     })
     .from(leaveRequests)
     .innerJoin(requester, eq(leaveRequests.employeeId, requester.id))
-    .leftJoin(requesterPosition as any, eq(requester.positionId, requesterPosition.id))
+    .leftJoin(requesterPositionLink as any, and(eq(requesterPositionLink.employeeId, requester.id), eq(requesterPositionLink.isPrimary, true)))
+    .leftJoin(requesterPosition as any, eq(requesterPositionLink.positionId, requesterPosition.id))
     .where(
       and(
         eq(leaveRequests.status, 'approved'),
@@ -213,7 +217,8 @@ export async function findWithEmployeeById(id: number | string) {
     })
     .from(leaveRequests)
     .innerJoin(requester, eq(leaveRequests.employeeId, requester.id))
-    .leftJoin(requesterPosition as any, eq(requester.positionId, requesterPosition.id))
+    .leftJoin(requesterPositionLink as any, and(eq(requesterPositionLink.employeeId, requester.id), eq(requesterPositionLink.isPrimary, true)))
+    .leftJoin(requesterPosition as any, eq(requesterPositionLink.positionId, requesterPosition.id))
     .leftJoin(requesterDepartment as any, eq(requesterPosition.departmentId, requesterDepartment.id))
     .where(eq(leaveRequests.id, Number(id)))
     .limit(1);

@@ -1,7 +1,7 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { goals, employees, positions, departments } from '../../drizzle/schema';
+import { goals, employees, employeePositions, positions, departments } from '../../drizzle/schema';
 
 const goalsColumns = {
   id: goals.id,
@@ -52,7 +52,8 @@ export async function findWithNames({
     })
     .from(goals)
     .innerJoin(employees, eq(goals.employeeId, employees.id))
-    .leftJoin(positions, eq(employees.positionId, positions.id))
+    .leftJoin(employeePositions, and(eq(employeePositions.employeeId, employees.id), eq(employeePositions.isPrimary, true)))
+    .leftJoin(positions, eq(employeePositions.positionId, positions.id))
     .leftJoin(departments, eq(positions.departmentId, departments.id))
     .leftJoin(creator, eq(goals.createdBy, creator.id))
     .where(conditions.length ? and(...conditions) : undefined)

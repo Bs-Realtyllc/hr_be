@@ -110,6 +110,25 @@ export const positions = mysqlTable("positions", {
 export type Position = typeof positions.$inferSelect;
 export type NewPosition = typeof positions.$inferInsert;
 
+// One row per position an employee holds — a seat still has exactly one
+// incumbent (position_id is unique below), but a person can hold several
+// seats at once (a "multiposition worker"), each keeping its own reports-to
+// chain since that lives on the position, not here.
+export const employeePositions = mysqlTable("employee_positions", {
+	id: int().autoincrement().notNull(),
+	employeeId: int("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" } ),
+	positionId: int("position_id").notNull().references(() => positions.id, { onDelete: "cascade" } ),
+	isPrimary: boolean("is_primary").default(false),
+	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+},
+(table) => [
+	index("employee_id").on(table.employeeId),
+	primaryKey({ columns: [table.id], name: "employee_positions_id"}),
+	unique("position_id").on(table.positionId),
+]);
+export type EmployeePosition = typeof employeePositions.$inferSelect;
+export type NewEmployeePosition = typeof employeePositions.$inferInsert;
+
 export const emailSettings = mysqlTable("email_settings", {
 	id: int().autoincrement().notNull(),
 	employeeId: int("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" } ),
@@ -326,9 +345,6 @@ export const employees = mysqlTable("employees", {
 	phone: varchar({ length: 20 }),
 	// emergencyContact: varchar("emergency_contact", { length: 150 }),
 	profilePicture: varchar("profile_picture", { length: 255 }),
-	// The seat this employee currently fills — title, department, and manager
-	// are all derived from this (see position.repository.ts: findManagerViaPosition).
-	positionId: int("position_id").references(() => positions.id, { onDelete: "set null" } ),
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
 	startDate: date("start_date", { mode: 'string' }),
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
@@ -372,7 +388,6 @@ export const employees = mysqlTable("employees", {
 	previousExperienceInfo: json("previous_experience_info").$type<PreviousExperienceEntry[]| null>(),
 },
 (table) => [
-	index("position_id").on(table.positionId),
 	primaryKey({ columns: [table.id], name: "employees_id"}),
 	unique("email").on(table.email),
 	unique("discord_username").on(table.discordUsername),

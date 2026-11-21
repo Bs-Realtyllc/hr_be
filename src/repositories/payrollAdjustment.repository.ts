@@ -1,6 +1,6 @@
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { db } from '../config/database';
-import { payrollAdjustments, employees, positions } from '../../drizzle/schema';
+import { payrollAdjustments, employees, employeePositions, positions } from '../../drizzle/schema';
 
 const payrollAdjustmentsColumns = {
   id: payrollAdjustments.id,
@@ -82,7 +82,8 @@ export async function findAll({
     })
     .from(payrollAdjustments)
     .innerJoin(employees, eq(payrollAdjustments.employeeId, employees.id))
-    .leftJoin(positions, eq(employees.positionId, positions.id))
+    .leftJoin(employeePositions, and(eq(employeePositions.employeeId, employees.id), eq(employeePositions.isPrimary, true)))
+    .leftJoin(positions, eq(employeePositions.positionId, positions.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(payrollAdjustments.createdAt));
 }

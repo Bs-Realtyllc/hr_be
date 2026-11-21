@@ -1,6 +1,6 @@
 import { eq, and, gt, gte, lte, or, sql, desc } from 'drizzle-orm';
 import { db } from '../config/database';
-import { monthlyReports, employees, positions, departments } from '../../drizzle/schema';
+import { monthlyReports, employees, employeePositions, positions, departments } from '../../drizzle/schema';
 
 const monthlyReportsColumns = {
   id: monthlyReports.id,
@@ -60,7 +60,8 @@ export async function findWithEmployeeNames({
     })
     .from(monthlyReports)
     .innerJoin(employees, eq(monthlyReports.employeeId, employees.id))
-    .leftJoin(positions, eq(employees.positionId, positions.id))
+    .leftJoin(employeePositions, and(eq(employeePositions.employeeId, employees.id), eq(employeePositions.isPrimary, true)))
+    .leftJoin(positions, eq(employeePositions.positionId, positions.id))
     .leftJoin(departments, eq(positions.departmentId, departments.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(monthlyReports.year), desc(monthlyReports.month), desc(monthlyReports.submittedAt));

@@ -168,17 +168,53 @@ export async function remove(id: string, actorId: number | null) {
   await employeeRepo.deactivate(id, actorId);
 }
 
-export async function assignPosition(employeeId: string, positionId: number | null) {
-  let position = null;
-  if (positionId != null) {
-    position = await positionRepo.findById(positionId);
-    if (!position) throw new AppError("Position not found", 404);
+export async function listPositions(employeeId: string) {
+  return positionRepo.findPositionsForEmployee(employeeId);
+}
+
+export async function addPosition(employeeId: string, positionId: number, isPrimary: boolean) {
+  const position = await positionRepo.findById(positionId);
+  if (!position) throw new AppError("Position not found", 404);
+
+  const existingIncumbent = await positionRepo.findIncumbent(positionId);
+  if (existingIncumbent) {
+    throw new AppError(
+      String(existingIncumbent.id) === String(employeeId)
+        ? "This employee already holds this position"
+        : `${existingIncumbent.name} already holds this position`,
+      400
+    );
   }
 
   const employee = await employeeRepo.findById(employeeId);
-  await employeeRepo.assignPosition(employeeId, positionId);
+  await positionRepo.addPosition(employeeId, positionId, isPrimary);
 
-  if (employee) notifyPositionChangedIfNeeded(employee, position);
+  if (employee && isPrimary) notifyPositionChangedIfNeeded(employee, position);
+}
+
+export async function removePosition(employeeId: string, positionId: number) {
+  const positions = await positionRepo.findPositionsForEmployee(employeeId);
+  const target = positions.find((p) => p.id === positionId);
+  if (!target) throw new AppError("Employee does not hold this position", 404);
+
+  await positionRepo.removePosition(employeeId, positionId);
+
+  if (target.is_primary) {
+    const employee = await employeeRepo.findById(employeeId);
+    if (employee) notifyPositionChangedIfNeeded(employee, null);
+  }
+}
+
+export async function setPrimaryPosition(employeeId: string, positionId: number) {
+  const positions = await positionRepo.findPositionsForEmployee(employeeId);
+  const target = positions.find((p) => p.id === positionId);
+  if (!target) throw new AppError("Employee does not hold this position", 404);
+  if (target.is_primary) return;
+
+  await positionRepo.setPrimaryPosition(employeeId, positionId);
+
+  const employee = await employeeRepo.findById(employeeId);
+  if (employee) notifyPositionChangedIfNeeded(employee, target);
 }
 
 async function notifyPositionChangedIfNeeded(

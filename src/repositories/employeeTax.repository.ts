@@ -1,6 +1,6 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../config/database';
-import { employees, employeeCompensationHistory, employeeTaxProfiles, departments, positions } from '../../drizzle/schema';
+import { employees, employeeCompensationHistory, employeeTaxProfiles, departments, employeePositions, positions } from '../../drizzle/schema';
 
 const ACTIVE_ROSTER = sql`${employees.status} NOT IN ('onboarding', 'terminated')`;
 
@@ -20,7 +20,8 @@ export async function findAllWithProfile(id: number | string | null | undefined,
       tax_perc: employeeTaxProfiles.taxPerc,
     })
     .from(employees)
-    .leftJoin(positions, eq(employees.positionId, positions.id))
+    .leftJoin(employeePositions, and(eq(employeePositions.employeeId, employees.id), eq(employeePositions.isPrimary, true)))
+    .leftJoin(positions, eq(employeePositions.positionId, positions.id))
     .leftJoin(departments, eq(positions.departmentId, departments.id))
     .leftJoin(
       employeeCompensationHistory,

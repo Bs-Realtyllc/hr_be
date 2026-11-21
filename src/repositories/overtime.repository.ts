@@ -1,7 +1,7 @@
 import { eq, and, desc, isNull, ne, inArray } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { overtimeRequests, overtimeRequestSessions, employees, positions, projects, employeeDailyClock } from '../../drizzle/schema';
+import { overtimeRequests, overtimeRequestSessions, employees, employeePositions, positions, projects, employeeDailyClock } from '../../drizzle/schema';
 
 const overtimeRequestsColumns = {
   id: overtimeRequests.id,
@@ -35,6 +35,7 @@ const requester = alias(employees, 'ot_employee');
 const reviewer = alias(employees, 'ot_reviewer');
 const reconciler = alias(employees, 'ot_reconciler');
 const requesterPosition = alias(positions, 'ot_employee_pos');
+const requesterPositionLink = alias(employeePositions, 'ot_employee_ep');
 
 export async function findWithNames({ employeeId, status }: { employeeId?: number | string; status?: string }) {
   const conditions = [];
@@ -52,7 +53,8 @@ export async function findWithNames({ employeeId, status }: { employeeId?: numbe
     })
     .from(overtimeRequests)
     .innerJoin(requester, eq(overtimeRequests.employeeId, requester.id))
-    .leftJoin(requesterPosition as any, eq(requester.positionId, requesterPosition.id))
+    .leftJoin(requesterPositionLink as any, and(eq(requesterPositionLink.employeeId, requester.id), eq(requesterPositionLink.isPrimary, true)))
+    .leftJoin(requesterPosition as any, eq(requesterPositionLink.positionId, requesterPosition.id))
     .leftJoin(projects, eq(overtimeRequests.projectId, projects.id))
     .leftJoin(reviewer, eq(overtimeRequests.reviewedBy, reviewer.id))
     .leftJoin(reconciler, eq(overtimeRequests.reconciledBy, reconciler.id))
