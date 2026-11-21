@@ -172,6 +172,21 @@ export async function findLeads() {
     .where(and(eq(employees.role, "lead"), ACTIVE_ROSTER));
 }
 
+export async function findAdmins() {
+  return db
+    .select({ id: employees.id, name: employees.name, email: employees.email })
+    .from(employees)
+    .where(and(eq(employees.role, "admin"), ACTIVE_ROSTER));
+}
+
+export async function findDirectReportIds(managerId: number | string) {
+  const rows = await db
+    .select({ id: employees.id })
+    .from(employees)
+    .where(and(eq(employees.managerId, Number(managerId)), ACTIVE_ROSTER));
+  return rows.map((r) => r.id);
+}
+
 export async function findBySecondaryEmail(email: string) {
   const rows = await baseQuery()
     .where(eq(employees.secondaryEmail, email))
@@ -392,7 +407,7 @@ export async function seedLeaveBalances(
   year: number,
 ) {
   await db.execute(sql`
-    INSERT INTO leave_balances (employee_id, leave_type, total, taken, year) VALUES
+    INSERT IGNORE INTO leave_balances (employee_id, leave_type, total, taken, year) VALUES
      (${employeeId}, 'sick', 12, 0, ${year}),
      (${employeeId}, 'bereavement', 3, 0, ${year}),
      (${employeeId}, 'maternity', 60, 0, ${year}),
