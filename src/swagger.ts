@@ -53,7 +53,6 @@ const options = {
       },
       { name: "Profile", description: "The logged-in employee's own profile" },
       { name: "Departments", description: "Active departments" },
-      { name: "Designations", description: "Active designations" },
       { name: "Reports", description: "Monthly report file submissions" },
       { name: "Dashboard", description: "Aggregate stats and trends" },
       {
@@ -212,7 +211,7 @@ const options = {
           type: "object",
           required: ["name", "email"],
           description:
-            "Department and designation are given by name and are created if they don't exist yet.",
+            "Title/department/manager are not set here — assign the employee to a Position afterward via PUT /employees/{id}/position.",
           properties: {
             name: { type: "string" },
             email: { type: "string", format: "email" },
@@ -221,10 +220,7 @@ const options = {
               format: "email",
               nullable: true,
             },
-            manager_id: { type: "integer", minimum: 1, nullable: true },
             start_date: { type: "string", format: "date", nullable: true },
-            designation: { type: "string", nullable: true },
-            department: { type: "string", nullable: true },
             status: { $ref: "#/components/schemas/EmployeeStatus" },
             role: {
               $ref: "#/components/schemas/EmployeeRole",
@@ -271,23 +267,7 @@ const options = {
             address: { type: "string", nullable: true },
             github_url: { type: "string", nullable: true },
             discord_username: { type: "string", nullable: true },
-            manager_id: {
-              type: "integer",
-              minimum: 1,
-              nullable: true,
-              description: "Rejected if it would create a reporting cycle.",
-            },
             start_date: { type: "string", format: "date", nullable: true },
-            designation: {
-              type: "string",
-              nullable: true,
-              description: "Title; created if new.",
-            },
-            department: {
-              type: "string",
-              nullable: true,
-              description: "Name; created if new.",
-            },
             education_level: { type: "string", nullable: true },
             institution_name: { type: "string", nullable: true },
             field_of_study: { type: "string", nullable: true },
@@ -2113,7 +2093,7 @@ const options = {
         NotificationPreference: {
           type: "object",
           description:
-            "One row per notification type relevant to the caller's role. `group` controls which UI section a type belongs to: `security` (login/password alerts) or `email` (everything else). Full type → label → group → audience mapping: new_login_detected → \"New Login Detected\" (security, all roles); password_changed → \"Password Changed\" (security, all roles); employee_updates → \"Role, Department & Salary Changes\" (email, all roles — fires whenever the caller's own designation, department, or salary/pay details are updated by an admin, every time, not just the first time); leave_request → \"Leave Request Status\" (email, employee/intern — fires when their own leave request is approved/rejected); overtime_request → \"Overtime Request Status\" (email, employee/intern — same, for overtime); documents_signature → \"Signed Document Rejected\" (email, employee/intern — fires only when a signed document they submitted is rejected; there is no separate \"ready to sign\" notification); onboarding_updated → \"Onboarding Updated\" (email, employee/intern — fires on onboarding approval); offboarding_updated → \"Offboarding Updated\" (email, employee/intern — fires on both offboarding start and completion); leave_request_submitted → \"New Leave Request to Review\" (email, lead only — fires when any employee/intern submits a leave request, sent to every lead regardless of reporting chain); overtime_request_submitted → \"New Overtime Request to Review\" (email, lead only — same, for overtime). So admin sees only the 2 security types + employee_updates; lead additionally sees the 2 *_submitted types; employee/intern see security + employee_updates + the 5 requester types. Note: even when `enabled` is true, no email is actually sent unless the server's MAIL_HOST is configured — this flag only controls whether a configured mail server is used for that recipient/type.",
+            "One row per notification type relevant to the caller's role. `group` controls which UI section a type belongs to: `security` (login/password alerts) or `email` (everything else). Full type → label → group → audience mapping: new_login_detected → \"New Login Detected\" (security, all roles); password_changed → \"Password Changed\" (security, all roles); employee_updates → \"Role, Position & Salary Changes\" (email, all roles — fires whenever the caller's own position (title/department/manager), role, or salary/pay details are updated by an admin, every time, not just the first time); leave_request → \"Leave Request Status\" (email, employee/intern — fires when their own leave request is approved/rejected); overtime_request → \"Overtime Request Status\" (email, employee/intern — same, for overtime); documents_signature → \"Signed Document Rejected\" (email, employee/intern — fires only when a signed document they submitted is rejected; there is no separate \"ready to sign\" notification); onboarding_updated → \"Onboarding Updated\" (email, employee/intern — fires on onboarding approval); offboarding_updated → \"Offboarding Updated\" (email, employee/intern — fires on both offboarding start and completion); leave_request_submitted → \"New Leave Request to Review\" (email, lead/admin — fires when any employee/intern submits a leave request, sent to the requester's position-derived manager, falling back to their department head, then all admins); overtime_request_submitted → \"New Overtime Request to Review\" (email, lead only — same, for overtime, still sent to every lead regardless of reporting chain). So admin sees only the 2 security types + employee_updates; lead additionally sees the 2 *_submitted types; employee/intern see security + employee_updates + the 5 requester types. Note: even when `enabled` is true, no email is actually sent unless the server's MAIL_HOST is configured — this flag only controls whether a configured mail server is used for that recipient/type.",
           properties: {
             type: {
               type: "string",
@@ -2325,7 +2305,7 @@ const options = {
                   example: [
                     { type: "new_login_detected", group: "security", label: "New Login Detected", description: "Email me when my account is signed into from a device or location not seen before.", enabled: true },
                     { type: "password_changed", group: "security", label: "Password Changed", description: "Email me a confirmation whenever my account password is changed.", enabled: true },
-                    { type: "employee_updates", group: "email", label: "Role, Department & Salary Changes", description: "Email me whenever my own designation, department, or salary/pay details are updated by an admin.", enabled: true },
+                    { type: "employee_updates", group: "email", label: "Role, Position & Salary Changes", description: "Email me whenever my own position, role, or salary/pay details are updated by an admin.", enabled: true },
                     { type: "leave_request", group: "email", label: "Leave Request Status", description: "Email me when a leave request I submitted is approved or rejected.", enabled: true },
                     { type: "overtime_request", group: "email", label: "Overtime Request Status", description: "Email me when an overtime request I submitted is approved or rejected.", enabled: false },
                     { type: "documents_signature", group: "email", label: "Signed Document Rejected", description: "Email me if a signed document I submitted gets rejected and needs to be corrected.", enabled: true },
@@ -3545,7 +3525,7 @@ const options = {
           tags: ["Employees"],
           summary: "Update an employee",
           description:
-            "If designation or department changes, emails the employee an employee_updates notification if that preference is enabled (see /api/notifications/preferences). Admin or lead for most fields — partial update, department and designation are set by name (created if new). The `role` field is stricter: it's admin-only even though the rest of this endpoint is open to leads, and a caller can never change their own role — not even an admin — to prevent accidental self-lockout.",
+            "Title, department, and reporting manager are not editable here — they're derived from the employee's assigned Position (see PUT /employees/{id}/position, admin-only), which also emails the employee an employee_updates notification if that preference is enabled (see /api/notifications/preferences). Admin or lead for the fields in this request. The `role` field is stricter: it's admin-only even though the rest of this endpoint is open to leads, and a caller can never change their own role — not even an admin — to prevent accidental self-lockout.",
             security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -5879,33 +5859,6 @@ const options = {
                       properties: {
                         id: { type: "integer", example: 1 },
                         name: { type: "string", example: "Engineering" },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      "/api/designations": {
-        get: {
-          tags: ["Designations"],
-          summary: "List active designations",
-          description: "Any logged-in user. Only rows with is_active = true, sorted by name.",
-          security: [{ bearerAuth: [] }],
-          responses: {
-            200: {
-              description: "List of designations",
-              content: {
-                "application/json": {
-                  schema: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "integer", example: 1 },
-                        name: { type: "string", example: "Software Engineer" },
                       },
                     },
                   },
