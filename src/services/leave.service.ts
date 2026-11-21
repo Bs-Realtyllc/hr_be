@@ -30,20 +30,15 @@ async function notifyLeaveStatusIfNeeded(employeeId: number, status: 'approved' 
   }
 }
 
-// Resolves who should review a new request: the position-derived manager first
-// (if the requester has been assigned a seat), then their direct manager_id
-// (for anyone not yet migrated to a position), then their department head,
-// falling back to all admins if none of those resolve to someone who can
-// actually approve (i.e. holds the lead/admin role).
+// Resolves who should review a new request: the position-derived manager
+// first, then their department head, falling back to all admins if neither
+// resolves to someone who can actually approve (i.e. holds the lead/admin role).
 async function resolveApprovers(requester: any): Promise<any[]> {
   const qualifies = (person: any) => person && ['admin', 'lead'].includes(person.role);
 
   if (requester.position_id != null) {
     const positionManager = await positionRepo.findManagerViaPosition(requester.id);
     if (qualifies(positionManager)) return [positionManager];
-  } else if (requester.manager_id) {
-    const directManager = await employeeRepo.findById(requester.manager_id);
-    if (qualifies(directManager)) return [directManager];
   }
 
   if (requester.department_id) {
@@ -326,14 +321,9 @@ export async function report() {
 async function assertCanReview(leave: any, user: AuthUser) {
   if (user.role === 'admin') return;
 
-  const requester = await employeeRepo.findById(leave.employee_id);
-  if (requester) {
-    if (requester.position_id != null) {
-      const manager = await positionRepo.findManagerViaPosition(requester.id);
-      if (manager?.id === user.id) return;
-    } else if (requester.manager_id === user.id) {
-      return;
-    }
+  if (leave.employee_id) {
+    const manager = await positionRepo.findManagerViaPosition(leave.employee_id);
+    if (manager?.id === user.id) return;
   }
 
   throw new AppError('You can only approve or reject leave requests for your direct reports', 403);

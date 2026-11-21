@@ -21,6 +21,20 @@ export async function findAllActive() {
     .orderBy(asc(departments.name));
 }
 
+function insertedId(result: any): number {
+  return result[0].insertId as number;
+}
+
+export async function create(name: string) {
+  const result = await db.insert(departments).values({ name, isActive: true, createdAt: new Date() });
+  return insertedId(result);
+}
+
+export async function findByName(name: string) {
+  const rows = await db.select().from(departments).where(eq(departments.name, name)).limit(1);
+  return rows[0] || null;
+}
+
 export async function setHead(departmentId: number | string, headPositionId: number | null) {
   await db
     .update(departments)

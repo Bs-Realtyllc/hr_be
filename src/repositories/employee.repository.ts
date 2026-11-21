@@ -184,11 +184,20 @@ export async function findAdmins() {
     .where(and(eq(employees.role, "admin"), ACTIVE_ROSTER));
 }
 
-export async function findDirectReportIds(managerId: number | string) {
+// Employees whose position reports to this employee's own position.
+export async function findDirectReportIds(employeeId: number | string) {
+  const [self] = await db
+    .select({ position_id: employees.positionId })
+    .from(employees)
+    .where(eq(employees.id, Number(employeeId)))
+    .limit(1);
+  if (!self?.position_id) return [];
+
   const rows = await db
     .select({ id: employees.id })
     .from(employees)
-    .where(and(eq(employees.managerId, Number(managerId)), ACTIVE_ROSTER));
+    .innerJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .where(and(eq(ownPosition.reportsToPositionId, self.position_id), ACTIVE_ROSTER));
   return rows.map((r) => r.id);
 }
 
@@ -716,9 +725,6 @@ interface BulkEmployeeInput {
   secondary_email?: string | null;
   phone?: string | null;
   emergency_contact?: string | null;
-  designation?: string | null;
-  department?: string | null;
-  manager_id?: number | null;
   start_date?: string | null;
   dob?: string | null;
   github_url?: string | null;
@@ -762,10 +768,6 @@ function validateBulkEmployee(data: BulkEmployeeInput, index: number) {
     );
   }
 
-  if (data.manager_id != null && Number(data.manager_id) < 1) {
-    errors.push(`Row ${index}: 'manager_id' must be a positive number`);
-  }
-
   return errors;
 }
 
@@ -788,46 +790,9 @@ export async function createBulk(
   }
 
   return db.transaction(async (tx) => {
-    //for now - don not accept any data if any one row has designation or department
-    const keysToCheck = ["manager_id", "designation_id", "department_id"];
-
-    const someHaveDD = dataList.some((item) =>
-      keysToCheck.some((key) => key in item),
-    );
-    if (someHaveDD)
-      throw new AppError(
-        "Cannot add department_id or designation_id or or manager_id data during bulk onboarding",
-        400,
-      );
-    // const resolvedRows = await Promise.all(
-    //   dataList.map(async (data) => {
-    //     // if(data.department)
-    //     const departmentId = await findOrCreateDepartmentId(
-    //       data.department,
-    //       tx,
-    //     );
-    //     const designationId = await findOrCreateDesignationId(
-    //       data.designation,
-    //       tx,
-    //     );
-
-    //     return {
-    //       name: data.name,
-    //       email: data.email,
-    //       secondary_email: data.secondary_email ?? null,
-    //       manager_id: data.manager_id ?? null,
-    //       start_date: data.start_date ?? null,
-    //       designation_id: designationId,
-    //       department_id: departmentId,
-    //       status: data.status,
-    //       role: data.role || "employee",
-    //       gender: data.gender ?? null,
-    //       github_url: data.github_url ?? null,
-    //     };
-    //   }),
-    // );
-
     // ── Single bulk insert ──
+    // Position/title/department/manager are assigned separately via
+    // PUT /employees/:id/position, never through bulk import.
     const result = await tx
       .insert(employees)
       .values(
@@ -838,8 +803,6 @@ export async function createBulk(
           secondaryEmail: data.secondary_email,
           phone: data.phone,
           emergencyContact: data.emergency_contact,
-          designation: data.designation,
-          department: data.department,
           startDate: data.start_date,
           dob: data.dob,
           githubUrl: data.github_url,

@@ -16,7 +16,6 @@ const incumbent = alias(employees, 'incumbent');
 const positionColumns = {
   id: positions.id,
   title: positions.title,
-  short_name: positions.shortName,
   rank: positions.rank,
   department_id: positions.departmentId,
   reports_to_position_id: positions.reportsToPositionId,
@@ -26,14 +25,12 @@ const positionColumns = {
 
 export async function create(data: {
   title: string;
-  shortName?: string | null;
   rank?: number | null;
   departmentId: number;
   reportsToPositionId?: number | null;
 }) {
   const result = await db.insert(positions).values({
     title: data.title,
-    shortName: data.shortName ?? null,
     rank: data.rank ?? null,
     departmentId: data.departmentId,
     reportsToPositionId: data.reportsToPositionId ?? null,
@@ -43,11 +40,10 @@ export async function create(data: {
 
 export async function update(
   id: number | string,
-  data: { title?: string; shortName?: string | null; rank?: number | null; departmentId?: number; reportsToPositionId?: number | null }
+  data: { title?: string; rank?: number | null; departmentId?: number; reportsToPositionId?: number | null }
 ) {
   const setValues: Record<string, any> = {};
   if (data.title !== undefined) setValues.title = data.title;
-  if (data.shortName !== undefined) setValues.shortName = data.shortName;
   if (data.rank !== undefined) setValues.rank = data.rank;
   if (data.departmentId !== undefined) setValues.departmentId = data.departmentId;
   if (data.reportsToPositionId !== undefined) setValues.reportsToPositionId = data.reportsToPositionId;

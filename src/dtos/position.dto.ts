@@ -3,7 +3,6 @@ import { bindAndValidate, optionalNullable } from '../pkg/validation';
 
 const createBodySchema = z.object({
   title: z.string().trim().min(1, 'title is required'),
-  short_name: optionalNullable(z.string().trim()),
   rank: optionalNullable(z.coerce.number().int().positive()),
   department_id: z.coerce.number().int().positive(),
   reports_to_position_id: optionalNullable(z.coerce.number().int().positive()),
@@ -11,7 +10,6 @@ const createBodySchema = z.object({
 
 const updateBodySchema = z.object({
   title: z.string().trim().min(1, 'title is required').optional(),
-  short_name: optionalNullable(z.string().trim()),
   rank: optionalNullable(z.coerce.number().int().positive()),
   department_id: z.coerce.number().int().positive().optional(),
   reports_to_position_id: optionalNullable(z.coerce.number().int().positive()),
@@ -19,7 +17,6 @@ const updateBodySchema = z.object({
 
 export interface PositionCreateInput {
   title: string;
-  shortName?: string | null;
   rank?: number | null;
   departmentId: number;
   reportsToPositionId?: number | null;
@@ -27,7 +24,6 @@ export interface PositionCreateInput {
 
 export interface PositionUpdateInput {
   title?: string;
-  shortName?: string | null;
   rank?: number | null;
   departmentId?: number;
   reportsToPositionId?: number | null;
@@ -37,7 +33,6 @@ export function toCreateInput(body: unknown): PositionCreateInput {
   const parsed = bindAndValidate(createBodySchema, body);
   return {
     title: parsed.title,
-    shortName: parsed.short_name ?? null,
     rank: parsed.rank ?? null,
     departmentId: parsed.department_id,
     reportsToPositionId: parsed.reports_to_position_id ?? null,
@@ -48,7 +43,6 @@ export function toUpdateInput(body: unknown): PositionUpdateInput {
   const parsed = bindAndValidate(updateBodySchema, body);
   const input: PositionUpdateInput = {};
   if (parsed.title !== undefined) input.title = parsed.title;
-  if (parsed.short_name !== undefined) input.shortName = parsed.short_name;
   if (parsed.rank !== undefined) input.rank = parsed.rank;
   if (parsed.department_id !== undefined) input.departmentId = parsed.department_id;
   if (parsed.reports_to_position_id !== undefined) input.reportsToPositionId = parsed.reports_to_position_id;
@@ -60,7 +54,6 @@ export function toResponse(position: Record<string, any> | null) {
   return {
     id: position.id,
     title: position.title,
-    short_name: position.short_name,
     rank: position.rank,
     department_id: position.department_id,
     department_name: position.department_name,
