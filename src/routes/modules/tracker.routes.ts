@@ -14,8 +14,9 @@ router.get('/screenshots/:key', authenticateMediaToken, ctrl.streamScreenshot);
 
 router.use(authenticate);
 
-router.post('/activity', ctrl.recordActivity);
-router.post('/screenshots', uploadScreenshotMemory.single('screenshot'), ctrl.uploadScreenshot);
+// Screenshot is an optional multipart field — a segment can be recorded
+// even if the capture itself failed on the client.
+router.post('/segments', uploadScreenshotMemory.single('screenshot'), ctrl.recordSegment);
 // Self or admin/lead — permission is checked inside the service since it
 // depends on whose screenshot this is, not just the caller's role.
 router.delete('/screenshots/:id', ctrl.deleteScreenshot);

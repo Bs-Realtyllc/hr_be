@@ -1,0 +1,1 @@
+ALTER TABLE `employee_clock_pauses` ADD `source` enum('manual','idle_auto') DEFAULT 'manual' NOT NULL;
