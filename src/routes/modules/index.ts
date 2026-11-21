@@ -33,6 +33,7 @@ import companySettingsRoutes from './companySettings.routes'
 import departmentRoutes from './department.routes'
 import designationRoutes from './designation.routes'
 import trackerRoutes from './tracker.routes'
+import positionRoutes from './position.routes'
 
 const modules: Array<{ path: string; router: Router }> = [
   { path: '/auth', router: authRoutes },
@@ -69,6 +70,7 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/departments',  router: departmentRoutes },
   { path: '/designations', router: designationRoutes },
   { path: '/tracker',      router: trackerRoutes },
+  { path: '/positions',    router: positionRoutes },
 
 
 ];

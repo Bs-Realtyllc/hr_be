@@ -46,6 +46,7 @@ const BASE_COLUMNS = {
   department_id: employees.departmentId,
   department: departments.name,
   manager_id: employees.managerId,
+  position_id: employees.positionId,
   start_date: employees.startDate,
   dob: employees.dob,
   gender: employees.gender,
@@ -185,6 +186,13 @@ export async function findDirectReportIds(managerId: number | string) {
     .from(employees)
     .where(and(eq(employees.managerId, Number(managerId)), ACTIVE_ROSTER));
   return rows.map((r) => r.id);
+}
+
+export async function assignPosition(employeeId: number | string, positionId: number | null) {
+  await db
+    .update(employees)
+    .set({ positionId })
+    .where(eq(employees.id, Number(employeeId)));
 }
 
 export async function findBySecondaryEmail(email: string) {

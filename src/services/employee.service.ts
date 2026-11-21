@@ -2,6 +2,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import * as employeeRepo from "../repositories/employee.repository";
+import * as positionRepo from "../repositories/position.repository";
 import * as payrollAdjustmentRepo from "../repositories/payrollAdjustment.repository";
 import * as notificationPreferenceService from "./notificationPreference.service";
 import { sendPlatformMail } from "../pkg/mailer";
@@ -221,6 +222,14 @@ async function notifyEmployeeUpdatedIfNeeded(
 
 export async function remove(id: string, actorId: number | null) {
   await employeeRepo.deactivate(id, actorId);
+}
+
+export async function assignPosition(employeeId: string, positionId: number | null) {
+  if (positionId != null) {
+    const position = await positionRepo.findById(positionId);
+    if (!position) throw new AppError("Position not found", 404);
+  }
+  await employeeRepo.assignPosition(employeeId, positionId);
 }
 
 const TEMP_PASSWORD_CHARS =

@@ -37,6 +37,12 @@ export const remove = asyncHandler(async (req: any, res: Response) => {
   res.json({ success: true });
 });
 
+export const assignPosition = asyncHandler(async (req: any, res: Response) => {
+  const { position_id } = req.body;
+  await employeeService.assignPosition(req.params.id, position_id ?? null);
+  res.json({ success: true });
+});
+
 export const approve = asyncHandler(async (req: any, res: Response) => {
   await employeeService.approve(req.params.id, req.user?.id ?? null);
   res.json({ success: true });

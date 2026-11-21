@@ -214,7 +214,7 @@ export async function findWithEmployeeById(id: number | string) {
     .from(leaveRequests)
     .innerJoin(requester, eq(leaveRequests.employeeId, requester.id))
     .leftJoin(requesterDesignation, eq(requester.designationId, requesterDesignation.id))
-    .leftJoin(requesterDepartment, eq(requester.departmentId, requesterDepartment.id))
+    .leftJoin(requesterDepartment as any, eq(requester.departmentId, requesterDepartment.id))
     .where(eq(leaveRequests.id, Number(id)))
     .limit(1);
   return rows[0] || null;
