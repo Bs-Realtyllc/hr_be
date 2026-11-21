@@ -124,6 +124,7 @@ export const employeeClockPauses = mysqlTable("employee_clock_pauses", {
 	pause: timestamp({ mode: 'date' }).defaultNow(),
 	resume: timestamp({ mode: 'date' }),
 	reason: varchar({ length: 255 }),
+	source: mysqlEnum("source", ['manual', 'idle_auto']).default('manual').notNull(),
 	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
 },
@@ -180,6 +181,14 @@ export const employeeDailyClock = mysqlTable("employee_daily_clock", {
 	// desktop tracker clock-ins don't (no real GPS hardware, activity/
 	// screenshots are the trust signal instead).
 	source: mysqlEnum("source", ['web', 'desktop']).default('web').notNull(),
+	// Ground truth for the "still working?" idle prompt, not just an event
+	// payload — any client (web, a different desktop session, one that was
+	// offline when the prompt fired) can always reconstruct "is it showing,
+	// and how much time is left" from this row alone. Null/null means no
+	// prompt is currently active. Cleared on confirm, auto-pause, or
+	// clock-out, same as the pause/resume fields below.
+	idlePromptStartedAt: timestamp("idle_prompt_started_at", { mode: 'date' }),
+	idlePromptResponseSeconds: int("idle_prompt_response_seconds"),
 	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
 },

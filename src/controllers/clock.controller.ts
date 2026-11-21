@@ -4,7 +4,7 @@ import * as clockServices from "../services/clock.service";
 
 export const clockIn = asyncHandler(async (req: any, res: Response) => {
   const {lat, lng, source} = req.body;
-  const result = await clockServices.clockIn(req.user.id, lat, lng, source === 'desktop' ? 'desktop' : 'web');
+  const result = await clockServices.clockIn(req.user.id, lat, lng, source === 'desktop' ? 'desktop' : 'web', req.app.get('io'));
   res
     .status(201)
     .json({ message: "clock in sucessfull", clockInTime: result.clockIn });
@@ -18,18 +18,32 @@ export const getClock = asyncHandler(async (req: any, res: Response) => {
 
 export const clockOut = asyncHandler(async (req: any, res: Response) => {
   const { lat, lng } = req.body;
-  const result = await clockServices.clockOut(req.user.id, lat, lng);
+  const result = await clockServices.clockOut(req.user.id, lat, lng, req.app.get('io'));
   res.status(200).json({ message: "clock out sucessfull", result });
 });
 
 export const pause = asyncHandler(async (req: any, res: Response) => {
-  // console.log(req.body)
-  const result = await clockServices.pause(req.user.id, req.body.reason);
+  const source = req.body.source === 'idle_auto' ? 'idle_auto' : 'manual';
+  const result = await clockServices.pause(req.user.id, req.body.reason, source, req.app.get('io'));
   res.status(200).json({ message: "Clock Paused Sucessfully" ,result });
 });
 
+export const startIdlePrompt = asyncHandler(async (req: any, res: Response) => {
+  const responseSeconds = Number(req.body.responseSeconds);
+  if (!Number.isFinite(responseSeconds) || responseSeconds <= 0) {
+    return res.status(400).json({ message: 'responseSeconds must be a positive number' });
+  }
+  await clockServices.startIdlePrompt(req.user.id, responseSeconds, req.app.get('io'));
+  res.status(200).json({ message: 'Idle prompt started' });
+});
+
+export const confirmIdlePrompt = asyncHandler(async (req: any, res: Response) => {
+  await clockServices.confirmIdlePrompt(req.user.id, req.app.get('io'));
+  res.status(200).json({ message: 'Idle prompt confirmed' });
+});
+
 export const resume = asyncHandler(async (req: any, res: Response) => {
-  const result = await clockServices.resume(req.user.id);
+  const result = await clockServices.resume(req.user.id, req.app.get('io'));
   res.status(200).json({ result });
 });
 
