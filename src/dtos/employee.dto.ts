@@ -14,9 +14,6 @@ const employeeFields = {
   email: emailField,
   secondary_email: emailField.nullable(),
   discord_username: z.string().trim().nullable(),
-  designation: z.string().trim().nullable(),
-  department: z.string().trim().nullable(),
-  manager_id: z.coerce.number().int().positive().nullable(),
   start_date: dateField.nullable(),
   role: z.enum(ROLES),
   status: z.enum(['onboarding', 'active']),
@@ -52,9 +49,6 @@ const createBodySchema = z.object({
   email: employeeFields.email,
   secondary_email: optionalNullable(employeeFields.secondary_email),
   discord_username: optionalNullable(employeeFields.discord_username),
-  designation: optionalNullable(employeeFields.designation),
-  department: optionalNullable(employeeFields.department),
-  manager_id: optionalNullable(employeeFields.manager_id),
   start_date: optionalNullable(employeeFields.start_date),
   role: optionalNullable(employeeFields.role),
   status: optionalNullable(employeeFields.status),
@@ -69,9 +63,6 @@ const updateBodySchema = z.object({
   name: optionalNullable(employeeFields.name),
   secondary_email: optionalNullable(employeeFields.secondary_email),
   discord_username: optionalNullable(employeeFields.discord_username),
-  designation: optionalNullable(employeeFields.designation),
-  department: optionalNullable(employeeFields.department),
-  manager_id: optionalNullable(employeeFields.manager_id),
   start_date: optionalNullable(employeeFields.start_date),
   role: optionalNullable(employeeFields.role),
   dob: optionalNullable(employeeFields.dob),
@@ -99,9 +90,6 @@ export interface EmployeeCreateInput extends OnboardingProfileFields {
   email: string;
   secondary_email: string | null;
   discord_username: string | null;
-  designation: string | null;
-  department: string | null;
-  manager_id: number | null;
   start_date: string | null;
   role: (typeof ROLES)[number];
   status: 'onboarding' | 'active';
@@ -116,9 +104,6 @@ export interface EmployeeUpdateInput extends Partial<OnboardingProfileFields> {
   name?: string;
   secondary_email?: string | null;
   discord_username?: string | null;
-  designation?: string | null;
-  department?: string | null;
-  manager_id?: number | null;
   start_date?: string | null;
   role?: (typeof ROLES)[number];
   dob?: string | null;
@@ -164,9 +149,6 @@ export function toCreateInput(body: unknown): EmployeeCreateInput {
     email: parsed.email,
     secondary_email: parsed.secondary_email || null,
     discord_username: parsed.discord_username || null,
-    designation: parsed.designation || null,
-    department: parsed.department || null,
-    manager_id: parsed.manager_id || null,
     start_date: parsed.start_date || null,
     role: parsed.role || 'employee',
     status: parsed.status || 'active',

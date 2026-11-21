@@ -6,7 +6,7 @@ import {
   employeeCompensationHistory,
   employeeDocuments,
   departments,
-  designations,
+  positions,
   leaveRequests,
 } from "../../drizzle/schema";
 import type {
@@ -29,6 +29,8 @@ function insertedId(result: any): number {
 }
 
 const manager = alias(employees, "manager");
+const ownPosition = alias(positions, "own_position");
+const reportsToPosition = alias(positions, "reports_to_position");
 const docPic = alias(employeeDocuments, "doc_pic");
 const docIdFront = alias(employeeDocuments, "doc_id_front");
 const docIdBack = alias(employeeDocuments, "doc_id_back");
@@ -41,11 +43,11 @@ const BASE_COLUMNS = {
   email: employees.email,
   phone: employees.phone,
   secondary_email: employees.secondaryEmail,
-  designation_id: employees.designationId,
-  designation: designations.title,
-  department_id: employees.departmentId,
+  designation_id: ownPosition.id,
+  designation: ownPosition.title,
+  department_id: ownPosition.departmentId,
   department: departments.name,
-  manager_id: employees.managerId,
+  manager_id: manager.id,
   position_id: employees.positionId,
   start_date: employees.startDate,
   dob: employees.dob,
@@ -79,27 +81,29 @@ function withDocJoins<T extends { leftJoin: any }>(query: T): T {
     );
 }
 
+// Walks employee -> position -> department, and position -> reports_to_position
+// -> whoever currently holds that seat, for manager_id/manager_name.
+function withPositionJoins<T extends { leftJoin: any }>(query: T): T {
+  return query
+    .leftJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .leftJoin(departments, eq(ownPosition.departmentId, departments.id))
+    .leftJoin(reportsToPosition, eq(ownPosition.reportsToPositionId, reportsToPosition.id))
+    .leftJoin(manager, eq(manager.positionId, reportsToPosition.id));
+}
+
 function baseQuery() {
   return withDocJoins(
-    db
-      .select(BASE_COLUMNS)
-      .from(employees)
-      .leftJoin(designations, eq(employees.designationId, designations.id))
-      .leftJoin(
-        departments,
-        eq(employees.departmentId, departments.id),
-      ) as any,
+    withPositionJoins(
+      db.select(BASE_COLUMNS).from(employees) as any,
+    ) as any,
   );
 }
 
 function baseQueryWithManager() {
   return withDocJoins(
-    db
-      .select({ ...BASE_COLUMNS, manager_name: manager.name })
-      .from(employees)
-      .leftJoin(designations, eq(employees.designationId, designations.id))
-      .leftJoin(departments, eq(employees.departmentId, departments.id))
-      .leftJoin(manager, eq(employees.managerId, manager.id)) as any,
+    withPositionJoins(
+      db.select({ ...BASE_COLUMNS, manager_name: manager.name }).from(employees) as any,
+    ) as any,
   );
 }
 
@@ -137,13 +141,13 @@ export async function findForTeamAccess() {
       id: employees.id,
       name: employees.name,
       email: employees.email,
-      designation: designations.title,
+      designation: ownPosition.title,
       role: employees.role,
       status: employees.status,
       start_date: employees.startDate,
     })
     .from(employees)
-    .leftJoin(designations, eq(employees.designationId, designations.id))
+    .leftJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
     .where(ACTIVE_ROSTER)
     .orderBy(employees.name);
 }
@@ -209,14 +213,14 @@ export async function findAuthByEmail(email: string) {
       name: employees.name,
       email: employees.email,
       role: employees.role,
-      designation: designations.title,
+      designation: ownPosition.title,
       department: departments.name,
       password_hash: employees.passwordHash,
       two_factor_enabled: employees.twoFactorEnabled,
     })
     .from(employees)
-    .leftJoin(designations, eq(employees.designationId, designations.id))
-    .leftJoin(departments, eq(employees.departmentId, departments.id))
+    .leftJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .leftJoin(departments, eq(ownPosition.departmentId, departments.id))
     .where(and(eq(employees.email, email), ACTIVE_ROSTER))
     .limit(1);
   return rows[0] || null;
@@ -229,13 +233,13 @@ export async function findAuthById(id: number) {
       name: employees.name,
       email: employees.email,
       role: employees.role,
-      designation: designations.title,
+      designation: ownPosition.title,
       department: departments.name,
       password_hash: employees.passwordHash,
     })
     .from(employees)
-    .leftJoin(designations, eq(employees.designationId, designations.id))
-    .leftJoin(departments, eq(employees.departmentId, departments.id))
+    .leftJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .leftJoin(departments, eq(ownPosition.departmentId, departments.id))
     .where(and(eq(employees.id, id), ACTIVE_ROSTER))
     .limit(1);
   return rows[0] || null;
@@ -293,40 +297,6 @@ export async function findByNameLike(pattern: string) {
   return rows[0] || null;
 }
 
-async function findOrCreateDepartmentId(
-  name: string | null | undefined,
-  tx: Tx,
-) {
-  if (!name) return null;
-  const existing = await tx
-    .select({ id: departments.id })
-    .from(departments)
-    .where(eq(departments.name, name))
-    .limit(1);
-  if (existing[0]) return existing[0].id;
-  const result = await tx
-    .insert(departments)
-    .values({ name, isActive: true, createdAt: new Date() });
-  return insertedId(result);
-}
-
-async function findOrCreateDesignationId(
-  title: string | null | undefined,
-  tx: Tx,
-) {
-  if (!title) return null;
-  const existing = await tx
-    .select({ id: designations.id })
-    .from(designations)
-    .where(eq(designations.title, title))
-    .limit(1);
-  if (existing[0]) return existing[0].id;
-  const result = await tx
-    .insert(designations)
-    .values({ title, isActive: true, createdAt: new Date() });
-  return insertedId(result);
-}
-
 const ONBOARDING_PROFILE_FIELDS = [
   "education_level",
   "institution_name",
@@ -369,22 +339,12 @@ export async function create(
   data: EmployeeCreateInput,
   actorId: number | null = null,
 ) {
-  if (data.manager_id != null && Number(data.manager_id) < 1) {
-    throwStatus("Invalid manager_id", 400);
-  }
-
   return db.transaction(async (tx) => {
-    const departmentId = await findOrCreateDepartmentId(data.department, tx);
-    const designationId = await findOrCreateDesignationId(data.designation, tx);
-
     const result = await tx.insert(employees).values({
       name: data.name,
       email: data.email,
       secondaryEmail: data.secondary_email ?? null,
-      managerId: data.manager_id ?? null,
       startDate: data.start_date ?? null,
-      designationId,
-      departmentId,
       status: data.status,
       role: data.role || "employee",
       gender: data.gender ?? null,
@@ -434,11 +394,6 @@ const EMPLOYEES_TABLE_FIELDS: Record<string, keyof typeof employees.$inferInsert
   nationality:"nationality",
   secondary_email: "secondaryEmail",
   phone: "phone",
-  designation: "designation",
-  department: "department",
-  department_id: "departmentId",
-  designation_id: "designationId",
-  manager_id: "managerId",
   work_location: "workLocation",
   start_date: "startDate",
   github_url: "githubUrl",
@@ -469,41 +424,7 @@ export async function update(
 
   await db.transaction(async (tx) => {
     const employeesFields = fields.filter((f) => f in EMPLOYEES_TABLE_FIELDS);
-
-    if (
-      ["designation", "department", "manager_id"].some((f) =>
-        fields.includes(f),
-      )
-    ) {
-      if (fields.includes("manager_id")) {
-        await assertNoManagerCycle(employeeId, (updates as any).manager_id);
-      }
-      const currentRows = await tx
-        .select({
-          designation_id: employees.designationId,
-          department_id: employees.departmentId,
-        })
-        .from(employees)
-        .where(eq(employees.id, employeeId))
-        .limit(1);
-      const current = currentRows[0];
-      const departmentId = fields.includes("department")
-        ? await findOrCreateDepartmentId((updates as any).department, tx)
-        : current?.department_id;
-      const designationId = fields.includes("designation")
-        ? await findOrCreateDesignationId((updates as any).designation, tx)
-        : current?.designation_id;
-
-      const setValues: Record<string, any> = {
-        designationId,
-        departmentId,
-      };
-      for (const f of employeesFields) setValues[EMPLOYEES_TABLE_FIELDS[f]] = (updates as any)[f];
-      await tx
-        .update(employees)
-        .set(setValues)
-        .where(eq(employees.id, employeeId));
-    } else if (employeesFields.length) {
+    if (employeesFields.length) {
       const setValues: Record<string, any> = {};
       for (const f of employeesFields) setValues[EMPLOYEES_TABLE_FIELDS[f]] = (updates as any)[f];
       await tx
@@ -546,15 +467,15 @@ export async function findPayrollBaseById(id: number | string) {
     .select({
       id: employees.id,
       name: employees.name,
-      designation: designations.title,
+      designation: ownPosition.title,
       department: departments.name,
       salary: employeeCompensationHistory.salary,
       pay_frequency: employeeCompensationHistory.payFrequency,
       start_date: employees.startDate,
     })
     .from(employees)
-    .leftJoin(designations, eq(employees.designationId, designations.id))
-    .leftJoin(departments, eq(employees.departmentId, departments.id))
+    .leftJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .leftJoin(departments, eq(ownPosition.departmentId, departments.id))
     .leftJoin(
       employeeCompensationHistory,
       and(
@@ -571,7 +492,7 @@ export async function findPayrollColumns(id: number | string | null) {
   const cols = {
     id: employees.id,
     name: employees.name,
-    designation: designations.title,
+    designation: ownPosition.title,
     department: departments.name,
     role: employees.role,
     salary: employeeCompensationHistory.salary,
@@ -583,8 +504,8 @@ export async function findPayrollColumns(id: number | string | null) {
   return db
     .select(cols)
     .from(employees)
-    .leftJoin(designations, eq(employees.designationId, designations.id))
-    .leftJoin(departments, eq(employees.departmentId, departments.id))
+    .leftJoin(ownPosition as any, eq(employees.positionId, ownPosition.id))
+    .leftJoin(departments, eq(ownPosition.departmentId, departments.id))
     .leftJoin(
       employeeCompensationHistory,
       and(
@@ -641,12 +562,9 @@ const PROFILE_COLUMNS = {
 
 export async function findProfileById(id: number | string) {
   const rows = await withDocJoins(
-    db
-      .select(PROFILE_COLUMNS)
-      .from(employees)
-      .leftJoin(designations, eq(employees.designationId, designations.id))
-      .leftJoin(departments, eq(employees.departmentId, departments.id))
-      .leftJoin(manager, eq(employees.managerId, manager.id)) as any,
+    withPositionJoins(
+      db.select(PROFILE_COLUMNS).from(employees) as any,
+    ) as any,
   )
     .where(and(eq(employees.id, Number(id)), ACTIVE_ROSTER))
     .limit(1);
@@ -694,34 +612,6 @@ export async function findApprovedLeaveRangesForEmployee(
         sql`${leaveRequests.endDate} >= ${rangeStart}`,
       ),
     );
-}
-
-const MAX_MANAGER_CHAIN_DEPTH = 20;
-export async function assertNoManagerCycle(
-  employeeId: number | string,
-  proposedManagerId: number | string | null | undefined,
-) {
-  if (proposedManagerId == null) return;
-  if (Number(proposedManagerId) === Number(employeeId)) {
-    throwStatus("An employee cannot be their own manager", 400);
-  }
-  let currentId: number = Number(proposedManagerId);
-  for (let depth = 0; depth < MAX_MANAGER_CHAIN_DEPTH; depth++) {
-    const rows = await db
-      .select({ manager_id: employees.managerId })
-      .from(employees)
-      .where(eq(employees.id, currentId))
-      .limit(1);
-    const nextManagerId = rows[0]?.manager_id;
-    if (nextManagerId == null) return;
-    if (Number(nextManagerId) === Number(employeeId)) {
-      throwStatus("This manager change would create a reporting cycle", 400);
-    }
-    currentId = nextManagerId;
-  }
-  console.warn(
-    `assertNoManagerCycle: manager chain from ${proposedManagerId} exceeded depth ${MAX_MANAGER_CHAIN_DEPTH}`,
-  );
 }
 
 export async function recordCompensationChange(
