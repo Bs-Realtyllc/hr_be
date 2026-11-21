@@ -56,6 +56,11 @@ const ENV = {
 const app = express();
 
 app.set("trust proxy", 1);
+// Every route here serves live application state, not cacheable resources —
+// Express's default ETag turns a plain GET into a conditional request the
+// moment a client's HTTP cache holds any prior response for that exact URL,
+// which can come back as a bodyless 304 for data that has since changed.
+app.set("etag", false);
 
 app.use(
   helmet({
