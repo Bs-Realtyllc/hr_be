@@ -4,7 +4,7 @@ import { db } from "../config/database";
 import {
   standups,
   employees,
-  designations,
+  positions,
   employeeDocuments,
 } from "../../drizzle/schema";
 
@@ -13,7 +13,7 @@ function insertedId(result: any): number {
 }
 
 const author = alias(employees, "standup_author");
-const authorDesignation = alias(designations, "standup_author_desig");
+const authorPosition = alias(positions, "standup_author_pos");
 const authorDoc = alias(employeeDocuments, "standup_author_doc");
 
 export async function findWithNames({
@@ -49,14 +49,14 @@ export async function findWithNames({
       standup_date: standups.standupDate,
       created_at: standups.createdAt,
       employee_name: author.name,
-      designation: authorDesignation.title,
+      designation: authorPosition.title,
       profile_picture: authorDoc.filename,
     })
     .from(standups)
     .innerJoin(author, eq(standups.employeeId, author.id))
     .leftJoin(
-      authorDesignation,
-      eq(author.designationId, authorDesignation.id),
+      authorPosition as any,
+      eq(author.positionId, authorPosition.id),
     )
     .leftJoin(
       authorDoc,
@@ -87,14 +87,14 @@ export async function findToday(today: string, employeeId?: number | string) {
       standup_date: standups.standupDate,
       created_at: standups.createdAt,
       employee_name: author.name,
-      designation: authorDesignation.title,
+      designation: authorPosition.title,
       profile_picture: authorDoc.filename,
     })
     .from(standups)
     .innerJoin(author, eq(standups.employeeId, author.id))
     .leftJoin(
-      authorDesignation,
-      eq(author.designationId, authorDesignation.id),
+      authorPosition as any,
+      eq(author.positionId, authorPosition.id),
     )
     .leftJoin(
       authorDoc,

@@ -1,7 +1,7 @@
 import { eq, and, asc, desc, inArray } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { performanceReviews, employees, designations, departments } from '../../drizzle/schema';
+import { performanceReviews, employees, positions, departments } from '../../drizzle/schema';
 
 const performanceReviewsColumns = {
   id: performanceReviews.id,
@@ -37,14 +37,14 @@ export async function findWithNames({ employeeId, status }: { employeeId?: numbe
     .select({
       ...performanceReviewsColumns,
       employee_name: employees.name,
-      designation: designations.title,
+      designation: positions.title,
       department: departments.name,
       reviewer_name: reviewer.name,
     })
     .from(performanceReviews)
     .innerJoin(employees, eq(performanceReviews.employeeId, employees.id))
-    .leftJoin(designations, eq(employees.designationId, designations.id))
-    .leftJoin(departments, eq(employees.departmentId, departments.id))
+    .leftJoin(positions, eq(employees.positionId, positions.id))
+    .leftJoin(departments, eq(positions.departmentId, departments.id))
     .leftJoin(reviewer, eq(performanceReviews.reviewerId, reviewer.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(performanceReviews.reviewPeriod), desc(performanceReviews.createdAt));

@@ -10,7 +10,7 @@ import {
   inboxVoicePresence,
   inboxPresence,
   employees,
-  designations,
+  positions,
 } from '../../drizzle/schema';
 
 const inboxCategoriesColumns = {
@@ -307,11 +307,11 @@ export async function listMessages(channelId: number, limit = 50, before?: Date)
       created_at:  inboxMessages.createdAt,
       updated_at:  inboxMessages.updatedAt,
       author_name:        employees.name,
-      author_designation: designations.title,
+      author_designation: positions.title,
     })
     .from(inboxMessages)
     .innerJoin(employees,    eq(inboxMessages.employeeId, employees.id))
-    .leftJoin(designations,  eq(employees.designationId, designations.id))
+    .leftJoin(positions,  eq(employees.positionId, positions.id))
     .where(and(...conditions))
     .orderBy(asc(inboxMessages.createdAt))
     .limit(limit);
@@ -402,11 +402,11 @@ export async function getFullMessageById(id: number) {
       created_at:  inboxMessages.createdAt,
       updated_at:  inboxMessages.updatedAt,
       author_name:        employees.name,
-      author_designation: designations.title,
+      author_designation: positions.title,
     })
     .from(inboxMessages)
     .innerJoin(employees,   eq(inboxMessages.employeeId, employees.id))
-    .leftJoin(designations, eq(employees.designationId, designations.id))
+    .leftJoin(positions, eq(employees.positionId, positions.id))
     .where(and(eq(inboxMessages.id, id), isNull(inboxMessages.deletedAt)))
     .limit(1);
 
@@ -480,7 +480,7 @@ export async function listDmConversations(employeeId: number) {
     SELECT
       e.id          AS partner_id,
       e.name        AS partner_name,
-      d.title       AS partner_designation,
+      p.title       AS partner_designation,
       (SELECT content FROM inbox_dm_messages m2
         WHERE (m2.from_employee_id = ${employeeId} AND m2.to_employee_id = e.id)
            OR (m2.from_employee_id = e.id AND m2.to_employee_id = ${employeeId})
@@ -493,7 +493,7 @@ export async function listDmConversations(employeeId: number) {
         WHERE m2.from_employee_id = e.id AND m2.to_employee_id = ${employeeId}
           AND m2.is_read = 0 AND m2.deleted_at IS NULL) AS unread
     FROM employees e
-    LEFT JOIN designations d ON e.designation_id = d.id
+    LEFT JOIN positions p ON e.position_id = p.id
     WHERE e.id != ${employeeId}
       AND e.status = 'active'
       AND EXISTS (
@@ -691,9 +691,9 @@ export async function getSavedMessages(employeeId: number) {
 
 export async function getEmployeeDesignation(employeeId: number): Promise<string> {
   const rows: any[] = await db.execute(sql`
-    SELECT d.title
+    SELECT p.title
     FROM employees e
-    LEFT JOIN designations d ON e.designation_id = d.id
+    LEFT JOIN positions p ON e.position_id = p.id
     WHERE e.id = ${employeeId}
   `);
   return ((rows[0] as any[])?.[0]?.title as string) ?? '';
@@ -702,9 +702,9 @@ export async function getEmployeeDesignation(employeeId: number): Promise<string
 export async function getEmployeesByIds(ids: number[]): Promise<{ id: number; name: string; designation: string }[]> {
   if (ids.length === 0) return [];
   const rows: any[] = await db.execute(sql`
-    SELECT e.id, e.name, COALESCE(d.title, '') AS designation
+    SELECT e.id, e.name, COALESCE(p.title, '') AS designation
     FROM employees e
-    LEFT JOIN designations d ON e.designation_id = d.id
+    LEFT JOIN positions p ON e.position_id = p.id
     WHERE e.id IN (${sql.raw(ids.join(','))})
   `);
   return (rows[0] as any[]) ?? [];

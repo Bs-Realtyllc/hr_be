@@ -1,6 +1,6 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../config/database';
-import { employees, employeeCompensationHistory, employeeTaxProfiles, departments, designations } from '../../drizzle/schema';
+import { employees, employeeCompensationHistory, employeeTaxProfiles, departments, positions } from '../../drizzle/schema';
 
 const ACTIVE_ROSTER = sql`${employees.status} NOT IN ('onboarding', 'terminated')`;
 
@@ -9,7 +9,7 @@ export async function findAllWithProfile(id: number | string | null | undefined,
     .select({
       id: employees.id,
       name: employees.name,
-      designation: designations.title,
+      designation: positions.title,
       department: departments.name,
       role: employees.role,
       panNo: employees.panNo,
@@ -20,8 +20,8 @@ export async function findAllWithProfile(id: number | string | null | undefined,
       tax_perc: employeeTaxProfiles.taxPerc,
     })
     .from(employees)
-    .leftJoin(designations, eq(employees.designationId, designations.id))
-    .leftJoin(departments, eq(employees.departmentId, departments.id))
+    .leftJoin(positions, eq(employees.positionId, positions.id))
+    .leftJoin(departments, eq(positions.departmentId, departments.id))
     .leftJoin(
       employeeCompensationHistory,
       and(eq(employeeCompensationHistory.employeeId, employees.id), sql`${employeeCompensationHistory.effectiveTo} IS NULL`)
