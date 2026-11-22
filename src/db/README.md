@@ -52,9 +52,26 @@ later migration should only add, alter or drop on top of it.
   (e.g. per-environment fixtures); keep them idempotent (`INSERT IGNORE`) since they
   may be re-run.
 
+## Partitioned log tables
+
+`access_log` and `operation_log` are `PARTITION BY RANGE COLUMNS(created_at)`, five buckets
+per calendar month (`p_YYYY_MM_01/08/15/22/29`, UTC), created by migration `0014`.
+Retention is 3 full months plus the current one; old months go by `DROP PARTITION`, not `DELETE`.
+
+- There is no catch-all partition, so a row with no matching partition fails to insert.
+  `src/pkg/maintainLogPartitions.ts` keeps the partitions current. It runs at the end of
+  `npm run migrate`, at app startup, and daily at 03:30 UTC (node-cron, in-process).
+- Drizzle doesn't know about the partitions. Never run `drizzle-kit push`, and check that any
+  generated migration touching these tables doesn't try to rebuild them.
+- Every unique key must include `created_at` (hence PK `(id, created_at)`), and partitioned
+  tables can't have foreign keys.
+- When querying these tables, filter on `created_at` so MySQL only reads the matching partitions.
+
 ## Scripts
 
 - `npm run migrate` — applies pending migrations from `drizzle/migrations/`.
+- `npm run partitions:maintain -- [--dry-run] [--date=YYYY-MM-DD]` — runs the log
+  partition maintenance by hand (`--date` pretends today is that date).
 - `npm run db:generate` — generates a new migration file from a `drizzle/schema.ts` change.
 - `npm run create-admin -- "Full Name" "email@company.com" "Password123"` — creates an
   admin employee account directly (bypasses seed data).

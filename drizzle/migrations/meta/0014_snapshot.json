@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "9d26f04c-62d6-4993-a698-5962963e4c0a",
+  "id": "07cb5d52-50dc-4e71-abc8-0451a00d96df",
   "prevId": "5b71fe66-1770-4cf7-9d20-0d16e3fe0274",
   "tables": {
     "access_log": {
@@ -79,20 +79,37 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "(now())"
+          "default": "CURRENT_TIMESTAMP"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_access_trace": {
+          "name": "idx_access_trace",
+          "columns": [
+            "trace_id"
+          ],
+          "isUnique": false
+        },
+        "idx_access_employee_created": {
+          "name": "idx_access_employee_created",
+          "columns": [
+            "employee_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "access_log_id": {
           "name": "access_log_id",
           "columns": [
-            "id"
+            "id",
+            "created_at"
           ]
         }
       },
@@ -4762,20 +4779,37 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "(now())"
+          "default": "CURRENT_TIMESTAMP"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_operation_trace": {
+          "name": "idx_operation_trace",
+          "columns": [
+            "trace_id"
+          ],
+          "isUnique": false
+        },
+        "idx_operation_employee_created": {
+          "name": "idx_operation_employee_created",
+          "columns": [
+            "employee_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "operation_log_id": {
           "name": "operation_log_id",
           "columns": [
-            "id"
+            "id",
+            "created_at"
           ]
         }
       },

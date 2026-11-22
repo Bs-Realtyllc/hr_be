@@ -11,7 +11,8 @@
     "seed:roadmap": "node dist/src/db/seed/run-roadmap-seed.js",
     "create-admin": "node dist/src/db/create-admin.js",
     "generate:openapi": "npm run build && node scripts/generate-openapi.js",
-    "setup:minio": "tsx scripts/setup-minio.ts"
+    "setup:minio": "tsx scripts/setup-minio.ts",
+    "partitions:maintain": "node dist/src/pkg/maintainLogPartitions.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
