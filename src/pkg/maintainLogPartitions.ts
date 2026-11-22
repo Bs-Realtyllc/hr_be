@@ -26,7 +26,7 @@
  *     --dry-run prints the ALTER statements without running them.
  *     --date pretends "today" is that date (UTC), for testing.
  *
- * Partition definitions live only in drizzle/migrations/0014_log_tables_partitioning.sql
+ * Partition definitions live only in drizzle/migrations/0018_log_tables_partitioning.sql
  * and here; drizzle doesn't know about them.
  */
 import "dotenv/config";
@@ -167,7 +167,7 @@ export async function maintainLogPartitions({ dryRun = false, today = new Date()
           [table],
         );
         if (rows.length === 0) {
-          throw new Error("table missing or not partitioned (is migration 0014 applied?)");
+          throw new Error("table missing or not partitioned (is migration 0018 applied?)");
         }
 
         const { toAdd, toDrop } = planPartitions(rows.map((r) => String(r.name)), current);
