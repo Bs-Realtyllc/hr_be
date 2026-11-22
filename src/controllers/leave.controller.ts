@@ -31,14 +31,8 @@ export const outThisWeek = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const create = asyncHandler(async (req: any, res: Response) => {
-  // console.log("working",req.body)
-  const { to, cc, bcc } = req.body;
   const input = leaveDto.toCreateInput(req.body);
-  const id = await leaveService.create(input, req.user?.id ?? null, {
-    to,
-    cc,
-    bcc,
-  });
+  const id = await leaveService.create(input, req.user, input.notify);
   res.status(201).json({ id });
 });
 
@@ -54,29 +48,11 @@ export const reject = asyncHandler(async (req: any, res: Response) => {
 
 export const update = asyncHandler(async (req: any, res: Response) => {
   const input = leaveDto.toUpdateInput(req.body);
-  await leaveService.update(req.params.id, input, req.user.id);
+  await leaveService.update(req.params.id, input, req.user);
   res.json({ success: true });
 });
 
 export const cancel = asyncHandler(async (req: any, res: Response) => {
-  await leaveService.cancel(req.params.id, req.user.id);
-  res.json({ success: true });
-});
-
-export const createViaMail = asyncHandler(async (req: any, res: Response) => {
-  const input = leaveDto.toCreateInputViaMail(req.body);
-  // console.log(input)
-  // console.log(input)
-   const id = await leaveService.createViaMail(input);
-  res.status(201).json({ id });
-});
-
-export const approveViaMail = asyncHandler(async (req: any, res: Response) => {
-  const updatedLeave = await leaveService.approveViaMail(req.params.id);
-  res.json(updatedLeave);
-});
-
-export const rejectViaMail = asyncHandler(async (req: any, res: Response) => {
-  await leaveService.rejectViaMail(req.params.id);
+  await leaveService.cancel(req.params.id, req.user);
   res.json({ success: true });
 });

@@ -1,4 +1,4 @@
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, sql, desc, inArray } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
 import { leaveRequests, leaveBalances, employees, designations, departments, employeeDocuments } from '../../drizzle/schema';
@@ -41,9 +41,18 @@ export async function findAllLeaveRequests() {
   return db.select(leaveRequestsColumns).from(leaveRequests);
 }
 
-export async function findWithNames({ employeeId, status }: { employeeId?: number | string; status?: string }) {
+export async function findWithNames({
+  employeeId,
+  employeeIds,
+  status,
+}: {
+  employeeId?: number | string;
+  employeeIds?: (number | string)[];
+  status?: string;
+}) {
   const conditions = [];
   if (employeeId) conditions.push(eq(leaveRequests.employeeId, Number(employeeId)));
+  if (employeeIds?.length) conditions.push(inArray(leaveRequests.employeeId, employeeIds.map(Number)));
   if (status) conditions.push(eq(leaveRequests.status, status as any));
 
   return db
@@ -147,6 +156,29 @@ export async function findOutInRange(rangeStart: string, rangeEnd: string) {
         sql`${leaveRequests.endDate} >= ${rangeStart}`
       )
     );
+}
+
+export async function findOverlapping(
+  employeeId: number | string,
+  startDate: string,
+  endDate: string,
+  excludeId?: number | string
+) {
+  const conditions = [
+    eq(leaveRequests.employeeId, Number(employeeId)),
+    sql`${leaveRequests.status} IN ('pending', 'approved')`,
+    sql`${leaveRequests.startDate} <= ${endDate}`,
+    sql`${leaveRequests.endDate} >= ${startDate}`,
+  ];
+  if (excludeId !== undefined) {
+    conditions.push(sql`${leaveRequests.id} != ${Number(excludeId)}`);
+  }
+  const rows = await db
+    .select({ id: leaveRequests.id })
+    .from(leaveRequests)
+    .where(and(...conditions))
+    .limit(1);
+  return rows[0] || null;
 }
 
 export async function create(

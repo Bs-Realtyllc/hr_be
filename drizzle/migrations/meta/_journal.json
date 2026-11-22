@@ -120,6 +120,13 @@
       "when": 1795237828586,
       "tag": "0016_cold_warbird",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1795310935342,
+      "tag": "0017_restore_designations_drop_positions",
+      "breakpoints": true
     }
   ]
 }

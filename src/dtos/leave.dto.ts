@@ -12,6 +12,7 @@ const createBodySchema = z
     start_date: dateString,
     end_date: dateString,
     reason: z.string().trim().min(1, 'reason is required'),
+    notify: z.array(z.coerce.number().int().positive()).optional(),
   })
   .refine((data) => data.end_date >= data.start_date, {
     message: 'end_date cannot be before start_date',
@@ -39,6 +40,7 @@ export interface LeaveCreateInput {
   start_date: string;
   end_date: string;
   reason: string;
+  notify?: number[];
 }
 
 export interface LeaveUpdateInput {
@@ -93,28 +95,4 @@ export function toResponse(leave: Record<string, any> | null): LeaveResponse | n
 
 export function toResponseList(leaves: Record<string, any>[]): LeaveResponse[] {
   return leaves.map((l) => toResponse(l) as LeaveResponse);
-}
-
-export interface LeaveCreateInputViaMail {
-  from : string;
-  leave_type: (typeof LEAVE_TYPES)[number];
-  start_date: string;
-  end_date: string;
-  reason: string;
-}
-const createViaMailBodySchema = z
-  .object({
-    from: z.email(),
-    leave_type: z.enum(LEAVE_TYPES),
-    start_date: dateString,
-    end_date: dateString,
-    reason: z.string().trim().min(1, 'reason is required'),
-  })
-  .refine((data) => data.end_date >= data.start_date, {
-    message: 'end_date cannot be before start_date',
-    path: ['end_date'],
-  });
-
-export function toCreateInputViaMail(body: unknown): LeaveCreateInputViaMail {
-  return bindAndValidate(createViaMailBodySchema, body);
 }
