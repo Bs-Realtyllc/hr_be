@@ -72,10 +72,6 @@ export const departments = mysqlTable("departments", {
 	name: varchar({ length: 100 }).notNull(),
 	isActive: boolean("is_active").default(true),
 	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
-	// The position currently designated as this department's head — explicit
-	// pointer rather than inferred from the position tree, so "no head set" is
-	// a visible state rather than something to compute on every read.
-	headPositionId: int("head_position_id").references(() => positions.id, { onDelete: "set null" } ),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "departments_id"}),
@@ -84,50 +80,20 @@ export const departments = mysqlTable("departments", {
 export type Department = typeof departments.$inferSelect;
 export type NewDepartment = typeof departments.$inferInsert;
 
-// A seat in the org, independent of who's currently in it (the incumbent is
-// whichever employees.position_id row points here). "Reports to" points at
-// another position, not a person, so the chain survives personnel changes.
-export const positions = mysqlTable("positions", {
+export const designations = mysqlTable("designations", {
 	id: int().autoincrement().notNull(),
 	title: varchar({ length: 100 }).notNull(),
-	// Informational only (1 = highest) — not read by any approval/routing logic.
-	rank: int(),
-	departmentId: int("department_id").notNull().references(() => departments.id, { onDelete: "restrict" } ),
-	reportsToPositionId: int("reports_to_position_id"),
+	departmentId: int("department_id").references(() => departments.id, { onDelete: "set null" } ),
 	isActive: boolean("is_active").default(true),
 	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
 },
 (table) => [
 	index("department_id").on(table.departmentId),
-	index("reports_to_position_id").on(table.reportsToPositionId),
-	foreignKey({
-			columns: [table.reportsToPositionId],
-			foreignColumns: [table.id],
-			name: "positions_ibfk_1"
-		}).onDelete("set null"),
-	primaryKey({ columns: [table.id], name: "positions_id"}),
+	primaryKey({ columns: [table.id], name: "designations_id"}),
+	unique("title").on(table.title),
 ]);
-export type Position = typeof positions.$inferSelect;
-export type NewPosition = typeof positions.$inferInsert;
-
-// One row per position an employee holds — a seat still has exactly one
-// incumbent (position_id is unique below), but a person can hold several
-// seats at once (a "multiposition worker"), each keeping its own reports-to
-// chain since that lives on the position, not here.
-export const employeePositions = mysqlTable("employee_positions", {
-	id: int().autoincrement().notNull(),
-	employeeId: int("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" } ),
-	positionId: int("position_id").notNull().references(() => positions.id, { onDelete: "cascade" } ),
-	isPrimary: boolean("is_primary").default(false),
-	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
-},
-(table) => [
-	index("employee_id").on(table.employeeId),
-	primaryKey({ columns: [table.id], name: "employee_positions_id"}),
-	unique("position_id").on(table.positionId),
-]);
-export type EmployeePosition = typeof employeePositions.$inferSelect;
-export type NewEmployeePosition = typeof employeePositions.$inferInsert;
+export type Designation = typeof designations.$inferSelect;
+export type NewDesignation = typeof designations.$inferInsert;
 
 export const emailSettings = mysqlTable("email_settings", {
 	id: int().autoincrement().notNull(),
@@ -345,6 +311,11 @@ export const employees = mysqlTable("employees", {
 	phone: varchar({ length: 20 }),
 	// emergencyContact: varchar("emergency_contact", { length: 150 }),
 	profilePicture: varchar("profile_picture", { length: 255 }),
+	designation: varchar({ length: 100 }),
+	designationId: int("designation_id").references(() => designations.id, { onDelete: "set null" } ),
+	department: varchar({ length: 100 }),
+	departmentId: int("department_id").references(() => departments.id, { onDelete: "set null" } ),
+	managerId: int("manager_id"),
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
 	startDate: date("start_date", { mode: 'string' }),
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
@@ -388,6 +359,12 @@ export const employees = mysqlTable("employees", {
 	previousExperienceInfo: json("previous_experience_info").$type<PreviousExperienceEntry[]| null>(),
 },
 (table) => [
+	index("manager_id").on(table.managerId),
+	foreignKey({
+			columns: [table.managerId],
+			foreignColumns: [table.id],
+			name: "employees_ibfk_1"
+		}).onDelete("set null"),
 	primaryKey({ columns: [table.id], name: "employees_id"}),
 	unique("email").on(table.email),
 	unique("discord_username").on(table.discordUsername),

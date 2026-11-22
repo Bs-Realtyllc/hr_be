@@ -4,8 +4,7 @@ import { db } from "../config/database";
 import {
   standups,
   employees,
-  employeePositions,
-  positions,
+  designations,
   employeeDocuments,
 } from "../../drizzle/schema";
 
@@ -14,8 +13,7 @@ function insertedId(result: any): number {
 }
 
 const author = alias(employees, "standup_author");
-const authorPosition = alias(positions, "standup_author_pos");
-const authorPositionLink = alias(employeePositions, "standup_author_ep");
+const authorDesignation = alias(designations, "standup_author_desig");
 const authorDoc = alias(employeeDocuments, "standup_author_doc");
 
 export async function findWithNames({
@@ -51,18 +49,14 @@ export async function findWithNames({
       standup_date: standups.standupDate,
       created_at: standups.createdAt,
       employee_name: author.name,
-      designation: authorPosition.title,
+      designation: authorDesignation.title,
       profile_picture: authorDoc.filename,
     })
     .from(standups)
     .innerJoin(author, eq(standups.employeeId, author.id))
     .leftJoin(
-      authorPositionLink as any,
-      and(eq(authorPositionLink.employeeId, author.id), eq(authorPositionLink.isPrimary, true)),
-    )
-    .leftJoin(
-      authorPosition as any,
-      eq(authorPositionLink.positionId, authorPosition.id),
+      authorDesignation,
+      eq(author.designationId, authorDesignation.id),
     )
     .leftJoin(
       authorDoc,
@@ -93,18 +87,14 @@ export async function findToday(today: string, employeeId?: number | string) {
       standup_date: standups.standupDate,
       created_at: standups.createdAt,
       employee_name: author.name,
-      designation: authorPosition.title,
+      designation: authorDesignation.title,
       profile_picture: authorDoc.filename,
     })
     .from(standups)
     .innerJoin(author, eq(standups.employeeId, author.id))
     .leftJoin(
-      authorPositionLink as any,
-      and(eq(authorPositionLink.employeeId, author.id), eq(authorPositionLink.isPrimary, true)),
-    )
-    .leftJoin(
-      authorPosition as any,
-      eq(authorPositionLink.positionId, authorPosition.id),
+      authorDesignation,
+      eq(author.designationId, authorDesignation.id),
     )
     .leftJoin(
       authorDoc,

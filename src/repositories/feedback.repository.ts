@@ -1,7 +1,7 @@
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/mysql-core';
 import { db } from '../config/database';
-import { feedbackNotes, employees, employeePositions, positions, projects } from '../../drizzle/schema';
+import { feedbackNotes, employees, designations, projects } from '../../drizzle/schema';
 
 const feedbackNotesColumns = {
   id: feedbackNotes.id,
@@ -20,10 +20,8 @@ function insertedId(result: any): number {
 
 const sender = alias(employees, 'fb_from');
 const recipient = alias(employees, 'fb_to');
-const senderPosition = alias(positions, 'fb_from_pos');
-const recipientPosition = alias(positions, 'fb_to_pos');
-const senderPositionLink = alias(employeePositions, 'fb_from_ep');
-const recipientPositionLink = alias(employeePositions, 'fb_to_ep');
+const senderDesignation = alias(designations, 'fb_from_desig');
+const recipientDesignation = alias(designations, 'fb_to_desig');
 
 export async function findFeed({
   scope,
@@ -44,18 +42,16 @@ export async function findFeed({
     .select({
       ...feedbackNotesColumns,
       from_name: sender.name,
-      from_designation: senderPosition.title,
+      from_designation: senderDesignation.title,
       to_name: recipient.name,
-      to_designation: recipientPosition.title,
+      to_designation: recipientDesignation.title,
       project_name: projects.name,
     })
     .from(feedbackNotes)
     .innerJoin(sender, eq(feedbackNotes.fromEmployeeId, sender.id))
-    .leftJoin(senderPositionLink as any, and(eq(senderPositionLink.employeeId, sender.id), eq(senderPositionLink.isPrimary, true)))
-    .leftJoin(senderPosition as any, eq(senderPositionLink.positionId, senderPosition.id))
+    .leftJoin(senderDesignation, eq(sender.designationId, senderDesignation.id))
     .innerJoin(recipient, eq(feedbackNotes.toEmployeeId, recipient.id))
-    .leftJoin(recipientPositionLink as any, and(eq(recipientPositionLink.employeeId, recipient.id), eq(recipientPositionLink.isPrimary, true)))
-    .leftJoin(recipientPosition as any, eq(recipientPositionLink.positionId, recipientPosition.id))
+    .leftJoin(recipientDesignation, eq(recipient.designationId, recipientDesignation.id))
     .leftJoin(projects, eq(feedbackNotes.projectId, projects.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(feedbackNotes.createdAt))

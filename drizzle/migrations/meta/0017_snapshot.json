@@ -1,8 +1,8 @@
 {
+  "id": "6dbab65b-568c-4bc2-b114-5acca15679cf",
+  "prevId": "b182dd98-1a3b-41eb-8f1e-08cab9cfdee6",
   "version": "5",
   "dialect": "mysql",
-  "id": "4f7de796-1cd8-4c10-b6a8-baa54fb901a3",
-  "prevId": "b182dd98-1a3b-41eb-8f1e-08cab9cfdee6",
   "tables": {
     "access_log": {
       "name": "access_log",
@@ -158,8 +158,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "updated_by": {
           "name": "updated_by",
@@ -249,8 +249,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "created_by": {
           "name": "created_by",
@@ -287,41 +287,41 @@
         "culture_events_employee_id_employees_id_fk": {
           "name": "culture_events_employee_id_employees_id_fk",
           "tableFrom": "culture_events",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "culture_events_created_by_employees_id_fk": {
           "name": "culture_events_created_by_employees_id_fk",
           "tableFrom": "culture_events",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "culture_events_updated_by_employees_id_fk": {
           "name": "culture_events_updated_by_employees_id_fk",
           "tableFrom": "culture_events",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -367,31 +367,10 @@
           "notNull": false,
           "autoincrement": false,
           "default": "(now())"
-        },
-        "head_position_id": {
-          "name": "head_position_id",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "departments_head_position_id_positions_id_fk": {
-          "name": "departments_head_position_id_positions_id_fk",
-          "tableFrom": "departments",
-          "tableTo": "positions",
-          "columnsFrom": [
-            "head_position_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {
         "departments_id": {
           "name": "departments_id",
@@ -464,15 +443,15 @@
         "designations_department_id_departments_id_fk": {
           "name": "designations_department_id_departments_id_fk",
           "tableFrom": "designations",
-          "tableTo": "departments",
           "columnsFrom": [
             "department_id"
           ],
+          "tableTo": "departments",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -583,8 +562,8 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {
@@ -600,28 +579,28 @@
         "documents_uploaded_by_employees_id_fk": {
           "name": "documents_uploaded_by_employees_id_fk",
           "tableFrom": "documents",
-          "tableTo": "employees",
           "columnsFrom": [
             "uploaded_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "documents_parent_id_documents_id_fk": {
           "name": "documents_parent_id_documents_id_fk",
           "tableFrom": "documents",
-          "tableTo": "documents",
           "columnsFrom": [
             "parent_id"
           ],
+          "tableTo": "documents",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -724,8 +703,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "created_by": {
           "name": "created_by",
@@ -747,41 +726,41 @@
         "email_settings_employee_id_employees_id_fk": {
           "name": "email_settings_employee_id_employees_id_fk",
           "tableFrom": "email_settings",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "email_settings_created_by_employees_id_fk": {
           "name": "email_settings_created_by_employees_id_fk",
           "tableFrom": "email_settings",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "email_settings_updated_by_employees_id_fk": {
           "name": "email_settings_updated_by_employees_id_fk",
           "tableFrom": "email_settings",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -863,8 +842,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {
@@ -880,15 +859,15 @@
         "employee_clock_pauses_clock_id_employee_daily_clock_id_fk": {
           "name": "employee_clock_pauses_clock_id_employee_daily_clock_id_fk",
           "tableFrom": "employee_clock_pauses",
-          "tableTo": "employee_daily_clock",
           "columnsFrom": [
             "clock_id"
           ],
+          "tableTo": "employee_daily_clock",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -992,28 +971,28 @@
         "employee_compensation_history_employee_id_employees_id_fk": {
           "name": "employee_compensation_history_employee_id_employees_id_fk",
           "tableFrom": "employee_compensation_history",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "employee_compensation_history_changed_by_employees_id_fk": {
           "name": "employee_compensation_history_changed_by_employees_id_fk",
           "tableFrom": "employee_compensation_history",
-          "tableTo": "employees",
           "columnsFrom": [
             "changed_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -1102,8 +1081,8 @@
           "notNull": false,
           "autoincrement": false,
           "generated": {
-            "as": "(case when `clock_out` is null then 1 else null end)",
-            "type": "stored"
+            "type": "stored",
+            "as": "(case when `clock_out` is null then 1 else null end)"
           }
         },
         "clock_out_estimated": {
@@ -1150,8 +1129,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {
@@ -1167,15 +1146,15 @@
         "employee_daily_clock_employee_id_employees_id_fk": {
           "name": "employee_daily_clock_employee_id_employees_id_fk",
           "tableFrom": "employee_daily_clock",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -1250,15 +1229,15 @@
         "employee_documents_emp_id_employees_id_fk": {
           "name": "employee_documents_emp_id_employees_id_fk",
           "tableFrom": "employee_documents",
-          "tableTo": "employees",
           "columnsFrom": [
             "emp_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -1397,41 +1376,41 @@
         "employee_offboarding_emp_id_employees_id_fk": {
           "name": "employee_offboarding_emp_id_employees_id_fk",
           "tableFrom": "employee_offboarding",
-          "tableTo": "employees",
           "columnsFrom": [
             "emp_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "employee_offboarding_created_by_employees_id_fk": {
           "name": "employee_offboarding_created_by_employees_id_fk",
           "tableFrom": "employee_offboarding",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "employee_offboarding_updated_by_employees_id_fk": {
           "name": "employee_offboarding_updated_by_employees_id_fk",
           "tableFrom": "employee_offboarding",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -1549,28 +1528,28 @@
         "employee_offboarding_tasks_completed_by_employees_id_fk": {
           "name": "employee_offboarding_tasks_completed_by_employees_id_fk",
           "tableFrom": "employee_offboarding_tasks",
-          "tableTo": "employees",
           "columnsFrom": [
             "completed_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "employee_offboarding_tasks_offboarding_id_fk": {
           "name": "employee_offboarding_tasks_offboarding_id_fk",
           "tableFrom": "employee_offboarding_tasks",
-          "tableTo": "employee_offboarding",
           "columnsFrom": [
             "offboarding_id"
           ],
+          "tableTo": "employee_offboarding",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -2003,13 +1982,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "position_id": {
-          "name": "position_id",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "start_date": {
           "name": "start_date",
           "type": "date",
@@ -2278,67 +2250,47 @@
             "manager_id"
           ],
           "isUnique": false
-        },
-        "position_id": {
-          "name": "position_id",
-          "columns": [
-            "position_id"
-          ],
-          "isUnique": false
         }
       },
       "foreignKeys": {
         "employees_designation_id_designations_id_fk": {
           "name": "employees_designation_id_designations_id_fk",
           "tableFrom": "employees",
-          "tableTo": "designations",
           "columnsFrom": [
             "designation_id"
           ],
+          "tableTo": "designations",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "employees_department_id_departments_id_fk": {
           "name": "employees_department_id_departments_id_fk",
           "tableFrom": "employees",
-          "tableTo": "departments",
           "columnsFrom": [
             "department_id"
           ],
+          "tableTo": "departments",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "employees_position_id_positions_id_fk": {
-          "name": "employees_position_id_positions_id_fk",
-          "tableFrom": "employees",
-          "tableTo": "positions",
-          "columnsFrom": [
-            "position_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "employees_ibfk_1": {
           "name": "employees_ibfk_1",
           "tableFrom": "employees",
-          "tableTo": "employees",
           "columnsFrom": [
             "manager_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -2461,41 +2413,41 @@
         "feedback_notes_from_employee_id_employees_id_fk": {
           "name": "feedback_notes_from_employee_id_employees_id_fk",
           "tableFrom": "feedback_notes",
-          "tableTo": "employees",
           "columnsFrom": [
             "from_employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "feedback_notes_to_employee_id_employees_id_fk": {
           "name": "feedback_notes_to_employee_id_employees_id_fk",
           "tableFrom": "feedback_notes",
-          "tableTo": "employees",
           "columnsFrom": [
             "to_employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "feedback_notes_project_id_projects_id_fk": {
           "name": "feedback_notes_project_id_projects_id_fk",
           "tableFrom": "feedback_notes",
-          "tableTo": "projects",
           "columnsFrom": [
             "project_id"
           ],
+          "tableTo": "projects",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -2539,8 +2491,8 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "updated_by": {
           "name": "updated_by",
@@ -2555,15 +2507,15 @@
         "forms_layout_updated_by_employees_id_fk": {
           "name": "forms_layout_updated_by_employees_id_fk",
           "tableFrom": "forms_layout",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -2705,8 +2657,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {
@@ -2729,41 +2681,41 @@
         "goals_employee_id_employees_id_fk": {
           "name": "goals_employee_id_employees_id_fk",
           "tableFrom": "goals",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "goals_created_by_employees_id_fk": {
           "name": "goals_created_by_employees_id_fk",
           "tableFrom": "goals",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "goals_updated_by_employees_id_fk": {
           "name": "goals_updated_by_employees_id_fk",
           "tableFrom": "goals",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -2835,8 +2787,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {},
@@ -2904,8 +2856,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "created_by": {
           "name": "created_by",
@@ -2927,28 +2879,28 @@
         "holidays_created_by_employees_id_fk": {
           "name": "holidays_created_by_employees_id_fk",
           "tableFrom": "holidays",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "holidays_updated_by_employees_id_fk": {
           "name": "holidays_updated_by_employees_id_fk",
           "tableFrom": "holidays",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -3084,28 +3036,28 @@
         "inbox_channel_members_channel_id_inbox_channels_id_fk": {
           "name": "inbox_channel_members_channel_id_inbox_channels_id_fk",
           "tableFrom": "inbox_channel_members",
-          "tableTo": "inbox_channels",
           "columnsFrom": [
             "channel_id"
           ],
+          "tableTo": "inbox_channels",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "inbox_channel_members_employee_id_employees_id_fk": {
           "name": "inbox_channel_members_employee_id_employees_id_fk",
           "tableFrom": "inbox_channel_members",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -3341,28 +3293,28 @@
         "inbox_dm_messages_from_employee_id_employees_id_fk": {
           "name": "inbox_dm_messages_from_employee_id_employees_id_fk",
           "tableFrom": "inbox_dm_messages",
-          "tableTo": "employees",
           "columnsFrom": [
             "from_employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "inbox_dm_messages_to_employee_id_employees_id_fk": {
           "name": "inbox_dm_messages_to_employee_id_employees_id_fk",
           "tableFrom": "inbox_dm_messages",
-          "tableTo": "employees",
           "columnsFrom": [
             "to_employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -3429,28 +3381,28 @@
         "inbox_message_reactions_message_id_inbox_messages_id_fk": {
           "name": "inbox_message_reactions_message_id_inbox_messages_id_fk",
           "tableFrom": "inbox_message_reactions",
-          "tableTo": "inbox_messages",
           "columnsFrom": [
             "message_id"
           ],
+          "tableTo": "inbox_messages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "inbox_message_reactions_employee_id_employees_id_fk": {
           "name": "inbox_message_reactions_employee_id_employees_id_fk",
           "tableFrom": "inbox_message_reactions",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -3592,41 +3544,41 @@
         "inbox_messages_channel_id_inbox_channels_id_fk": {
           "name": "inbox_messages_channel_id_inbox_channels_id_fk",
           "tableFrom": "inbox_messages",
-          "tableTo": "inbox_channels",
           "columnsFrom": [
             "channel_id"
           ],
+          "tableTo": "inbox_channels",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "inbox_messages_employee_id_employees_id_fk": {
           "name": "inbox_messages_employee_id_employees_id_fk",
           "tableFrom": "inbox_messages",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "inbox_messages_ibfk_3": {
           "name": "inbox_messages_ibfk_3",
           "tableFrom": "inbox_messages",
-          "tableTo": "inbox_messages",
           "columnsFrom": [
             "reply_to_id"
           ],
+          "tableTo": "inbox_messages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -3693,28 +3645,28 @@
         "inbox_notification_prefs_channel_id_inbox_channels_id_fk": {
           "name": "inbox_notification_prefs_channel_id_inbox_channels_id_fk",
           "tableFrom": "inbox_notification_prefs",
-          "tableTo": "inbox_channels",
           "columnsFrom": [
             "channel_id"
           ],
+          "tableTo": "inbox_channels",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "inbox_notification_prefs_employee_id_employees_id_fk": {
           "name": "inbox_notification_prefs_employee_id_employees_id_fk",
           "tableFrom": "inbox_notification_prefs",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -3768,15 +3720,15 @@
         "inbox_presence_employee_id_employees_id_fk": {
           "name": "inbox_presence_employee_id_employees_id_fk",
           "tableFrom": "inbox_presence",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -3905,28 +3857,28 @@
         "inbox_voice_presence_channel_id_inbox_channels_id_fk": {
           "name": "inbox_voice_presence_channel_id_inbox_channels_id_fk",
           "tableFrom": "inbox_voice_presence",
-          "tableTo": "inbox_channels",
           "columnsFrom": [
             "channel_id"
           ],
+          "tableTo": "inbox_channels",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "inbox_voice_presence_employee_id_employees_id_fk": {
           "name": "inbox_voice_presence_employee_id_employees_id_fk",
           "tableFrom": "inbox_voice_presence",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -4001,15 +3953,15 @@
         "leave_balances_employee_id_employees_id_fk": {
           "name": "leave_balances_employee_id_employees_id_fk",
           "tableFrom": "leave_balances",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -4113,8 +4065,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "created_by": {
           "name": "created_by",
@@ -4168,54 +4120,54 @@
         "leave_requests_employee_id_employees_id_fk": {
           "name": "leave_requests_employee_id_employees_id_fk",
           "tableFrom": "leave_requests",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "leave_requests_reviewed_by_employees_id_fk": {
           "name": "leave_requests_reviewed_by_employees_id_fk",
           "tableFrom": "leave_requests",
-          "tableTo": "employees",
           "columnsFrom": [
             "reviewed_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "leave_requests_created_by_employees_id_fk": {
           "name": "leave_requests_created_by_employees_id_fk",
           "tableFrom": "leave_requests",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "leave_requests_updated_by_employees_id_fk": {
           "name": "leave_requests_updated_by_employees_id_fk",
           "tableFrom": "leave_requests",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -4304,15 +4256,15 @@
         "login_history_employee_id_employees_id_fk": {
           "name": "login_history_employee_id_employees_id_fk",
           "tableFrom": "login_history",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -4421,8 +4373,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {
@@ -4438,28 +4390,28 @@
         "meetings_created_by_employees_id_fk": {
           "name": "meetings_created_by_employees_id_fk",
           "tableFrom": "meetings",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "meetings_updated_by_employees_id_fk": {
           "name": "meetings_updated_by_employees_id_fk",
           "tableFrom": "meetings",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -4548,15 +4500,15 @@
         "milestones_project_id_projects_id_fk": {
           "name": "milestones_project_id_projects_id_fk",
           "tableFrom": "milestones",
-          "tableTo": "projects",
           "columnsFrom": [
             "project_id"
           ],
+          "tableTo": "projects",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -4658,15 +4610,15 @@
         "monthly_reports_employee_id_employees_id_fk": {
           "name": "monthly_reports_employee_id_employees_id_fk",
           "tableFrom": "monthly_reports",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -4755,15 +4707,15 @@
         "notification_preferences_employee_id_employees_id_fk": {
           "name": "notification_preferences_employee_id_employees_id_fk",
           "tableFrom": "notification_preferences",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -4950,15 +4902,15 @@
         "otp_codes_employee_id_employees_id_fk": {
           "name": "otp_codes_employee_id_employees_id_fk",
           "tableFrom": "otp_codes",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -5025,28 +4977,28 @@
         "ot_req_sessions_request_fk": {
           "name": "ot_req_sessions_request_fk",
           "tableFrom": "overtime_request_sessions",
-          "tableTo": "overtime_requests",
           "columnsFrom": [
             "overtime_request_id"
           ],
+          "tableTo": "overtime_requests",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "ot_req_sessions_clock_fk": {
           "name": "ot_req_sessions_clock_fk",
           "tableFrom": "overtime_request_sessions",
-          "tableTo": "employee_daily_clock",
           "columnsFrom": [
             "clock_id"
           ],
+          "tableTo": "employee_daily_clock",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -5206,8 +5158,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "created_by": {
           "name": "created_by",
@@ -5266,80 +5218,80 @@
         "overtime_requests_employee_id_employees_id_fk": {
           "name": "overtime_requests_employee_id_employees_id_fk",
           "tableFrom": "overtime_requests",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "overtime_requests_project_id_projects_id_fk": {
           "name": "overtime_requests_project_id_projects_id_fk",
           "tableFrom": "overtime_requests",
-          "tableTo": "projects",
           "columnsFrom": [
             "project_id"
           ],
+          "tableTo": "projects",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "overtime_requests_reviewed_by_employees_id_fk": {
           "name": "overtime_requests_reviewed_by_employees_id_fk",
           "tableFrom": "overtime_requests",
-          "tableTo": "employees",
           "columnsFrom": [
             "reviewed_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "overtime_requests_reconciled_by_employees_id_fk": {
           "name": "overtime_requests_reconciled_by_employees_id_fk",
           "tableFrom": "overtime_requests",
-          "tableTo": "employees",
           "columnsFrom": [
             "reconciled_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "overtime_requests_created_by_employees_id_fk": {
           "name": "overtime_requests_created_by_employees_id_fk",
           "tableFrom": "overtime_requests",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "overtime_requests_updated_by_employees_id_fk": {
           "name": "overtime_requests_updated_by_employees_id_fk",
           "tableFrom": "overtime_requests",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -5405,8 +5357,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "created_by": {
           "name": "created_by",
@@ -5436,41 +5388,41 @@
         "password_reset_tokens_employee_id_employees_id_fk": {
           "name": "password_reset_tokens_employee_id_employees_id_fk",
           "tableFrom": "password_reset_tokens",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "password_reset_tokens_created_by_employees_id_fk": {
           "name": "password_reset_tokens_created_by_employees_id_fk",
           "tableFrom": "password_reset_tokens",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "password_reset_tokens_updated_by_employees_id_fk": {
           "name": "password_reset_tokens_updated_by_employees_id_fk",
           "tableFrom": "password_reset_tokens",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -5586,15 +5538,15 @@
         "payroll_adjustments_employee_id_employees_id_fk": {
           "name": "payroll_adjustments_employee_id_employees_id_fk",
           "tableFrom": "payroll_adjustments",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -5717,8 +5669,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "updated_by": {
           "name": "updated_by",
@@ -5749,41 +5701,41 @@
         "performance_reviews_employee_id_employees_id_fk": {
           "name": "performance_reviews_employee_id_employees_id_fk",
           "tableFrom": "performance_reviews",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "performance_reviews_reviewer_id_employees_id_fk": {
           "name": "performance_reviews_reviewer_id_employees_id_fk",
           "tableFrom": "performance_reviews",
-          "tableTo": "employees",
           "columnsFrom": [
             "reviewer_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "performance_reviews_updated_by_employees_id_fk": {
           "name": "performance_reviews_updated_by_employees_id_fk",
           "tableFrom": "performance_reviews",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -5803,123 +5755,6 @@
           ]
         }
       },
-      "checkConstraint": {}
-    },
-    "positions": {
-      "name": "positions",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "title": {
-          "name": "title",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "short_name": {
-          "name": "short_name",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "rank": {
-          "name": "rank",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "department_id": {
-          "name": "department_id",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "reports_to_position_id": {
-          "name": "reports_to_position_id",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": "(now())"
-        }
-      },
-      "indexes": {
-        "department_id": {
-          "name": "department_id",
-          "columns": [
-            "department_id"
-          ],
-          "isUnique": false
-        },
-        "reports_to_position_id": {
-          "name": "reports_to_position_id",
-          "columns": [
-            "reports_to_position_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "positions_department_id_departments_id_fk": {
-          "name": "positions_department_id_departments_id_fk",
-          "tableFrom": "positions",
-          "tableTo": "departments",
-          "columnsFrom": [
-            "department_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "positions_ibfk_1": {
-          "name": "positions_ibfk_1",
-          "tableFrom": "positions",
-          "tableTo": "positions",
-          "columnsFrom": [
-            "reports_to_position_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "positions_id": {
-          "name": "positions_id",
-          "columns": [
-            "id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
       "checkConstraint": {}
     },
     "project_assignments": {
@@ -5976,28 +5811,28 @@
         "project_assignments_project_id_projects_id_fk": {
           "name": "project_assignments_project_id_projects_id_fk",
           "tableFrom": "project_assignments",
-          "tableTo": "projects",
           "columnsFrom": [
             "project_id"
           ],
+          "tableTo": "projects",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "project_assignments_employee_id_employees_id_fk": {
           "name": "project_assignments_employee_id_employees_id_fk",
           "tableFrom": "project_assignments",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -6057,15 +5892,15 @@
         "project_services_project_id_projects_id_fk": {
           "name": "project_services_project_id_projects_id_fk",
           "tableFrom": "project_services",
-          "tableTo": "projects",
           "columnsFrom": [
             "project_id"
           ],
+          "tableTo": "projects",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -6169,8 +6004,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {
@@ -6200,41 +6035,41 @@
         "project_todos_project_id_projects_id_fk": {
           "name": "project_todos_project_id_projects_id_fk",
           "tableFrom": "project_todos",
-          "tableTo": "projects",
           "columnsFrom": [
             "project_id"
           ],
+          "tableTo": "projects",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "project_todos_created_by_employees_id_fk": {
           "name": "project_todos_created_by_employees_id_fk",
           "tableFrom": "project_todos",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "project_todos_updated_by_employees_id_fk": {
           "name": "project_todos_updated_by_employees_id_fk",
           "tableFrom": "project_todos",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -6343,8 +6178,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "created_by": {
           "name": "created_by",
@@ -6374,28 +6209,28 @@
         "projects_created_by_employees_id_fk": {
           "name": "projects_created_by_employees_id_fk",
           "tableFrom": "projects",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "projects_updated_by_employees_id_fk": {
           "name": "projects_updated_by_employees_id_fk",
           "tableFrom": "projects",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -6490,8 +6325,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "created_by": {
           "name": "created_by",
@@ -6521,41 +6356,41 @@
         "servers_project_id_projects_id_fk": {
           "name": "servers_project_id_projects_id_fk",
           "tableFrom": "servers",
-          "tableTo": "projects",
           "columnsFrom": [
             "project_id"
           ],
+          "tableTo": "projects",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "servers_created_by_employees_id_fk": {
           "name": "servers_created_by_employees_id_fk",
           "tableFrom": "servers",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "servers_updated_by_employees_id_fk": {
           "name": "servers_updated_by_employees_id_fk",
           "tableFrom": "servers",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -6620,8 +6455,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "created_at": {
           "name": "created_at",
@@ -6666,41 +6501,41 @@
         "service_credentials_employee_id_employees_id_fk": {
           "name": "service_credentials_employee_id_employees_id_fk",
           "tableFrom": "service_credentials",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "service_credentials_created_by_employees_id_fk": {
           "name": "service_credentials_created_by_employees_id_fk",
           "tableFrom": "service_credentials",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "service_credentials_updated_by_employees_id_fk": {
           "name": "service_credentials_updated_by_employees_id_fk",
           "tableFrom": "service_credentials",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -6802,8 +6637,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "created_by": {
           "name": "created_by",
@@ -6833,41 +6668,41 @@
         "standups_employee_id_employees_id_fk": {
           "name": "standups_employee_id_employees_id_fk",
           "tableFrom": "standups",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "standups_created_by_employees_id_fk": {
           "name": "standups_created_by_employees_id_fk",
           "tableFrom": "standups",
-          "tableTo": "employees",
           "columnsFrom": [
             "created_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "standups_updated_by_employees_id_fk": {
           "name": "standups_updated_by_employees_id_fk",
           "tableFrom": "standups",
-          "tableTo": "employees",
           "columnsFrom": [
             "updated_by"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {
@@ -6964,15 +6799,15 @@
         "trusted_devices_employee_id_employees_id_fk": {
           "name": "trusted_devices_employee_id_employees_id_fk",
           "tableFrom": "trusted_devices",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -7053,15 +6888,15 @@
         "two_factor_email_tokens_employee_id_employees_id_fk": {
           "name": "two_factor_email_tokens_employee_id_employees_id_fk",
           "tableFrom": "two_factor_email_tokens",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -7156,15 +6991,15 @@
         "weekly_reports_employee_id_employees_id_fk": {
           "name": "weekly_reports_employee_id_employees_id_fk",
           "tableFrom": "weekly_reports",
-          "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
           ],
+          "tableTo": "employees",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -7181,9 +7016,9 @@
   },
   "views": {},
   "_meta": {
+    "columns": {},
     "schemas": {},
-    "tables": {},
-    "columns": {}
+    "tables": {}
   },
   "internal": {
     "tables": {},

@@ -37,27 +37,6 @@ export const remove = asyncHandler(async (req: any, res: Response) => {
   res.json({ success: true });
 });
 
-export const listPositions = asyncHandler(async (req: any, res: Response) => {
-  const rows = await employeeService.listPositions(req.params.id);
-  res.json(rows);
-});
-
-export const addPosition = asyncHandler(async (req: any, res: Response) => {
-  const { position_id, primary } = req.body;
-  await employeeService.addPosition(req.params.id, Number(position_id), Boolean(primary));
-  res.status(201).json({ success: true });
-});
-
-export const removePosition = asyncHandler(async (req: any, res: Response) => {
-  await employeeService.removePosition(req.params.id, Number(req.params.positionId));
-  res.json({ success: true });
-});
-
-export const setPrimaryPosition = asyncHandler(async (req: any, res: Response) => {
-  await employeeService.setPrimaryPosition(req.params.id, Number(req.params.positionId));
-  res.json({ success: true });
-});
-
 export const approve = asyncHandler(async (req: any, res: Response) => {
   await employeeService.approve(req.params.id, req.user?.id ?? null);
   res.json({ success: true });

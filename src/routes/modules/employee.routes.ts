@@ -15,10 +15,6 @@ router.get('/:id/payroll-summary', authenticate, requireRole('admin', 'lead'), c
 router.post('/bulkAdd', authenticate, ctrl.createBulk);
 router.post('/', authenticate, requireRole('admin', 'lead'), ctrl.create);
 router.put('/:id', authenticate, requireRole('admin', 'lead'), ctrl.update);
-router.get('/:id/positions', authenticate, requireRole('admin'), ctrl.listPositions);
-router.post('/:id/positions', authenticate, requireRole('admin'), ctrl.addPosition);
-router.delete('/:id/positions/:positionId', authenticate, requireRole('admin'), ctrl.removePosition);
-router.put('/:id/positions/:positionId/primary', authenticate, requireRole('admin'), ctrl.setPrimaryPosition);
 router.put('/:id/approve', authenticate, requireRole('admin'), ctrl.approve);
 router.put('/:id/reject', authenticate, requireRole('admin'), ctrl.reject);
 router.delete('/:id', authenticate, requireRole('admin'), ctrl.remove);

@@ -10,8 +10,7 @@ import {
   inboxVoicePresence,
   inboxPresence,
   employees,
-  employeePositions,
-  positions,
+  designations,
 } from '../../drizzle/schema';
 
 const inboxCategoriesColumns = {
@@ -308,12 +307,11 @@ export async function listMessages(channelId: number, limit = 50, before?: Date)
       created_at:  inboxMessages.createdAt,
       updated_at:  inboxMessages.updatedAt,
       author_name:        employees.name,
-      author_designation: positions.title,
+      author_designation: designations.title,
     })
     .from(inboxMessages)
     .innerJoin(employees,    eq(inboxMessages.employeeId, employees.id))
-    .leftJoin(employeePositions, and(eq(employeePositions.employeeId, employees.id), eq(employeePositions.isPrimary, true)))
-    .leftJoin(positions,  eq(employeePositions.positionId, positions.id))
+    .leftJoin(designations,  eq(employees.designationId, designations.id))
     .where(and(...conditions))
     .orderBy(asc(inboxMessages.createdAt))
     .limit(limit);
@@ -404,12 +402,11 @@ export async function getFullMessageById(id: number) {
       created_at:  inboxMessages.createdAt,
       updated_at:  inboxMessages.updatedAt,
       author_name:        employees.name,
-      author_designation: positions.title,
+      author_designation: designations.title,
     })
     .from(inboxMessages)
     .innerJoin(employees,   eq(inboxMessages.employeeId, employees.id))
-    .leftJoin(employeePositions, and(eq(employeePositions.employeeId, employees.id), eq(employeePositions.isPrimary, true)))
-    .leftJoin(positions, eq(employeePositions.positionId, positions.id))
+    .leftJoin(designations, eq(employees.designationId, designations.id))
     .where(and(eq(inboxMessages.id, id), isNull(inboxMessages.deletedAt)))
     .limit(1);
 
@@ -483,7 +480,7 @@ export async function listDmConversations(employeeId: number) {
     SELECT
       e.id          AS partner_id,
       e.name        AS partner_name,
-      p.title       AS partner_designation,
+      d.title       AS partner_designation,
       (SELECT content FROM inbox_dm_messages m2
         WHERE (m2.from_employee_id = ${employeeId} AND m2.to_employee_id = e.id)
            OR (m2.from_employee_id = e.id AND m2.to_employee_id = ${employeeId})
@@ -496,8 +493,7 @@ export async function listDmConversations(employeeId: number) {
         WHERE m2.from_employee_id = e.id AND m2.to_employee_id = ${employeeId}
           AND m2.is_read = 0 AND m2.deleted_at IS NULL) AS unread
     FROM employees e
-    LEFT JOIN employee_positions ep ON ep.employee_id = e.id AND ep.is_primary = 1
-    LEFT JOIN positions p ON ep.position_id = p.id
+    LEFT JOIN designations d ON e.designation_id = d.id
     WHERE e.id != ${employeeId}
       AND e.status = 'active'
       AND EXISTS (
@@ -695,10 +691,9 @@ export async function getSavedMessages(employeeId: number) {
 
 export async function getEmployeeDesignation(employeeId: number): Promise<string> {
   const rows: any[] = await db.execute(sql`
-    SELECT p.title
+    SELECT d.title
     FROM employees e
-    LEFT JOIN employee_positions ep ON ep.employee_id = e.id AND ep.is_primary = 1
-    LEFT JOIN positions p ON ep.position_id = p.id
+    LEFT JOIN designations d ON e.designation_id = d.id
     WHERE e.id = ${employeeId}
   `);
   return ((rows[0] as any[])?.[0]?.title as string) ?? '';
@@ -707,10 +702,9 @@ export async function getEmployeeDesignation(employeeId: number): Promise<string
 export async function getEmployeesByIds(ids: number[]): Promise<{ id: number; name: string; designation: string }[]> {
   if (ids.length === 0) return [];
   const rows: any[] = await db.execute(sql`
-    SELECT e.id, e.name, COALESCE(p.title, '') AS designation
+    SELECT e.id, e.name, COALESCE(d.title, '') AS designation
     FROM employees e
-    LEFT JOIN employee_positions ep ON ep.employee_id = e.id AND ep.is_primary = 1
-    LEFT JOIN positions p ON ep.position_id = p.id
+    LEFT JOIN designations d ON e.designation_id = d.id
     WHERE e.id IN (${sql.raw(ids.join(','))})
   `);
   return (rows[0] as any[]) ?? [];

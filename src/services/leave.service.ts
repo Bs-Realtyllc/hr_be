@@ -1,7 +1,5 @@
 import * as leaveRepo from '../repositories/leave.repository';
 import * as employeeRepo from '../repositories/employee.repository';
-import * as positionRepo from '../repositories/position.repository';
-import * as departmentRepo from '../repositories/department.repository';
 import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
 import * as notificationPreferenceService from './notificationPreference.service';
 import AppError from '../pkg/AppError';
@@ -30,32 +28,18 @@ async function notifyLeaveStatusIfNeeded(employeeId: number, status: 'approved' 
   }
 }
 
-// Resolves who should review a new request: the position-derived manager
-// first, then their department head, falling back to all admins if neither
-// resolves to someone who can actually approve (i.e. holds the lead/admin role).
-async function resolveApprovers(requester: any): Promise<any[]> {
-  const qualifies = (person: any) => person && ['admin', 'lead'].includes(person.role);
-
-  if (requester.position_id != null) {
-    const positionManager = await positionRepo.findManagerViaPosition(requester.id);
-    if (qualifies(positionManager)) return [positionManager];
-  }
-
-  if (requester.department_id) {
-    const deptHead = await departmentRepo.findHeadIncumbent(requester.department_id);
-    if (qualifies(deptHead)) return [deptHead];
-  }
-
-  return employeeRepo.findAdmins();
-}
-
+// Notifies the requester's actual manager; falls back to all admins if they have
+// none set, or if their manager isn't actually able to approve (not lead/admin).
 async function notifyApproversOfNewLeaveRequest(employeeId: number, leaveType: string, startDate: string, endDate: string) {
   if (!process.env.MAIL_HOST) return;
   try {
     const requester = await employeeRepo.findById(employeeId);
     if (!requester) return;
 
-    const approvers = await resolveApprovers(requester);
+    const manager = requester.manager_id ? await employeeRepo.findById(requester.manager_id) : null;
+    const approvers = manager && ['admin', 'lead'].includes(manager.role)
+      ? [manager]
+      : await employeeRepo.findAdmins();
 
     for (const approver of approvers as any[]) {
       const enabled = await notificationPreferenceService.isEnabled(approver.id, 'leave_request_submitted');
@@ -321,12 +305,10 @@ export async function report() {
 async function assertCanReview(leave: any, user: AuthUser) {
   if (user.role === 'admin') return;
 
-  if (leave.employee_id) {
-    const manager = await positionRepo.findManagerViaPosition(leave.employee_id);
-    if (manager?.id === user.id) return;
+  const requester = await employeeRepo.findById(leave.employee_id);
+  if (!requester || requester.manager_id !== user.id) {
+    throw new AppError('You can only approve or reject leave requests for your direct reports', 403);
   }
-
-  throw new AppError('You can only approve or reject leave requests for your direct reports', 403);
 }
 
 async function applyLeaveDeductionIfNeeded(leave: any, days: number, year: number) {

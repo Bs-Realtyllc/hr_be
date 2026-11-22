@@ -11,6 +11,11 @@ const SELF_SERVICE_FIELDS = [
   "secondary_email",
   "phone",
   "profile_picture",
+  "designation",
+  "department",
+  "department_id",
+  "designation_id",
+  "manager_id",
   "start_date",
   "work_hours",
   "github_url",
@@ -46,6 +51,10 @@ const fieldSchemas = {
       "phone must be 7-15 digits, optionally starting with +",
     ),
   profile_picture: z.string().url(),
+  designation: z.string().max(100),
+  department: z.string().max(100),
+  department_id: z.int(),
+  manager_id: z.int(),
   start_date: z
     .string()
     .regex(
@@ -70,6 +79,7 @@ const fieldSchemas = {
     ),
     emergency_contact_relation: z.string(),
     nationality: z.string(),
+    designation_id: z.int(),
     work_hours: z.string(),
     work_location: z.enum(["onsite", "remote", "hybrid"]),
     account_holder_name : z.string(),

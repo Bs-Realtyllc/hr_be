@@ -2,7 +2,6 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import * as employeeRepo from "../repositories/employee.repository";
-import * as positionRepo from "../repositories/position.repository";
 import * as payrollAdjustmentRepo from "../repositories/payrollAdjustment.repository";
 import * as notificationPreferenceService from "./notificationPreference.service";
 import { sendPlatformMail } from "../pkg/mailer";
@@ -139,6 +138,8 @@ export async function create(
   return result;
 }
 
+const EMPLOYEE_UPDATE_NOTIFY_FIELDS = ["designation", "department"] as const;
+
 export async function update(
   id: string,
   updates: EmployeeUpdateInput,
@@ -156,89 +157,70 @@ export async function update(
     if (actorId != null && String(actorId) === String(id)) {
       throw new AppError("You cannot change your own role", 400);
     }
+    // This route is also open to 'lead' for designation/department edits —
+    // granting or revoking admin access needs the stricter admin-only bar.
     if (actorRole !== "admin") {
       throw new AppError("Only an admin can change an employee's role", 403);
     }
   }
 
+  const before = await employeeRepo.findById(id);
   await employeeRepo.update(id, updates, actorId);
-}
 
-export async function remove(id: string, actorId: number | null) {
-  await employeeRepo.deactivate(id, actorId);
-}
-
-export async function listPositions(employeeId: string) {
-  return positionRepo.findPositionsForEmployee(employeeId);
-}
-
-export async function addPosition(employeeId: string, positionId: number, isPrimary: boolean) {
-  const position = await positionRepo.findById(positionId);
-  if (!position) throw new AppError("Position not found", 404);
-
-  const existingIncumbent = await positionRepo.findIncumbent(positionId);
-  if (existingIncumbent) {
-    throw new AppError(
-      String(existingIncumbent.id) === String(employeeId)
-        ? "This employee already holds this position"
-        : `${existingIncumbent.name} already holds this position`,
-      400
+  if (before) {
+    const changedFields = EMPLOYEE_UPDATE_NOTIFY_FIELDS.filter(
+      (field) => field in updates && (updates as any)[field] !== (before as any)[field],
     );
-  }
-
-  const employee = await employeeRepo.findById(employeeId);
-  await positionRepo.addPosition(employeeId, positionId, isPrimary);
-
-  if (employee && isPrimary) notifyPositionChangedIfNeeded(employee, position);
-}
-
-export async function removePosition(employeeId: string, positionId: number) {
-  const positions = await positionRepo.findPositionsForEmployee(employeeId);
-  const target = positions.find((p) => p.id === positionId);
-  if (!target) throw new AppError("Employee does not hold this position", 404);
-
-  await positionRepo.removePosition(employeeId, positionId);
-
-  if (target.is_primary) {
-    const employee = await employeeRepo.findById(employeeId);
-    if (employee) notifyPositionChangedIfNeeded(employee, null);
+    if (changedFields.length) {
+      notifyEmployeeUpdatedIfNeeded(before, changedFields, updates);
+    }
   }
 }
 
-export async function setPrimaryPosition(employeeId: string, positionId: number) {
-  const positions = await positionRepo.findPositionsForEmployee(employeeId);
-  const target = positions.find((p) => p.id === positionId);
-  if (!target) throw new AppError("Employee does not hold this position", 404);
-  if (target.is_primary) return;
+const EMPLOYEE_UPDATE_FIELD_LABELS: Record<string, string> = {
+  designation: "Designation",
+  department: "Department",
+};
 
-  await positionRepo.setPrimaryPosition(employeeId, positionId);
-
-  const employee = await employeeRepo.findById(employeeId);
-  if (employee) notifyPositionChangedIfNeeded(employee, target);
+// designation/department are free-text and admin-settable — escape before
+// interpolating into email HTML so a value can't inject markup.
+function escapeHtml(value: unknown): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
-async function notifyPositionChangedIfNeeded(
+async function notifyEmployeeUpdatedIfNeeded(
   employee: { id: number; name: string; email: string },
-  position: { title: string; department_name?: string } | null,
+  changedFields: readonly string[],
+  updates: EmployeeUpdateInput,
 ) {
   if (!process.env.MAIL_HOST) return;
   try {
     const enabled = await notificationPreferenceService.isEnabled(employee.id, "employee_updates");
     if (!enabled) return;
-    const description = position
-      ? `<strong>${position.title}</strong>${position.department_name ? ` (${position.department_name})` : ''}`
-      : 'unassigned';
+    const changeLines = changedFields
+      .map((field) => `<li><strong>${EMPLOYEE_UPDATE_FIELD_LABELS[field] ?? field}</strong> is now <strong>${escapeHtml((updates as any)[field])}</strong></li>`)
+      .join("");
     await sendPlatformMail(
       employee.email,
-      "HR Platform — Your Position Changed",
+      "HR Platform — Your Designation or Department Changed",
       `<p>Hi ${employee.name},</p>
-       <p>Your position was updated to ${description}.</p>
+       <p>An admin updated the following on your employee record:</p>
+       <ul>${changeLines}</ul>
        <p>If you have questions about this change, contact HR.</p>
        <p style="color:#888;font-size:12px">HR Platform</p>`,
     );
   } catch (err: any) {
-    console.error(`[employee] Failed to send position-changed email for ${employee.id}:`, err.message);
+    console.error(`[employee] Failed to send employee-updated email for ${employee.id}:`, err.message);
   }
+}
+
+export async function remove(id: string, actorId: number | null) {
+  await employeeRepo.deactivate(id, actorId);
 }
 
 const TEMP_PASSWORD_CHARS =

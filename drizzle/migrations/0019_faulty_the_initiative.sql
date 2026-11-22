@@ -1,1 +1,0 @@
-ALTER TABLE `positions` DROP COLUMN `short_name`;
