@@ -66,6 +66,13 @@ export function attachInboxSocket(httpServer: HttpServer) {
     /* Put the socket in a personal room for targeted DM notifications */
     socket.join(`user:${user.id}`);
 
+    /* Admins/leads also join a shared room so broadcasts meant for "anyone
+     * watching the team" (e.g. clock:sync for attendance dashboards) reach
+     * them without having to join every individual employee's own room. */
+    if (user.role === 'admin' || user.role === 'lead') {
+      socket.join('role:admin-lead');
+    }
+
     /* Track this socket for multi-tab presence */
     if (!onlineSockets.has(user.id)) onlineSockets.set(user.id, new Set());
     onlineSockets.get(user.id)!.add(socket.id);

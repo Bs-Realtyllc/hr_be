@@ -18,6 +18,10 @@ export interface PauseRow {
   pause: Date;
   resume: Date | null;
   reason: string | null;
+  // Named distinctly from the shift's own `source` (web/desktop) field it's
+  // often selected alongside — this is whether the pause itself was typed
+  // in by the employee or triggered automatically by idle detection.
+  pauseSource: 'manual' | 'idle_auto';
   pauseDuration: number | null;
 }
  
@@ -37,6 +41,7 @@ export interface ClockRow {
   clockInLng: number | null;
   clockOutLat: number | null;
   clockOutLng: number | null;
+  source: 'web' | 'desktop';
 }
 
 export interface AttendanceRepoResult {
@@ -80,16 +85,16 @@ export async function getPauseRow(clockId: number) {
 }
 
 interface coordsType {
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
 }
 
-export async function addClockIn(empId: number, coords: coordsType) {
+export async function addClockIn(empId: number, coords: coordsType, source: 'web' | 'desktop' = 'web') {
   let insertId: number;
   try {
     const [result] = await db
       .insert(employeeDailyClock)
-      .values({ employeeId: empId, clockDate: nepalDateString(), clockInLat: coords.lat, clockInLng: coords.lng });
+      .values({ employeeId: empId, clockDate: nepalDateString(), clockInLat: coords.lat, clockInLng: coords.lng, source });
     insertId = result.insertId;
   } catch (err: any) {
     // Belt-and-suspenders: the service layer already checks for an open
@@ -116,9 +121,13 @@ const row = await db
     pause: employeeClockPauses.pause,
     resume: employeeClockPauses.resume,
     reason: employeeClockPauses.reason,
+    pauseSource: employeeClockPauses.source,
     clockOut: employeeDailyClock.clockOut,
     clockOutEstimated: employeeDailyClock.clockOutEstimated,
     clockDate: employeeDailyClock.clockDate,
+    source: employeeDailyClock.source,
+    idlePromptStartedAt: employeeDailyClock.idlePromptStartedAt,
+    idlePromptResponseSeconds: employeeDailyClock.idlePromptResponseSeconds,
     pauseDuration: sql<number | null>`TIMESTAMPDIFF(SECOND, ${employeeClockPauses.pause}, COALESCE(${employeeClockPauses.resume}, ${employeeDailyClock.clockOut}))`.mapWith(Number),
   })
   .from(employeeDailyClock)
@@ -145,8 +154,10 @@ export async function getShiftWithPauses(clockId: number) {
       clockOut: employeeDailyClock.clockOut,
       clockOutEstimated: employeeDailyClock.clockOutEstimated,
       clockDate: employeeDailyClock.clockDate,
+      source: employeeDailyClock.source,
       pause: employeeClockPauses.pause,
       resume: employeeClockPauses.resume,
+      pauseSource: employeeClockPauses.source,
       pauseDuration: sql<number | null>`TIMESTAMPDIFF(SECOND, ${employeeClockPauses.pause}, COALESCE(${employeeClockPauses.resume}, ${employeeDailyClock.clockOut}))`.mapWith(Number),
     })
     .from(employeeDailyClock)
@@ -189,10 +200,29 @@ export async function closeStaleOpenShifts(): Promise<number> {
   return result[0]?.affectedRows ?? 0;
 }
 
-export async function addPause(clockId:number ,empId: number, reason: string) {
+// Ground truth for "is the idle prompt active, and how much time is left" —
+// any client reconstructs this from the row itself, never trusting a socket
+// event alone (see schema.ts comment on these two columns).
+export async function setIdlePrompt(clockId: number, responseSeconds: number) {
+  const startedAt = new Date();
+  await db
+    .update(employeeDailyClock)
+    .set({ idlePromptStartedAt: startedAt, idlePromptResponseSeconds: responseSeconds })
+    .where(eq(employeeDailyClock.id, clockId));
+  return startedAt;
+}
+
+export async function clearIdlePrompt(clockId: number) {
+  await db
+    .update(employeeDailyClock)
+    .set({ idlePromptStartedAt: null, idlePromptResponseSeconds: null })
+    .where(eq(employeeDailyClock.id, clockId));
+}
+
+export async function addPause(clockId: number, empId: number, reason: string, source: 'manual' | 'idle_auto' = 'manual') {
   const [result] = await db
     .insert(employeeClockPauses)
-    .values({clockId: clockId, reason: reason});
+    .values({ clockId: clockId, reason: reason, source });
 
   if(result.affectedRows === 0) throw new AppError('Unable to add new Pause record', 500);
 
@@ -293,6 +323,7 @@ export async function getAttendance(
       clockInLng: employeeDailyClock.clockInLng,
       clockOutLat: employeeDailyClock.clockOutLat,
       clockOutLng: employeeDailyClock.clockOutLng,
+      source: employeeDailyClock.source,
     })
     .from(employeeDailyClock)
     .leftJoin(employees, eq(employeeDailyClock.employeeId, employees.id))
@@ -329,6 +360,7 @@ export async function getAttendance(
       pause: employeeClockPauses.pause,
       resume: employeeClockPauses.resume,
       reason: employeeClockPauses.reason,
+      pauseSource: employeeClockPauses.source,
       pauseDuration: sql<number | null>`TIMESTAMPDIFF(SECOND, ${employeeClockPauses.pause}, COALESCE(${employeeClockPauses.resume}, ${employeeDailyClock.clockOut}))`.mapWith(
         Number,
       ),

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc && mkdir -p dist/src/db/seed && cp src/db/seed/*.sql dist/src/db/seed/ && rm -rf dist/drizzle/migrations && mkdir -p dist/drizzle && cp -r drizzle/migrations dist/drizzle/migrations",
+    "build": "tsc && shx mkdir -p dist/src/db/seed && shx cp src/db/seed/*.sql dist/src/db/seed/ && shx rm -rf dist/drizzle/migrations && shx mkdir -p dist/drizzle && shx cp -R drizzle/migrations dist/drizzle/migrations",
     "start": "node dist/index.js",
     "dev": "tsx watch index.ts",
     "migrate": "node dist/src/db/migrate.js",
@@ -56,6 +56,7 @@
     "@types/swagger-ui-express": "^4.1.8",
     "drizzle-kit": "^0.31.11",
     "nodemon": "^3.0.1",
+    "shx": "^0.4.0",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2"
   }

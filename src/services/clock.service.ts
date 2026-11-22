@@ -2,6 +2,7 @@ import AppError from "../pkg/AppError";
 import { nepalDateString, nepalTimeToUtc } from "../pkg/timezone";
 import * as employeeDailyClockRepo from "../repositories/clock.repository";
 import * as companySettingsRepo from "../repositories/companySettings.repository";
+import * as trackerService from "./tracker.service";
 
 export interface AttendanceQuery {
   employeeId?: string;
@@ -89,9 +90,12 @@ async function buildLateChecker() {
   };
 }
 
-function parseCoordinates(lat: unknown, lng: unknown) {
-  // both missing: location is optional (remove this block if it's required)
-  // if (lat == null && lng == null) return null;
+function parseCoordinates(lat: unknown, lng: unknown, source: 'web' | 'desktop' = 'web') {
+  // Desktop has no real GPS hardware — activity/screenshots are the trust
+  // signal there instead, so location is only required for web clock-ins.
+  if (source === 'desktop' && lat == null && lng == null) {
+    return { lat: null, lng: null };
+  }
 
   // one without the other is a client bug
   if (lat == null || lng == null) {
@@ -112,8 +116,23 @@ function parseCoordinates(lat: unknown, lng: unknown) {
   return { lat: Number(la.toFixed(6)), lng: Number(ln.toFixed(6)) };
 }
 
-export async function clockIn(empId: number, lat: number, lng: number) {
-  const coords = parseCoordinates(lat, lng);
+// A bare "something changed, go refetch" push — same philosophy as the
+// idle-prompt nudges, just without a payload, since every clock-state
+// transition (in/out/pause/resume) needs the same full GET /clock reread
+// anyway. Lets any connected device (the web tab, or a desktop app that
+// wasn't the one acting) react in milliseconds instead of waiting for its
+// next regular poll — the poll stays as the fallback if this is missed.
+function notifyClockSync(empId: number, io?: any) {
+  io?.to(`user:${empId}`).emit('clock:sync');
+  // Admin/lead attendance dashboards watch everyone, not just their own
+  // shift — the room-based broadcast pattern for "anyone watching the
+  // team" (same thing the inbox's presence feature does per-connection,
+  // just scoped to admins/leads instead of blanketing every socket).
+  io?.to('role:admin-lead').emit('clock:sync');
+}
+
+export async function clockIn(empId: number, lat: number, lng: number, source: 'web' | 'desktop' = 'web', io?: any) {
+  const coords = parseCoordinates(lat, lng, source);
 
   // Split shifts are allowed (clock in again later the same day), but never
   // two open shifts at once.
@@ -122,14 +141,20 @@ export async function clockIn(empId: number, lat: number, lng: number) {
     throw new AppError("You're already clocked in — clock out first.", 409);
   }
 
-  return await employeeDailyClockRepo.addClockIn(empId, coords);
+  const result = await employeeDailyClockRepo.addClockIn(empId, coords, source);
+  notifyClockSync(empId, io);
+  return result;
 }
 
 interface LiveShift {
+  clockId: number;
+  source: "web" | "desktop";
   clockIn: Date | string;
   clockOut: Date | string | null;
   clockOutEstimated: boolean;
-  pauses: { pause: Date | string | null; resume: Date | string | null; reason: string | null; pauseDuration: number | null }[];
+  idlePromptStartedAt: Date | string | null;
+  idlePromptResponseSeconds: number | null;
+  pauses: { pause: Date | string | null; resume: Date | string | null; reason: string | null; pauseSource: "manual" | "idle_auto"; pauseDuration: number | null }[];
 }
 
 // Rows come back one-per-pause (or one bare row if there's no pause),
@@ -139,18 +164,46 @@ function groupShiftsForDate(rows: any[]): LiveShift[] {
   const shiftMap = new Map<number, LiveShift>();
   for (const row of rows) {
     if (!shiftMap.has(row.clock_id)) {
-      shiftMap.set(row.clock_id, { clockIn: row.clockIn, clockOut: row.clockOut, clockOutEstimated: Boolean(row.clockOutEstimated), pauses: [] });
+      shiftMap.set(row.clock_id, {
+        clockId: row.clock_id,
+        source: row.source,
+        clockIn: row.clockIn,
+        clockOut: row.clockOut,
+        clockOutEstimated: Boolean(row.clockOutEstimated),
+        idlePromptStartedAt: row.idlePromptStartedAt,
+        idlePromptResponseSeconds: row.idlePromptResponseSeconds,
+        pauses: [],
+      });
     }
     if (row.pause) {
-      shiftMap.get(row.clock_id)!.pauses.push({ pause: row.pause, resume: row.resume, reason: row.reason, pauseDuration: row.pauseDuration });
+      shiftMap.get(row.clock_id)!.pauses.push({
+        pause: row.pause,
+        resume: row.resume,
+        reason: row.reason,
+        pauseSource: row.pauseSource,
+        pauseDuration: row.pauseDuration,
+      });
     }
   }
   return Array.from(shiftMap.values());
 }
 
-function sumClockedSeconds(shifts: LiveShift[]): number {
+// A closed desktop shift's clocked seconds is its verified (screenshot-
+// backed) time, same policy as the attendance list — every "today"/"this
+// shift" total has to agree with what the attendance list shows, or the
+// two numbers silently drift apart. Still-open shifts and web shifts keep
+// raw wall-clock time (see getAttendance for why).
+async function sumClockedSeconds(shifts: LiveShift[]): Promise<number> {
   const now = Date.now();
+  const closedDesktopClockIds = shifts
+    .filter((s) => s.source === "desktop" && s.clockOut)
+    .map((s) => s.clockId);
+  const verifiedByClockId = await trackerService.getVerifiedSecondsByClockIds(closedDesktopClockIds);
+
   return shifts.reduce((total, shift) => {
+    if (shift.source === "desktop" && shift.clockOut) {
+      return total + (verifiedByClockId.get(shift.clockId) ?? 0);
+    }
     const pauseTotal = shift.pauses.reduce((sum, p) => sum + (p.pauseDuration ?? 0), 0);
     const start = new Date(shift.clockIn).getTime();
     const end = shift.clockOut ? new Date(shift.clockOut).getTime() : now;
@@ -166,7 +219,7 @@ function sumClockedSeconds(shifts: LiveShift[]): number {
 export async function getTotalClockedSecondsForDate(empId: number, date: string): Promise<{ seconds: number; estimated: boolean }> {
   const rows = await employeeDailyClockRepo.getClock(empId, date);
   const shifts = groupShiftsForDate(rows);
-  return { seconds: sumClockedSeconds(shifts), estimated: shifts.some((s) => s.clockOutEstimated) };
+  return { seconds: await sumClockedSeconds(shifts), estimated: shifts.some((s) => s.clockOutEstimated) };
 }
 
 // One specific recorded shift, by its own clock_id — lets an employee claim
@@ -184,11 +237,18 @@ export async function getShiftSummary(clockId: number): Promise<{
   const rows = await employeeDailyClockRepo.getShiftWithPauses(clockId);
   if (rows.length === 0) return null;
 
-  const { employeeId, clockIn, clockOut, clockOutEstimated, clockDate } = rows[0];
+  const { employeeId, clockIn, clockOut, clockOutEstimated, clockDate, source } = rows[0];
   const pauses = rows
     .filter((r) => r.pause)
-    .map((r) => ({ pause: r.pause, resume: r.resume, reason: null, pauseDuration: r.pauseDuration }));
-  const totalSeconds = sumClockedSeconds([{ clockIn, clockOut, clockOutEstimated: Boolean(clockOutEstimated), pauses }]);
+    .map((r) => ({ pause: r.pause, resume: r.resume, reason: null, pauseSource: r.pauseSource, pauseDuration: r.pauseDuration }));
+  const totalSeconds = await sumClockedSeconds([{
+    clockId, source, clockIn, clockOut, pauses,
+    clockOutEstimated: Boolean(clockOutEstimated),
+    // This shift is already closed (clockOut is set) by the time anyone
+    // looks it up here, so it can never have an idle prompt mid-flight.
+    idlePromptStartedAt: null,
+    idlePromptResponseSeconds: null,
+  }]);
 
   return { employeeId, clockDate, clockIn, clockOut, clockOutEstimated: Boolean(clockOutEstimated), totalSeconds };
 }
@@ -202,7 +262,7 @@ export async function getClock(empId: number, date?: string) {
 
   // Shifts that already finished earlier today are "banked" — the frontend
   // only needs to live-tick the currently open one on top of this.
-  const totalSecondsEarlierToday = sumClockedSeconds(shifts.filter((s) => s !== openShift));
+  const totalSecondsEarlierToday = await sumClockedSeconds(shifts.filter((s) => s !== openShift));
 
   const status: "idle" | "running" | "paused" = !openShift
     ? "idle"
@@ -215,29 +275,55 @@ export async function getClock(empId: number, date?: string) {
   return {
     status,
     employeeId: empId,
+    // Which specific shift this is, not just "is one open" — lets a client
+    // tell "I was already capturing this exact shift" apart from "a shift
+    // happens to be open, but I've never touched this one."
+    clockId: openShift?.clockId ?? null,
     clockIn: openShift?.clockIn ?? null,
     totalSecondsEarlierToday,
     totalPauseDuration: openPauses.reduce((sum, p) => sum + (p.pauseDuration ?? 0), 0),
-    pauses: openPauses.map(({ pause, resume, reason, pauseDuration }) => ({
+    pauses: openPauses.map(({ pause, resume, reason, pauseSource, pauseDuration }) => ({
       pause,
       resume,
       reason,
+      pauseSource,
       pauseDuration,
     })),
+    // Ground truth for the idle-prompt countdown — null/null means no
+    // prompt is active. Any client derives remaining time as
+    // idlePromptResponseSeconds - (now - idlePromptStartedAt).
+    idlePromptStartedAt: openShift?.idlePromptStartedAt ?? null,
+    idlePromptResponseSeconds: openShift?.idlePromptResponseSeconds ?? null,
   };
 }
 
-export async function clockOut(empId: number, lat: number, lng: number) {
-  const coords = parseCoordinates(lat, lng);
-
+export async function clockOut(empId: number, lat: number, lng: number, io?: any) {
   const shift = await employeeDailyClockRepo.getOpenShift(empId);
   if (!shift) {
     throw new AppError("You're not clocked in.", 400);
   }
-  return await employeeDailyClockRepo.addClockOut(shift.id, coords);
+  // Whichever source opened the shift decides whether location is required
+  // on the way out too — not a client-supplied flag, so it can't be spoofed.
+  const coords = parseCoordinates(lat, lng, shift.source as 'web' | 'desktop');
+
+  // Clocking out while on a break (most commonly: closing the desktop app
+  // during an idle auto-pause instead of resuming first) used to leave that
+  // pause with no resume time forever — duration math already fell back to
+  // clock_out for it, but the raw row looked permanently "ongoing" on a
+  // shift that had already ended. Resolving it here keeps the data itself
+  // consistent, not just whatever happens to read it correctly today.
+  const pauses = await employeeDailyClockRepo.getPauseRow(shift.id);
+  const openPause = pauses.find((p) => p.pause && !p.resume);
+  if (openPause) {
+    await employeeDailyClockRepo.addResume(openPause.id, shift.id);
+  }
+
+  const result = await employeeDailyClockRepo.addClockOut(shift.id, coords);
+  notifyClockSync(empId, io);
+  return result;
 }
 
-export async function pause(empId: number, reason: string) {
+export async function pause(empId: number, reason: string, source: 'manual' | 'idle_auto' = 'manual', io?: any) {
   const shift = await employeeDailyClockRepo.getOpenShift(empId);
   if (!shift) {
     throw new AppError("You're not clocked in.", 400);
@@ -252,10 +338,45 @@ export async function pause(empId: number, reason: string) {
     throw new AppError("Cannot pause clock without valid reason", 400);
   }
 
-  return await employeeDailyClockRepo.addPause(shift.id, empId, reason);
+  const result = await employeeDailyClockRepo.addPause(shift.id, empId, reason, source);
+  // Being paused answers the "still working?" question either way — an
+  // idle-triggered pause means no, a manual one means the question doesn't
+  // even apply anymore. Either way the prompt shouldn't keep counting down
+  // on any other connected device.
+  if (shift.idlePromptStartedAt) {
+    await employeeDailyClockRepo.clearIdlePrompt(shift.id);
+    io?.to(`user:${empId}`).emit('tracker:idle-sync', { idlePromptStartedAt: null, idlePromptResponseSeconds: null });
+  }
+  notifyClockSync(empId, io);
+  return result;
 }
 
-export async function resume(empId: number) {
+// Ground truth write for the idle-prompt countdown (see schema.ts) — any
+// client, connected or not at this exact moment, can always derive current
+// state from GET /clock. The socket emit below is purely a low-latency
+// nudge so already-connected clients don't have to wait for their next poll.
+export async function startIdlePrompt(empId: number, responseSeconds: number, io?: any) {
+  const shift = await employeeDailyClockRepo.getOpenShift(empId);
+  if (!shift) {
+    throw new AppError("You're not clocked in.", 400);
+  }
+  const idlePromptStartedAt = await employeeDailyClockRepo.setIdlePrompt(shift.id, responseSeconds);
+  io?.to(`user:${empId}`).emit('tracker:idle-sync', { idlePromptStartedAt, idlePromptResponseSeconds: responseSeconds });
+}
+
+// Explicit "Yes, I'm here" — from desktop or web, doesn't matter which;
+// whichever device's local timer is also counting down gets told to stop
+// via the same nudge.
+export async function confirmIdlePrompt(empId: number, io?: any) {
+  const shift = await employeeDailyClockRepo.getOpenShift(empId);
+  if (!shift) {
+    throw new AppError("You're not clocked in.", 400);
+  }
+  await employeeDailyClockRepo.clearIdlePrompt(shift.id);
+  io?.to(`user:${empId}`).emit('tracker:idle-sync', { idlePromptStartedAt: null, idlePromptResponseSeconds: null });
+}
+
+export async function resume(empId: number, io?: any) {
   const shift = await employeeDailyClockRepo.getOpenShift(empId);
   if (!shift) {
     throw new AppError("You're not clocked in.", 400);
@@ -272,7 +393,9 @@ export async function resume(empId: number) {
     throw new AppError("Resume time cannot be before pause time.", 400);
   }
 
-  return await employeeDailyClockRepo.addResume(openPause.id, shift.id);
+  const result = await employeeDailyClockRepo.addResume(openPause.id, shift.id);
+  notifyClockSync(empId, io);
+  return result;
 }
 
 export async function closeStaleOpenShifts(): Promise<number> {
@@ -358,6 +481,16 @@ export async function getAttendance(query: AttendanceQuery) {
   // groupByClockId is no longer needed here — the repo already returns
   // one entry per clock record with its pauses embedded, correctly paginated.
 
+  // A closed desktop shift's recorded total is the verified (screenshot-
+  // backed) time, not raw clocked time — matches the Upwork-style policy
+  // that only evidenced time counts. Still-running shifts keep ticking on
+  // raw clocked time since their segments haven't all flushed yet; web
+  // shifts never run the tracker, so raw clocked time is all there is.
+  const closedDesktopClockIds = data
+    .filter((record) => record.source === "desktop" && record.clockOut)
+    .map((record) => record.clockId);
+  const verifiedSecondsByClockId = await trackerService.getVerifiedSecondsByClockIds(closedDesktopClockIds);
+
    const now = Date.now();
    const result = data.map((record) => {
      const totalPauseDuration = record.pauses.reduce(
@@ -368,10 +501,10 @@ export async function getAttendance(query: AttendanceQuery) {
      const start = new Date(record.clockIn).getTime();
      const end = record.clockOut ? new Date(record.clockOut).getTime() : now;
      const grossSeconds = Math.floor((end - start) / 1000);
-     const totalClockInDuration = Math.max(
-       0,
-       grossSeconds - totalPauseDuration,
-     );
+
+     const totalClockInDuration = record.source === "desktop" && record.clockOut
+       ? verifiedSecondsByClockId.get(record.clockId) ?? 0
+       : Math.max(0, grossSeconds - totalPauseDuration);
 
      return {
        ...record,

@@ -1102,6 +1102,14 @@
           "autoincrement": false,
           "default": false
         },
+        "source": {
+          "name": "source",
+          "type": "enum('web','desktop')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'web'"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",

@@ -1,10 +1,9 @@
 import * as leaveRepo from '../repositories/leave.repository';
 import * as employeeRepo from '../repositories/employee.repository';
 import * as payrollAdjustmentRepo from '../repositories/payrollAdjustment.repository';
-import * as emailSettingsRepo from '../repositories/emailSettings.repository';
 import * as notificationPreferenceService from './notificationPreference.service';
 import AppError from '../pkg/AppError';
-import type { LeaveCreateInput, LeaveUpdateInput, LeaveCreateInputViaMail } from '../dtos/leave.dto';
+import type { LeaveCreateInput, LeaveUpdateInput } from '../dtos/leave.dto';
 import { toMonthlySalary, calculateLeaveDeduction } from '../pkg/payrollCalculator';
 import { buildLeaveEmailSubject, buildLeaveEmailHtml } from './leaveEmailTemplate';
 import { sendPlatformMail } from '../pkg/mailer';
@@ -29,30 +28,64 @@ async function notifyLeaveStatusIfNeeded(employeeId: number, status: 'approved' 
   }
 }
 
-// Every employee with role 'lead' gets notified, regardless of manager_id —
-// there's no reporting-chain targeting here, just a role check.
+// Notifies the requester's actual manager; falls back to all admins if they have
+// none set, or if their manager isn't actually able to approve (not lead/admin).
 async function notifyApproversOfNewLeaveRequest(employeeId: number, leaveType: string, startDate: string, endDate: string) {
   if (!process.env.MAIL_HOST) return;
   try {
-    const [requester, leads] = await Promise.all([
-      employeeRepo.findById(employeeId),
-      employeeRepo.findLeads(),
-    ]);
+    const requester = await employeeRepo.findById(employeeId);
     if (!requester) return;
 
-    for (const lead of leads) {
-      const enabled = await notificationPreferenceService.isEnabled(lead.id, 'leave_request_submitted');
+    const manager = requester.manager_id ? await employeeRepo.findById(requester.manager_id) : null;
+    const approvers = manager && ['admin', 'lead'].includes(manager.role)
+      ? [manager]
+      : await employeeRepo.findAdmins();
+
+    for (const approver of approvers as any[]) {
+      const enabled = await notificationPreferenceService.isEnabled(approver.id, 'leave_request_submitted');
       if (!enabled) continue;
       await sendPlatformMail(
-        lead.email,
+        approver.email,
         'HR Platform — New Leave Request Needs Review',
-        `<p>Hi ${lead.name},</p>
+        `<p>Hi ${approver.name},</p>
          <p>${requester.name} submitted a ${leaveType} leave request for <strong>${startDate}</strong> to <strong>${endDate}</strong>, pending your review.</p>
          <p style="color:#888;font-size:12px">HR Platform</p>`,
       );
     }
   } catch (err: any) {
-    console.error(`[leave] Failed to notify leads of new leave request from employee ${employeeId}:`, err.message);
+    console.error(`[leave] Failed to notify approvers of new leave request from employee ${employeeId}:`, err.message);
+  }
+}
+
+// Ids are assumed already validated by the caller (see create()).
+async function sendLeaveNotifications(leaveId: number, notifyIds?: number[]) {
+  if (!notifyIds?.length || !process.env.MAIL_HOST) return;
+
+  try {
+    const ids = [...new Set(notifyIds)];
+    const rows = await employeeRepo.findEmailsByIds(ids);
+    const emailById = new Map(rows.map((r) => [r.id, r.email]));
+
+    const leave = await leaveRepo.findWithEmployeeById(leaveId);
+    if (!leave) {
+      console.error('[leave] Leave not found', leaveId);
+      return;
+    }
+
+    const fmt: Intl.DateTimeFormatOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+    const start = new Date((leave as any).start_date).toLocaleDateString('en-US', fmt);
+    const end = new Date((leave as any).end_date).toLocaleDateString('en-US', fmt);
+    const isSingleDay = (leave as any).start_date === (leave as any).end_date;
+
+    const html = buildLeaveEmailHtml(leave, start, end, isSingleDay);
+    const subject = buildLeaveEmailSubject(leaveId, leave.employee_name);
+
+    for (const id of ids) {
+      await sendPlatformMail(emailById.get(id)!, subject, html);
+    }
+    console.log('[leave] Notification sent for leave', leaveId, 'to', ids.length, 'recipient(s)');
+  } catch (err: any) {
+    console.error('[leave] Notification failed for leave', leaveId, ':', err.message);
   }
 }
 
@@ -62,15 +95,34 @@ interface AuthUser {
 }
 
 export async function list(user: AuthUser, employeeIdFilter?: string, status?: string) {
-  const privileged = ['admin', 'lead'].includes(user.role);
-  const filterEmployeeId = privileged ? employeeIdFilter : user.id;
-  return leaveRepo.findWithNames({ employeeId: filterEmployeeId, status });
+  if (user.role === 'admin') {
+    return leaveRepo.findWithNames({ employeeId: employeeIdFilter, status });
+  }
+
+  if (user.role === 'lead') {
+    const reportIds = await employeeRepo.findDirectReportIds(user.id);
+    const allowedIds = [user.id, ...reportIds];
+    if (employeeIdFilter && !allowedIds.includes(Number(employeeIdFilter))) {
+      throw new AppError('Cannot view leave requests outside your team', 403);
+    }
+    return leaveRepo.findWithNames({ employeeIds: employeeIdFilter ? [Number(employeeIdFilter)] : allowedIds, status });
+  }
+
+  return leaveRepo.findWithNames({ employeeId: user.id, status });
 }
 
 export async function balances(employeeId: string, actorId:string) {
   if(employeeId !== actorId) throw new AppError('Cannot view leave balance of other users', 403)
   const year = new Date().getFullYear();
+  await ensureBalancesSeeded(employeeId, year);
   return leaveRepo.findBalances(employeeId, year);
+}
+
+// Lazily creates the year's default leave allotment the first time it's needed,
+// so balances don't go missing once the calendar rolls over to a new year.
+async function ensureBalancesSeeded(employeeId: number | string, year: number) {
+  const existing = await leaveRepo.findBalances(employeeId, year);
+  if (!existing.length) await employeeRepo.seedLeaveBalances(employeeId, year);
 }
 
 export async function outToday() {
@@ -88,59 +140,40 @@ export async function outThisWeek() {
   return leaveRepo.findOutInRange(monday.toISOString().split('T')[0], friday.toISOString().split('T')[0]);
 }
 
-interface EmailParams {
-  to?: string;
-  cc?: number[];
-  bcc?: number[];
-}
-
-async function resolveRecipients({ to, cc = [], bcc = [] }: EmailParams) {
-  if (!to) return null;
-
-  const ids = [...new Set([...cc, ...bcc])];
-  const rows = await employeeRepo.findEmailsByIds(ids);
-  const emailById = new Map(rows.map((r) => [r.id, r.email]));
-
-  const missing = ids.filter((id) => !emailById.has(id));
-  if (missing.length) {
-    throw new AppError(`Unknown employee id(s): ${missing.join(", ")}`, 400);
-  }
-
-  const joinEmails = (list: number[]) =>
-    [...new Set(list)].map((id) => emailById.get(id)!).join(",") || undefined;
-
-
-  return {
-    to: to,
-    cc: joinEmails(cc),
-    bcc: joinEmails(bcc),
-  };
-}
-
 export async function create(
   data: LeaveCreateInput,
-  actorId: number | null,
-  emailParams: EmailParams = {},
+  actor: AuthUser,
+  notify?: number[],
 ) {
-  // validate recipients first so a bad id doesn't leave an orphan leave row
-  const recipients = await resolveRecipients(emailParams);
-
-  const leaveId = await leaveRepo.create(data, actorId);
-  // console.log(recipients)
-
-  if (recipients) {
-    // fire-and-forget, as before: errors are logged inside sendEmailAsync
-    sendEmailAsync(
-      leaveId,
-      actorId,
-      recipients.to,
-      recipients.cc,
-      recipients.bcc,
-    );
+  if (actor.role !== 'admin' && data.employee_id !== actor.id) {
+    throw new AppError('You can only create leave requests for yourself', 403);
   }
 
+  if (actor.role !== 'admin') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (new Date(data.start_date) < today) {
+      throw new AppError('Cannot request leave for a date that has already passed', 400);
+    }
+  }
+
+  // validate notify ids first so a bad id doesn't leave an orphan leave row
+  if (notify?.length) {
+    const rows = await employeeRepo.findEmailsByIds([...new Set(notify)]);
+    const missing = notify.filter((id) => !rows.some((r) => r.id === id));
+    if (missing.length) throw new AppError(`Unknown employee id(s): ${missing.join(', ')}`, 400);
+  }
+
+  const overlap = await leaveRepo.findOverlapping(data.employee_id, data.start_date, data.end_date);
+  if (overlap) throw new AppError('You already have a leave request overlapping these dates', 400);
+
+  const leaveId = await leaveRepo.create(data, actor.id);
+
+  // fire-and-forget, as before: errors are logged inside the helper
+  sendLeaveNotifications(leaveId, notify);
+
   notifyApproversOfNewLeaveRequest(
-    actorId,
+    data.employee_id,
     data.leave_type,
     data.start_date,
     data.end_date,
@@ -148,36 +181,52 @@ export async function create(
 
   return leaveId;
 }
-export async function update(id: string, updates: LeaveUpdateInput, userId: number) {
+export async function update(id: string, updates: LeaveUpdateInput, user: AuthUser) {
   const leave = await leaveRepo.findById(id);
   if (!leave) throw new AppError('Not found', 404);
-  if (leave.employee_id !== userId) throw new AppError('You can only edit your own leave requests', 403);
+  if (leave.employee_id !== user.id) throw new AppError('You can only edit your own leave requests', 403);
   if (leave.status !== 'pending') throw new AppError('Only pending leave requests can be edited', 400);
-  await leaveRepo.update(id, updates, userId);
+
+  if (updates.start_date || updates.end_date) {
+    const startDate = updates.start_date ?? leave.start_date;
+    const endDate = updates.end_date ?? leave.end_date;
+
+    if (user.role !== 'admin') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (new Date(startDate) < today) {
+        throw new AppError('Cannot request leave for a date that has already passed', 400);
+      }
+    }
+
+    const overlap = await leaveRepo.findOverlapping(leave.employee_id, startDate, endDate, id);
+    if (overlap) throw new AppError('You already have a leave request overlapping these dates', 400);
+  }
+
+  await leaveRepo.update(id, updates, user.id);
 }
 
-export async function cancel(id: string, userId: number) {
+export async function cancel(id: string, user: AuthUser) {
   const leave = await leaveRepo.findById(id);
   if (!leave) throw new AppError('Not found', 404);
-  if (leave.employee_id !== userId) throw new AppError('You can only cancel your own leave requests', 403);
+  if (leave.employee_id !== user.id) throw new AppError('You can only cancel your own leave requests', 403);
   if (leave.status !== 'pending') throw new AppError('Only pending leave requests can be cancelled', 400);
   await leaveRepo.remove(id);
 }
 
 export async function approve(id: string, user: AuthUser) {
-  // if (!['admin', 'lead'].includes(user.role)) throw new AppError('Insufficient permissions', 403);
-
   const leave = await leaveRepo.findById(id);
   if (!leave) throw new AppError('Not found', 404);
 
-    if(leave.status === 'approved' || leave.status === 'rejected'){
+  if(leave.status === 'approved' || leave.status === 'rejected'){
     throw new AppError(`Leave request has already been ${leave.status}`, 400)
   }
 
-
-  if (user.role === 'lead' && leave.employee_id === user.id) {
-    throw new AppError('Team leads cannot approve their own leave requests', 403);
+  if (leave.employee_id === user.id) {
+    throw new AppError('You cannot approve your own leave request', 403);
   }
+
+  await assertCanReview(leave, user);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -190,22 +239,26 @@ export async function approve(id: string, user: AuthUser) {
   const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   const year = start.getFullYear();
 
+  await ensureBalancesSeeded(leave.employee_id, year);
   await applyLeaveDeductionIfNeeded(leave, days, year);
-  // console.log(id, )
   await leaveRepo.approve(id, user.id);
   await leaveRepo.incrementBalanceTaken(leave.employee_id, leave.leave_type, year, days);
   notifyLeaveStatusIfNeeded(leave.employee_id, 'approved', leave.leave_type, leave.start_date, leave.end_date);
 }
 
 export async function reject(id: string, user: AuthUser) {
-  if (!['admin', 'lead'].includes(user.role)) throw new AppError('Insufficient permissions', 403);
-
   const leave = await leaveRepo.findById(id);
   if (!leave) throw new AppError('Not found', 404);
 
-  if (user.role === 'lead' && leave.employee_id === user.id) {
-    throw new AppError('Team leads cannot reject their own leave requests', 403);
+  if(leave.status === 'approved' || leave.status === 'rejected'){
+    throw new AppError(`Leave request has already been ${leave.status}`, 400)
   }
+
+  if (leave.employee_id === user.id) {
+    throw new AppError('You cannot reject your own leave request', 403);
+  }
+
+  await assertCanReview(leave, user);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -248,6 +301,16 @@ export async function report() {
   }));
 }
 
+// Admins can review anyone; leads can only review their own direct reports.
+async function assertCanReview(leave: any, user: AuthUser) {
+  if (user.role === 'admin') return;
+
+  const requester = await employeeRepo.findById(leave.employee_id);
+  if (!requester || requester.manager_id !== user.id) {
+    throw new AppError('You can only approve or reject leave requests for your direct reports', 403);
+  }
+}
+
 async function applyLeaveDeductionIfNeeded(leave: any, days: number, year: number) {
   const balance = await leaveRepo.findBalanceForType(leave.employee_id, leave.leave_type, year);
   const remaining = balance ? (balance as any).remaining : 0;
@@ -274,52 +337,6 @@ async function applyLeaveDeductionIfNeeded(leave: any, days: number, year: numbe
   });
 }
 
-async function sendEmailAsync(leaveId: number, employeeId: number, to: string, cc?: string, bcc?: string) {
-  const nodemailer = require('nodemailer');
-  try {
-    // const cfg = await emailSettingsRepo.findFullByEmployeeId(employeeId);
-    // if (!cfg) {
-    //   console.error('[email] No config for employee', employeeId);
-    //   return;
-    // }
-
-    const leave = await leaveRepo.findWithEmployeeById(leaveId);
-    if (!leave) {
-      console.error('[email] Leave not found', leaveId);
-      return;
-    }
-
-    const fmt: Intl.DateTimeFormatOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-    const start = new Date((leave as any).start_date).toLocaleDateString('en-US', fmt);
-    const end = new Date((leave as any).end_date).toLocaleDateString('en-US', fmt);
-    const isSingleDay = (leave as any).start_date === (leave as any).end_date;
-
-    const html = buildLeaveEmailHtml(leave, start, end, isSingleDay);
-
-  const transporter = nodemailer.createTransport({
-    host: process.env.MAIL_HOST,
-    port: Number(process.env.MAIL_PORT) || 587,
-    secure: process.env.MAIL_SECURE === "true",
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
-    },
-  });
-
-    await transporter.sendMail({
-      from: process.env.MAIL_FROM || process.env.MAIL_USER,
-      to,
-      cc: cc,
-      bcc: bcc,
-      subject: buildLeaveEmailSubject(leaveId, leave.employee_name),
-      html,
-    });
-    console.log('[email] Leave notification sent for leave', leaveId);
-  } catch (err: any) {
-    console.error('[email] Send failed for leave', leaveId, ':', err.message);
-  }
-}
-
 function daysTakenByEmployee(ranges: any[], rangeStart: Date, rangeEnd: Date) {
   const map: Record<number, number> = {};
   for (const r of ranges) {
@@ -331,66 +348,3 @@ function daysTakenByEmployee(ranges: any[], rangeStart: Date, rangeEnd: Date) {
   return map;
 }
 
-export async function createViaMail(data:LeaveCreateInputViaMail) {
-  const {id} =await employeeRepo.findByEmail(data.from)
-  if(!id){
-    throw new AppError(`Employee with the mail ${data.from} not found`, 404)
-  }
-  // console.log(id)
-  const newData = {...data, employee_id: id}
-  const leaveId = await leaveRepo.create(newData, id);
-  return leaveId
-
-}
-//approve Via mail only
-export async function approveViaMail(id: string) {
-  const leave = await leaveRepo.findById(id);
-  if (!leave) throw new AppError('Not found', 404);
-
-  if(leave.status === 'approved' || leave.status === 'rejected'){
-    throw new AppError(`Leave request has already been ${leave.status}`, 400)
-  }
-
-  const user = await employeeRepo.findByEmail('admin@gitgi.com')
-  if(!user){
-    throw new AppError(`Couldn't approve request via mail. Please accept manually by logging in.`)
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (new Date(leave.end_date) < today) {
-    throw new AppError('Cannot approve a leave request whose dates have already passed.', 400);
-  }
-
-  const start = new Date(leave.start_date);
-  const end = new Date(leave.end_date);
-  const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-  const year = start.getFullYear();
-
-  await applyLeaveDeductionIfNeeded(leave, days, year);
-  const updatedLeave = await leaveRepo.approve(id, user.id);
-  await leaveRepo.incrementBalanceTaken(leave.employee_id, leave.leave_type, year, days);
-  notifyLeaveStatusIfNeeded(leave.employee_id, 'approved', leave.leave_type, leave.start_date, leave.end_date);
-
-  return updatedLeave;
-}
-//reject Via mail only
-export async function rejectViaMail(id: string) {
-  const leave = await leaveRepo.findById(id);
-  if (!leave) throw new AppError('Not found', 404);
-
-  if(leave.status === 'approved' || leave.status === 'rejected'){
-    throw new AppError(`Leave request has already been ${leave.status}`, 400)
-  }
-
-  const user = await employeeRepo.findByEmail('admin@gitgi.com')
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (new Date(leave.end_date) < today) {
-    throw new AppError('Cannot approve a leave request whose dates have already passed.', 400);
-  }
-
-  await leaveRepo.reject(id, user.id);
-  notifyLeaveStatusIfNeeded(leave.employee_id, 'rejected', leave.leave_type, leave.start_date, leave.end_date);
-}
