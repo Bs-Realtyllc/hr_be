@@ -99,6 +99,13 @@
       "when": 1794926374368,
       "tag": "0013_policies_to_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1795234424635,
+      "tag": "0014_log_tables_partitioning",
+      "breakpoints": true
     }
   ]
 }

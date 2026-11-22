@@ -23,8 +23,11 @@ function scheduleFlush() {
   if (!flushTimer) flushTimer = setTimeout(() => void flush(), FLUSH_INTERVAL_MS);
 }
 
+// created_at is set here rather than left to the column default: drizzle writes datetime Dates
+// as UTC, which is what the partition boundaries (see maintainLogPartitions.ts) are in,
+// whereas CURRENT_TIMESTAMP would depend on the MySQL session time zone.
 export function enqueueAccessLog(entry: NewAccessLog) {
-  accessQueue.push(entry);
+  accessQueue.push({ createdAt: new Date(), ...entry });
   scheduleFlush();
 }
 
@@ -37,6 +40,7 @@ export function enqueueOperationLog(entry: EnqueueOperationType) {
     operation: entry.operation,
     status: entry.status,
     metadata: entry.metadata,
+    createdAt: new Date(),
   });
   scheduleFlush();
 }

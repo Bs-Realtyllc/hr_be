@@ -19,6 +19,7 @@ import { db } from "./src/config/database";
 import { renewWebhookChannelIfNeeded } from "./src/services/googleCalendar";
 import * as weeklyReminder from "./src/services/weeklyReminder";
 import * as shiftAutoClose from "./src/services/shiftAutoClose";
+import * as logPartitions from "./src/pkg/maintainLogPartitions";
 import errorHandler from "./src/middleware/errorHandler";
 import { authenticate, requireRole } from "./src/middleware/auth";
 import { RequestContext } from "./src/pkg/requestContext";
@@ -178,6 +179,7 @@ async function start() {
 
   weeklyReminder.start();
   shiftAutoClose.start();
+  logPartitions.start();
 }
 
 start();
