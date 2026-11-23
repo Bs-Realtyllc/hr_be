@@ -20,7 +20,7 @@ import { maintainLogPartitions } from '../pkg/maintainLogPartitions';
   await pool.end();
 
   // The log tables have no catch-all partition; bring them up to date right away so a DB
-  // migrated after the dates hard-coded in 0014 doesn't reject log inserts until the next cron run.
+  // migrated after the dates hard-coded in 0018 doesn't reject log inserts until the next cron run.
   if (!(await maintainLogPartitions())) process.exitCode = 1;
 })().catch((err) => {
   console.error('drizzle-kit migration run aborted:', err.message);

@@ -1,7 +1,7 @@
 -- Rebuilds access_log and operation_log as tables partitioned by RANGE COLUMNS(created_at),
 -- five buckets per calendar month (p_YYYY_MM_01/08/15/22/29), all dates UTC.
 --
--- Hand-written (drizzle-kit can't express partitions); 0014_snapshot.json matches drizzle/schema.ts.
+-- Hand-written (drizzle-kit can't express partitions); 0018_snapshot.json matches drizzle/schema.ts.
 -- Rows inside the retention window (2026-08-01 .. 2026-12-08) are copied over, older rows are
 -- dropped. Partitions are created for Aug 2026 .. p_2026_12_01; src/pkg/maintainLogPartitions.ts
 -- (run at the end of `npm run migrate`, at app startup and daily at 03:30 UTC) adds later ones and

@@ -55,7 +55,7 @@ later migration should only add, alter or drop on top of it.
 ## Partitioned log tables
 
 `access_log` and `operation_log` are `PARTITION BY RANGE COLUMNS(created_at)`, five buckets
-per calendar month (`p_YYYY_MM_01/08/15/22/29`, UTC), created by migration `0014`.
+per calendar month (`p_YYYY_MM_01/08/15/22/29`, UTC), created by migration `0018`.
 Retention is 3 full months plus the current one; old months go by `DROP PARTITION`, not `DELETE`.
 
 - There is no catch-all partition, so a row with no matching partition fails to insert.

@@ -1,7 +1,7 @@
 import { mysqlTable, primaryKey, bigint, varchar, smallint, int, timestamp, index, foreignKey, mysqlEnum, date, text, unique, decimal, tinyint, boolean, json, datetime, year, time, AnyMySqlColumn } from "drizzle-orm/mysql-core"
 import { sql } from "drizzle-orm"
 
-// Partitioned by RANGE COLUMNS(created_at) — see drizzle/migrations/0014_log_tables_partitioning.sql
+// Partitioned by RANGE COLUMNS(created_at) — see drizzle/migrations/0018_log_tables_partitioning.sql
 // and src/pkg/maintainLogPartitions.ts. Drizzle doesn't know about the partitions: never run
 // `drizzle-kit push` against this table, and review generated migrations that touch it.
 export const accessLog = mysqlTable("access_log", {
@@ -773,7 +773,7 @@ export const notificationPreferences = mysqlTable("notification_preferences", {
 export type NotificationPreference = typeof notificationPreferences.$inferSelect;
 export type NewNotificationPreference = typeof notificationPreferences.$inferInsert;
 
-// Partitioned by RANGE COLUMNS(created_at) — see drizzle/migrations/0014_log_tables_partitioning.sql
+// Partitioned by RANGE COLUMNS(created_at) — see drizzle/migrations/0018_log_tables_partitioning.sql
 // and src/pkg/maintainLogPartitions.ts. Drizzle doesn't know about the partitions: never run
 // `drizzle-kit push` against this table, and review generated migrations that touch it.
 export const operationLog = mysqlTable("operation_log", {
