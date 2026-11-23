@@ -24,5 +24,6 @@ import { maintainLogPartitions } from '../pkg/maintainLogPartitions';
   if (!(await maintainLogPartitions())) process.exitCode = 1;
 })().catch((err) => {
   console.error('drizzle-kit migration run aborted:', err.message);
+  if (err.cause) console.error('caused by:', err.cause.message ?? err.cause);
   process.exit(1);
 });

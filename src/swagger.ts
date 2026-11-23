@@ -586,34 +586,6 @@ const options = {
           },
         },
 
-        LeaveMailRequest: {
-          type: "object",
-          required: ["from", "leave_type", "start_date", "end_date"],
-          description:
-            "Fields other than `from` are inferred and passed straight to the leave insert. Confirm against leave.dto.ts.",
-          properties: {
-            from: {
-              type: "string",
-              format: "email",
-              description:
-                "Sender's email. Must match an existing employee's primary email.",
-              example: "sita@example.com",
-            },
-            leave_type: { type: "string", example: "sick" },
-            start_date: {
-              type: "string",
-              format: "date",
-              example: "2026-10-25",
-            },
-            end_date: { type: "string", format: "date", example: "2026-10-26" },
-            reason: { type: "string", nullable: true, example: "Fever" },
-          },
-        },
-
-        LeaveCreatedResponse: {
-          type: "object",
-          properties: { id: { type: "integer", example: 42 } },
-        },
         StandupCreateRequest: {
           type: "object",
           required: [
@@ -4368,49 +4340,6 @@ const options = {
             },
             403: {
               description: "Forbidden (admin only)",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/Error" },
-                },
-              },
-            },
-          },
-        },
-      },
-
-      "/leaves/mail": {
-        post: {
-          tags: ["Leaves"],
-          summary: "Create a leave request from an email",
-          description:
-            "No authentication. The employee is looked up by the `from` email and the leave is created on their behalf. No notification email is sent from this path.",
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/LeaveMailRequest" },
-              },
-            },
-          },
-          responses: {
-            201: {
-              description: "Leave request created",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/LeaveCreatedResponse" },
-                },
-              },
-            },
-            400: {
-              description: "Invalid body (DTO validation)",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/Error" },
-                },
-              },
-            },
-            404: {
-              description: "No employee with that email",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },

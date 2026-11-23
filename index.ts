@@ -10,7 +10,7 @@ import morgan from "morgan";
 import { enqueueAccessLog } from "./src/pkg/requestLogQueue";
 import { attachInboxSocket } from "./src/ws/inboxSocket";
 import { connectMongo } from "./src/config/mongodb";
-import { ensureAudioBucket } from "./src/config/minio";
+import { ensureAudioBucket, ensureTrackerBucket } from "./src/config/minio";
 
 import { sql } from "drizzle-orm";
 import swaggerSpec from "./src/swagger";
@@ -57,6 +57,11 @@ const ENV = {
 const app = express();
 
 app.set("trust proxy", 1);
+// Every route here serves live application state, not cacheable resources —
+// Express's default ETag turns a plain GET into a conditional request the
+// moment a client's HTTP cache holds any prior response for that exact URL,
+// which can come back as a bodyless 304 for data that has since changed.
+app.set("etag", false);
 
 app.use(
   helmet({
@@ -78,11 +83,18 @@ app.use(
     (tokens, req, res) => {
       const ctx = res.locals.ctx as RequestContext | undefined;
 
+      // Strip the query string — signed media-token URLs (tracker
+      // screenshots, inbox audio) run well past the endpoint column's
+      // 255-char limit, and a single oversized row fails the whole
+      // batched insert, silently dropping everything flushed with it.
+      // Also keeps short-lived auth tokens out of a persisted log table.
+      const path = (tokens.url(req, res) ?? "").split("?")[0].slice(0, 255);
+
       enqueueAccessLog({
         traceId: ctx?.traceId ?? "-",
         employeeId: ctx?.employeeId ?? null,
         method: tokens.method(req, res),
-        endpoint: tokens.url(req, res),
+        endpoint: path,
         responseStatus: Number(tokens.status(req, res)),
         responseDurationMs: Number(tokens["response-time"](req, res)),
         ipAddress: tokens["remote-addr"](req, res),
@@ -149,6 +161,9 @@ async function start() {
   await connectMongo();
   await ensureAudioBucket().catch((err: Error) =>
     console.warn("[minio] Bucket init skipped:", err.message),
+  );
+  await ensureTrackerBucket().catch((err: Error) =>
+    console.warn("[minio] Tracker bucket init skipped:", err.message),
   );
 
   const httpServer = http.createServer(app);

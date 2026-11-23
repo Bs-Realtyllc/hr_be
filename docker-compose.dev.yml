@@ -2,33 +2,13 @@
 # docker-compose.dev.yml — DEV SERVER DEPLOYMENT
 #
 # Deployed by Drone to /opt/hr-be-dev/backend on push to `dev`.
-# Pulls ghcr.io/bs-realtyllc/hr_be:dev and runs it alongside a
-# bundled MySQL container.
+# Pulls ghcr.io/bs-realtyllc/hr_be:dev and connects to the shared host MySQL
+# (same instance as prod, separate `hr_platform_dev` database + scoped user).
 # =============================================================================
 
 name: hr-be-dev
 
 services:
-  db:
-    image: mysql:8
-    container_name: hr-be-dev-db
-    restart: always
-    command: --mysql-native-password=ON
-    env_file:
-      - .env.db
-    ports:
-      - "127.0.0.1:3310:3306"
-    volumes:
-      - hr-be-dev-mysql:/var/lib/mysql
-    networks:
-      - hr-be-dev-net
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-
   app:
     image: ghcr.io/bs-realtyllc/hr_be:dev
     container_name: hr-be-dev-backend
@@ -37,12 +17,11 @@ services:
       - .env.production
     environment:
       NODE_ENV: production
-      DB_HOST: db
+      DB_HOST: host.docker.internal
     ports:
       - "6003:6002"
-    depends_on:
-      db:
-        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - /opt/hr-be-dev/uploads:/app/uploads
     healthcheck:
@@ -59,9 +38,6 @@ services:
     networks:
       - hr-be-dev-net
       - proxy
-
-volumes:
-  hr-be-dev-mysql:
 
 networks:
   hr-be-dev-net:
