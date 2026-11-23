@@ -1,5 +1,14 @@
 import swaggerJsdoc from "swagger-jsdoc";
 
+const ERR401 = {
+  description: "Missing or invalid Bearer token",
+  content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+};
+const ERR403 = {
+  description: "Caller's role is not allowed (admin only)",
+  content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+};
+
 const options = {
   definition: {
     openapi: "3.0.0",
@@ -52,6 +61,10 @@ const options = {
         description: "Peer, manager, and public recognition feedback notes",
       },
       { name: "Profile", description: "The logged-in employee's own profile" },
+      {
+        name: "Documents",
+        description: "Company documents page: files (PDF) and folders, organised as a tree via parentId",
+      },
       { name: "Departments", description: "Active departments" },
       { name: "Designations", description: "Active designations" },
       { name: "Reports", description: "Monthly report file submissions" },
@@ -144,6 +157,66 @@ const options = {
             policy_title: { type: "string", example: "Code of Conduct" },
             policy_type: { type: "string", example: "company" },
             policy_category: { type: "string", example: "HR" },
+          },
+        },
+
+        Document: {
+          type: "object",
+          description:
+            "A row on the /documents page: either a PDF file or a folder. Items form a tree through parentId (null = top level).",
+          properties: {
+            id: { type: "integer", example: 12 },
+            type: { type: "string", enum: ["file", "folder"], example: "file" },
+            title: { type: "string", example: "Code of Conduct" },
+            filePath: {
+              type: "string",
+              nullable: true,
+              description: "Stored file name; null for folders.",
+              example: "Code_of_Conduct-1794713986605-124611939.pdf",
+            },
+            uploadedBy: { type: "integer", nullable: true, example: 1 },
+            isActive: { type: "boolean", example: true },
+            category: { type: "string", nullable: true, example: "HR" },
+            sizeBytes: { type: "integer", nullable: true, example: 183204 },
+            isPinned: { type: "boolean", example: false },
+            parentId: {
+              type: "integer",
+              nullable: true,
+              description: "Id of the containing folder, or null at the top level.",
+              example: null,
+            },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+            uploaded_by_name: {
+              type: "string",
+              nullable: true,
+              description: "Name of the uploader (only in the list response).",
+              example: "Sita Sharma",
+            },
+          },
+        },
+        EmployeeDocument: {
+          type: "object",
+          description:
+            "One uploaded employee document (ID, PAN, certificate, contract, ...) from employee_documents.",
+          properties: {
+            id: { type: "integer", example: 41 },
+            empId: { type: "integer", example: 7 },
+            url: {
+              type: "string",
+              nullable: true,
+              description:
+                "Signed preview link valid for 15 minutes. Omitted when the document name is not a known upload type.",
+              example:
+                "http://localhost:6002/api/profile/employee-docs/41/file?token=eyJhbGciOi...",
+            },
+            name: {
+              type: "string",
+              description:
+                "Field name without the underscore, e.g. idFront, panBack, educationCertificate0, experienceLetter1, contract, otherDocument2.",
+              example: "idFront",
+            },
+            filename: { type: "string", example: "idFront-1794713986605-124611939.jpeg" },
           },
         },
 
@@ -6083,6 +6156,56 @@ const options = {
           },
         },
       },
+      "/api/profile/employee-docs": {
+        get: {
+          tags: ["Profile"],
+          summary: "List the logged-in employee's uploaded documents",
+          description:
+            "Returns every row of the caller's employee_documents. Each `url` is a signed link that expires after 15 minutes, so <img>/<a> elements can preview the file without an Authorization header. Request the list again to get fresh links. The base of the link is API_BASE_URL if set, otherwise the request's own host.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Documents with preview links",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      status: { type: "string", example: "success" },
+                      files: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/EmployeeDocument" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            401: ERR401,
+          },
+        },
+      },
+      "/api/profile/employee-docs/{id}/file": {
+        get: {
+          tags: ["Profile"],
+          summary: "Open one employee document (signed link)",
+          description:
+            "Streams the file inline. Not protected by the Bearer header: access is granted by the `token` query parameter taken from the `url` returned by GET /api/profile/employee-docs. The token is valid for 15 minutes and only for this document id.",
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "employee_documents id" },
+            { name: "token", in: "query", required: true, schema: { type: "string" }, description: "Signed token from the document's url" },
+          ],
+          responses: {
+            200: {
+              description: "The file (content type depends on the file)",
+              content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } },
+            },
+            401: { description: "Token missing, invalid or expired", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            403: { description: "Token was issued for a different document", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            404: { description: "Document not found", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
       "/api/profile/docs/id": profileDocsPath(
         "Upload ID (citizenship or NID) — front and/or back",
         ["idFront", "idBack"],
@@ -6113,6 +6236,171 @@ const options = {
         ["otherDocument_0", "otherDocument_1", "otherDocument_2", "otherDocument_3"],
         "JPG, JPEG, PNG, WEBP or PDF",
       ),
+
+      "/api/documents": {
+        get: {
+          tags: ["Documents"],
+          summary: "List the files and folders inside one folder",
+          description:
+            "Returns active items directly inside `parentId`, or the top level when it is omitted or empty. Pinned items come first. Any logged-in role can read.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "parentId",
+              in: "query",
+              required: false,
+              schema: { type: "integer", minimum: 1 },
+              description: "Folder id to list. Omit for the top level.",
+            },
+          ],
+          responses: {
+            200: {
+              description: "Items in the folder",
+              content: {
+                "application/json": {
+                  schema: { type: "array", items: { $ref: "#/components/schemas/Document" } },
+                },
+              },
+            },
+            400: {
+              description: "parentId is not a positive integer",
+              content: {
+                "application/json": {
+                  schema: { type: "object", properties: { message: { type: "string", example: "Invalid parentId" } } },
+                },
+              },
+            },
+            401: ERR401,
+          },
+        },
+        post: {
+          tags: ["Documents"],
+          summary: "Add a file or create a folder (admin)",
+          description:
+            "Multipart upload. **Send the `type` field before the `file` field**, otherwise the upload is rejected. For `type=file` a PDF (max 10 MB) is required. For `type=folder` any attached file is ignored. Set `parentId` to put the item inside a folder; leave it empty for the top level.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "multipart/form-data": {
+                schema: {
+                  type: "object",
+                  required: ["type", "title"],
+                  properties: {
+                    type: { type: "string", enum: ["file", "folder"] },
+                    title: { type: "string", example: "Code of Conduct" },
+                    category: { type: "string", example: "HR" },
+                    parentId: { type: "integer", description: "Containing folder id; empty = top level" },
+                    file: { type: "string", format: "binary", description: "PDF, required when type=file" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Created",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Created" } } },
+            },
+            400: {
+              description:
+                "type/title missing, invalid type, no file for type=file, non-PDF file, file too large, or `type` sent after `file`",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            401: ERR401,
+            403: ERR403,
+          },
+        },
+      },
+      "/api/documents/{id}": {
+        delete: {
+          tags: ["Documents"],
+          summary: "Delete a file or folder (admin)",
+          description:
+            "Deleting a folder also deletes everything inside it (cascade). The stored PDF of a deleted file is removed from disk; PDFs of files inside a deleted folder are not.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Document id" }],
+          responses: {
+            200: { description: "Deleted", content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessResponse" } } } },
+            401: ERR401,
+            403: ERR403,
+            404: { description: "Document not found", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/api/documents/{id}/rename": {
+        patch: {
+          tags: ["Documents"],
+          summary: "Rename a file or folder (admin)",
+          description: "Changes the title. Must be 1-200 characters after trimming.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Document id" }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["name"],
+                  properties: { name: { type: "string", maxLength: 200, example: "Leave Policy 2027" } },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Renamed", content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessResponse" } } } },
+            400: { description: "name missing, empty or longer than 200 characters", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: ERR401,
+            403: ERR403,
+            404: {
+              description: "Document not found",
+              content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean", example: false } } } } },
+            },
+          },
+        },
+      },
+      "/api/documents/{id}/pin": {
+        put: {
+          tags: ["Documents"],
+          summary: "Pin or unpin a file or folder (admin)",
+          description: "Pinned items are listed first within their folder.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Document id" }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["pinned"],
+                  properties: { pinned: { type: "boolean", example: true } },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Updated", content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessResponse" } } } },
+            401: ERR401,
+            403: ERR403,
+            404: { description: "Document not found", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/api/documents/{id}/file": {
+        get: {
+          tags: ["Documents"],
+          summary: "Open a PDF inline",
+          description: "Streams the stored PDF. Only items with type=file can be opened. Any logged-in role can read.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Document id" }],
+          responses: {
+            200: { description: "The PDF file", content: { "application/pdf": { schema: { type: "string", format: "binary" } } } },
+            400: { description: "Invalid id, or the item is a folder", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: ERR401,
+            404: { description: "Document not found, or the file is missing on disk", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
 
       "/api/reports": {
         get: {
