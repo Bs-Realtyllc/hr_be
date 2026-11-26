@@ -40,7 +40,8 @@ function pdfUpload(folder: string) {
       }
 
       const ext = path.extname(file.originalname).toLowerCase();
-      ext === '.pdf' ? cb(null, true) : cb(new Error('Only PDF files are allowed'));
+      // ext === '.pdf' ? cb(null, true) : cb(new Error('Only PDF files are allowed'));
+      cb(null, true)
     },
   });
 }
