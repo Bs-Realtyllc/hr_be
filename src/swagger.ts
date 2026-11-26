@@ -6330,6 +6330,64 @@ const options = {
           },
         },
       },
+            "/api/documents/{id}/move": {
+        patch: {
+          tags: ["Documents"],
+          summary: "Move a file or folder",
+          description:
+            "Moves the document into the specified folder. Set `newParentId` to `null` to move it to the top level. Any authenticated user can use this endpoint.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+              description: "Document id",
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["newParentId"],
+                  properties: {
+                    newParentId: {
+                      type: "integer",
+                      nullable: true,
+                      description: "Destination folder id; null moves the item to the top level.",
+                      example: 5,
+                    },
+                  },
+                },
+                example: { newParentId: 5 },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Document moved",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Document" },
+                },
+              },
+            },
+            400: {
+              description:
+                "Invalid id, document not found, document is already in the requested folder, or destination is a file",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: ERR401,
+          },
+        },
+      },
 
       "/api/reports": {
         get: {

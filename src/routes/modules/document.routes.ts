@@ -55,5 +55,6 @@ router.delete('/:id', authenticate, requireRole('admin'), ctrl.deleteDocument);
 router.patch('/:id/rename', authenticate, requireRole('admin'), ctrl.renameDocument);
 router.put('/:id/pin', authenticate, requireRole('admin'), ctrl.setPinned);
 router.get('/:id/file', authenticate, ctrl.openFile)
+router.patch('/:id/move', authenticate, ctrl.move)
 
 export default router;
