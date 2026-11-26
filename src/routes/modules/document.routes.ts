@@ -40,7 +40,8 @@ function pdfUpload(folder: string) {
       }
 
       const ext = path.extname(file.originalname).toLowerCase();
-      ext === '.pdf' ? cb(null, true) : cb(new Error('Only PDF files are allowed'));
+      // ext === '.pdf' ? cb(null, true) : cb(new Error('Only PDF files are allowed'));
+      cb(null, true)
     },
   });
 }
@@ -54,5 +55,6 @@ router.delete('/:id', authenticate, requireRole('admin'), ctrl.deleteDocument);
 router.patch('/:id/rename', authenticate, requireRole('admin'), ctrl.renameDocument);
 router.put('/:id/pin', authenticate, requireRole('admin'), ctrl.setPinned);
 router.get('/:id/file', authenticate, ctrl.openFile)
+router.patch('/:id/move', authenticate, ctrl.move)
 
 export default router;

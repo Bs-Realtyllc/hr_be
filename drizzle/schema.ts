@@ -1,6 +1,9 @@
 import { mysqlTable, primaryKey, bigint, varchar, smallint, int, timestamp, index, foreignKey, mysqlEnum, date, text, unique, decimal, tinyint, boolean, json, datetime, year, time, AnyMySqlColumn } from "drizzle-orm/mysql-core"
 import { sql } from "drizzle-orm"
 
+// Partitioned by RANGE COLUMNS(created_at) — see drizzle/migrations/0018_log_tables_partitioning.sql
+// and src/pkg/maintainLogPartitions.ts. Drizzle doesn't know about the partitions: never run
+// `drizzle-kit push` against this table, and review generated migrations that touch it.
 export const accessLog = mysqlTable("access_log", {
 	id: bigint({ mode: "number" }).autoincrement().notNull(),
 	traceId: varchar("trace_id", { length: 36 }).notNull(),
@@ -11,11 +14,13 @@ export const accessLog = mysqlTable("access_log", {
 	responseStatus: smallint("response_status").notNull(),
 	responseDurationMs: int("response_duration_ms"),
 	userAgent: varchar("user_agent", { length: 500 }),
-	requestTimestamp: timestamp("request_timestamp", { mode: 'date' }),
-	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow().notNull(),
+	requestTimestamp: timestamp("request_timestamp", { mode: "date" }),
+	createdAt: datetime("created_at", { mode: "date" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 },
 (table) => [
-	primaryKey({ columns: [table.id], name: "access_log_id"}),
+	primaryKey({ columns: [table.id, table.createdAt], name: "access_log_id" }),
+	index("idx_access_trace").on(table.traceId),
+	index("idx_access_employee_created").on(table.employeeId, table.createdAt),
 ]);
 export type AccessLog = typeof accessLog.$inferSelect;
 export type NewAccessLog = typeof accessLog.$inferInsert;
@@ -124,6 +129,7 @@ export const employeeClockPauses = mysqlTable("employee_clock_pauses", {
 	pause: timestamp({ mode: 'date' }).defaultNow(),
 	resume: timestamp({ mode: 'date' }),
 	reason: varchar({ length: 255 }),
+	source: mysqlEnum("source", ['manual', 'idle_auto']).default('manual').notNull(),
 	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
 },
@@ -176,6 +182,18 @@ export const employeeDailyClock = mysqlTable("employee_daily_clock", {
 	// anything that derives real hours worked from this row (overtime
 	// verification, reports) knows the baseline itself is uncertain here.
 	clockOutEstimated: boolean("clock_out_estimated").default(false).notNull(),
+	// Where the shift was started — web clock-ins require geolocation,
+	// desktop tracker clock-ins don't (no real GPS hardware, activity/
+	// screenshots are the trust signal instead).
+	source: mysqlEnum("source", ['web', 'desktop']).default('web').notNull(),
+	// Ground truth for the "still working?" idle prompt, not just an event
+	// payload — any client (web, a different desktop session, one that was
+	// offline when the prompt fired) can always reconstruct "is it showing,
+	// and how much time is left" from this row alone. Null/null means no
+	// prompt is currently active. Cleared on confirm, auto-pause, or
+	// clock-out, same as the pause/resume fields below.
+	idlePromptStartedAt: timestamp("idle_prompt_started_at", { mode: 'date' }),
+	idlePromptResponseSeconds: int("idle_prompt_response_seconds"),
 	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
 },
@@ -755,6 +773,9 @@ export const notificationPreferences = mysqlTable("notification_preferences", {
 export type NotificationPreference = typeof notificationPreferences.$inferSelect;
 export type NewNotificationPreference = typeof notificationPreferences.$inferInsert;
 
+// Partitioned by RANGE COLUMNS(created_at) — see drizzle/migrations/0018_log_tables_partitioning.sql
+// and src/pkg/maintainLogPartitions.ts. Drizzle doesn't know about the partitions: never run
+// `drizzle-kit push` against this table, and review generated migrations that touch it.
 export const operationLog = mysqlTable("operation_log", {
 	id: bigint({ mode: "number" }).autoincrement().notNull(),
 	traceId: varchar("trace_id", { length: 36 }).notNull(),
@@ -762,10 +783,12 @@ export const operationLog = mysqlTable("operation_log", {
 	operation: varchar({ length: 100 }).notNull(),
 	status: varchar({ length: 20 }).notNull(),
 	metadata: json(),
-	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow().notNull(),
+	createdAt: datetime("created_at", { mode: "date" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 },
 (table) => [
-	primaryKey({ columns: [table.id], name: "operation_log_id"}),
+	primaryKey({ columns: [table.id, table.createdAt], name: "operation_log_id" }),
+	index("idx_operation_trace").on(table.traceId),
+	index("idx_operation_employee_created").on(table.employeeId, table.createdAt),
 ]);
 export type OperationLog = typeof operationLog.$inferSelect;
 export type NewOperationLog = typeof operationLog.$inferInsert;

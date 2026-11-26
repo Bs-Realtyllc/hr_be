@@ -1,0 +1,1 @@
+ALTER TABLE `employee_daily_clock` ADD `source` enum('web','desktop') DEFAULT 'web' NOT NULL;

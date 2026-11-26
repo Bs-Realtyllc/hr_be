@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 const router = express.Router();
-import { authenticate } from '../../middleware/auth';
+import { authenticate, authenticateEmployeeDocToken } from '../../middleware/auth';
 import * as ctrl from '../../controllers/profile.controller';
 import { uploadProfileImage, uploadProfileDocument } from '../../middleware/uplod';
 
@@ -33,6 +33,9 @@ function imageUpload(folder: string) {
 router.get('/', authenticate, ctrl.getProfile);
 router.put('/', authenticate, ctrl.updateProfile);
 router.post('/photo', authenticate, imageUpload('profile/photo').single('photo'), ctrl.uploadPhoto);
+router.get('/employee-docs', authenticate, ctrl.getAllDocs);
+router.get('/employee-docs/:id/file', authenticateEmployeeDocToken, ctrl.getDocFile);
+
 
 // ── Documents ────────────────────────────────────────────────────
 // The field names below are the only ones each route accepts (same names as

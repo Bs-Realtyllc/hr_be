@@ -39,6 +39,26 @@ export function signMediaToken(key: string): string {
 export const onboardFileKey = (id: string | number, type: string) =>
   `onboard:${id}:${type}`;
 
+/** Signed-link key for one employee document (see GET /profile/employee-docs). */
+export const employeeDocKey = (id: string | number) => `employee-doc:${id}`;
+
+/** Like authenticateMediaToken, for GET /profile/employee-docs/:id/file?token=... */
+export function authenticateEmployeeDocToken(req: any, res: Response, next: NextFunction) {
+  const token = req.query.token;
+  if (typeof token !== "string") {
+    return res.status(401).json({ error: "No token provided" });
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { key: string };
+    if (decoded.key !== employeeDocKey(req.params.id)) {
+      return res.status(403).json({ error: "Token does not match resource" });
+    }
+    next();
+  } catch {
+    res.status(401).json({ error: "Invalid or expired token" });
+  }
+}
+
 /** Like authenticateMediaToken, for GET /onboard/:id/:type?token=... */
 export function authenticateOnboardFileToken(req: any, res: Response, next: NextFunction) {
   const token = req.query.token;

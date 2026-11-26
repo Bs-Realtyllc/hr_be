@@ -3,6 +3,7 @@ import path from 'path';
 import mysql from 'mysql2/promise';
 import { migrate } from 'drizzle-orm/mysql2/migrator';
 import { db, pool } from '../config/database';
+import { maintainLogPartitions } from '../pkg/maintainLogPartitions';
 
 (async () => {
   const bootstrap = await mysql.createConnection({
@@ -17,6 +18,10 @@ import { db, pool } from '../config/database';
   await migrate(db, { migrationsFolder: path.join(__dirname, '../../drizzle/migrations') });
   console.log('drizzle-kit migrations applied');
   await pool.end();
+
+  // The log tables have no catch-all partition; bring them up to date right away so a DB
+  // migrated after the dates hard-coded in 0018 doesn't reject log inserts until the next cron run.
+  if (!(await maintainLogPartitions())) process.exitCode = 1;
 })().catch((err) => {
   console.error('drizzle-kit migration run aborted:', err.message);
   if (err.cause) console.error('caused by:', err.cause.message ?? err.cause);
