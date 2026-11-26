@@ -50,3 +50,19 @@ export async function getFileById(id: number) {
   }
   return doc
 }
+
+export async function move(id: number, newParentId: number | null) {
+  const doc = await documentRepo.findById(id);
+  if(!doc){
+    throw new AppError('Requested file/folder could not be found', 400);
+  }
+  if(doc.parentId === newParentId){
+  throw new AppError('Already inside the requested folder', 400)
+}
+  if(newParentId){
+    const newParent = await documentRepo.findById(newParentId);
+    if(newParent.type === 'file') throw new AppError('Cannot have file as parent', 400)
+  }
+
+return await documentRepo.changeParentId(id, newParentId)
+}

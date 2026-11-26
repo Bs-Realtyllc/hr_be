@@ -76,3 +76,13 @@ export const openFile = asyncHandler(async (req:Request, res: Response)=>{
   res.setHeader("Content-Disposition", `inline; filename="${file.filePath}"`);
   res.sendFile(filePath);
 })
+
+export const move = asyncHandler(async (req:Request, res: Response)=>{
+  const id = Number(req.params.id);
+  const {newParentId} = req.body ?? null;
+  if(!id){
+    throw new AppError('Id cannot be null', 400)
+  }
+  const result = await documentService.move(id, newParentId);
+  res.status(200). json(result)
+})

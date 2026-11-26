@@ -90,3 +90,9 @@ export async function getById(id: number) {
   const result = await db.select(documentColumns).from(documents).where(eq(documents.id, id))
   return result[0];
 }
+
+export async function changeParentId(id: number, newParentId: number) {
+  await db.update(documents).set({parentId: newParentId}).where(eq(documents.id, id))
+  const result = await db.select().from(documents).where(eq(documents.id, id))
+  return result[0];
+}
