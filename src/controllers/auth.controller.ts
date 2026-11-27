@@ -24,9 +24,21 @@ export const login = asyncHandler(async (req: any, res: Response) => {
 });
 
 // ── 2FA setup / management (own account, full session required) ───────────────
+export const welcomeStatus = asyncHandler(async (req: any, res: Response) => {
+  res.json(await authService.getWelcomeStatus(req.user.id));
+});
+
+export const welcomeSeen = asyncHandler(async (req: any, res: Response) => {
+  res.json(await authService.markWelcomeSeen(req.user.id));
+});
+
 export const twoFactorStatus = asyncHandler(async (req: any, res: Response) => {
   const status = await twoFactorService.getTwoFactorStatus(req.user.id);
   res.json(status);
+});
+
+export const twoFactorDismissPrompt = asyncHandler(async (req: any, res: Response) => {
+  res.json(await twoFactorService.dismissPrompt(req.user.id));
 });
 
 export const twoFactorSetup = asyncHandler(async (req: any, res: Response) => {

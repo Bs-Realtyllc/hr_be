@@ -21,6 +21,9 @@ import {
   getTrustedDevices,
   revokeTrustedDevice,
   revokeAllTrustedDevices,
+  welcomeStatus,
+  welcomeSeen,
+  twoFactorDismissPrompt,
 } from '../../controllers/auth.controller';
 import { authenticate, requireRole } from '../../middleware/auth';
 import { authLimiter, twoFactorLimiter } from '../../middleware/rateLimiters';
@@ -32,11 +35,14 @@ router.post('/forgot-password', authLimiter, forgotPassword);
 router.post('/reset-password', authLimiter, resetPassword);
 
 router.get('/login-history', authenticate, getLoginHistory);
+router.get('/welcome', authenticate, welcomeStatus);
+router.post('/welcome/seen', authenticate, welcomeSeen);
 router.get('/admin/login-history', authenticate, requireRole('admin'), adminGetAllLoginHistory);
 router.get('/admin/employees/:employeeId/login-history', authenticate, requireRole('admin'), adminGetEmployeeLoginHistory);
 
 // ── 2FA setup / management (own account) ───────────────────────────────────────
 router.get('/2fa/status', authenticate, twoFactorStatus);
+router.post('/2fa/prompt/dismiss', authenticate, twoFactorDismissPrompt);
 router.post('/2fa/setup', authenticate, twoFactorSetup);
 router.post('/2fa/enable', authenticate, twoFactorEnable);
 router.delete('/2fa/disable', authenticate, twoFactorDisable);

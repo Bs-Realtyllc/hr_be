@@ -364,3 +364,13 @@ export async function adminGetEmployeeLoginHistory(employeeId: number, query: Lo
   if (!emp) throw new AppError('Employee not found', 404);
   return getLoginHistory(employeeId, query);
 }
+// Post-login /welcome page is shown once; the frontend checks this after login.
+export async function getWelcomeStatus(employeeId: number) {
+  const seenAt = await employeeRepo.findWelcomeSeenAt(employeeId);
+  return { seen: seenAt !== null, seen_at: seenAt };
+}
+
+export async function markWelcomeSeen(employeeId: number) {
+  await employeeRepo.markWelcomeSeen(employeeId);
+  return getWelcomeStatus(employeeId);
+}

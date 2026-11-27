@@ -341,6 +341,10 @@ export const employees = mysqlTable("employees", {
 	twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
 	twoFactorSecret: varchar("two_factor_secret", { length: 255 }),
 	twoFactorBackupCodes: json("two_factor_backup_codes"),
+	// Last "Setup later" on the post-login 2FA prompt; the prompt is hidden for 30 days after it.
+	twoFactorPromptDismissedAt: timestamp("two_factor_prompt_dismissed_at", { mode: 'date' }),
+	// Set the first time the user leaves the post-login /welcome page; null = show it.
+	welcomeSeenAt: timestamp("welcome_seen_at", { mode: 'date' }),
 
 	//new columns - Nov 13th, 2026 -- to map onboarding profile after accept.
 	employeeId: varchar('employee_id',{length:8}),

@@ -1,0 +1,1 @@
+ALTER TABLE `employees` ADD `two_factor_prompt_dismissed_at` timestamp;

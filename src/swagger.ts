@@ -946,11 +946,23 @@ const options = {
           },
         },
 
+        WelcomeStatus: {
+          type: "object",
+          properties: {
+            seen: { type: "boolean" },
+            seen_at: { type: "string", format: "date-time", nullable: true },
+          },
+        },
         TwoFactorStatus: {
           type: "object",
           properties: {
             enabled: { type: "boolean" },
             backupCodesRemaining: { type: "integer" },
+            should_prompt: {
+              type: "boolean",
+              description: "True when 2FA is off and \"Setup later\" wasn't clicked in the last 30 days — the frontend shows the 2FA setup screen after login only then.",
+            },
+            prompt_dismissed_at: { type: "string", format: "date-time", nullable: true },
           },
         },
         TwoFactorSetup: {
@@ -2900,6 +2912,42 @@ const options = {
         },
       },
 
+      "/api/auth/welcome": {
+        get: {
+          tags: ["Auth"],
+          summary: "Has the caller already seen the post-login welcome page?",
+          description: "The frontend shows /welcome after login only while `seen` is false.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/WelcomeStatus" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/auth/welcome/seen": {
+        post: {
+          tags: ["Auth"],
+          summary: "Mark the post-login welcome page as seen",
+          description: "Idempotent — the first-seen time is kept on repeat calls.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "OK",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/WelcomeStatus" },
+                },
+              },
+            },
+          },
+        },
+      },
       "/api/auth/2fa/status": {
         get: {
           tags: ["Auth"],
@@ -2908,6 +2956,23 @@ const options = {
           responses: {
             200: {
               description: "OK",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/TwoFactorStatus" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/auth/2fa/prompt/dismiss": {
+        post: {
+          tags: ["Auth"],
+          summary: "\"Setup later\" — hide the post-login 2FA setup prompt for 30 days",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "OK — the updated status",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/TwoFactorStatus" },

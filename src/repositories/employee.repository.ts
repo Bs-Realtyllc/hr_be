@@ -1008,3 +1008,21 @@ export async function getDocById(id: number) {
   return doc;
 }
 
+
+// Post-login /welcome page: shown until the user leaves it once.
+export async function findWelcomeSeenAt(id: number): Promise<Date | null> {
+  const rows = await db
+    .select({ welcomeSeenAt: employees.welcomeSeenAt })
+    .from(employees)
+    .where(eq(employees.id, id))
+    .limit(1);
+  return rows[0]?.welcomeSeenAt ?? null;
+}
+
+// Only sets it once, so the first-seen time is kept.
+export async function markWelcomeSeen(id: number): Promise<void> {
+  await db
+    .update(employees)
+    .set({ welcomeSeenAt: sql`COALESCE(${employees.welcomeSeenAt}, NOW())` })
+    .where(eq(employees.id, id));
+}

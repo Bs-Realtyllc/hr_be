@@ -97,11 +97,27 @@ export async function regenerateBackupCodes(employeeId: number, code: string) {
   return { backupCodes: plain };
 }
 
+// After "Setup later", the post-login 2FA prompt stays hidden this long.
+const PROMPT_SNOOZE_MS = 30 * 24 * 60 * 60 * 1000;
+
 export async function getTwoFactorStatus(employeeId: number) {
   const emp = await twoFactorRepo.findSecurityFieldsById(employeeId);
   if (!emp) throw new AppError('Employee not found', 404);
   const backupCodes = (emp.two_factor_backup_codes as string[] | null) || [];
-  return { enabled: emp.two_factor_enabled, backupCodesRemaining: backupCodes.length };
+  const dismissedAt = emp.two_factor_prompt_dismissed_at;
+  const snoozed = dismissedAt !== null && Date.now() - dismissedAt.getTime() < PROMPT_SNOOZE_MS;
+  return {
+    enabled: emp.two_factor_enabled,
+    backupCodesRemaining: backupCodes.length,
+    // The frontend shows the "Set up 2FA" screen after login only when this is true.
+    should_prompt: !emp.two_factor_enabled && !snoozed,
+    prompt_dismissed_at: dismissedAt,
+  };
+}
+
+export async function dismissPrompt(employeeId: number) {
+  await twoFactorRepo.dismissPrompt(employeeId);
+  return getTwoFactorStatus(employeeId);
 }
 
 // ── Verification during login (acts on the employee resolved from the temp token) ──

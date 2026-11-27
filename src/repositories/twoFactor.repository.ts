@@ -30,6 +30,7 @@ export async function findSecurityFieldsById(employeeId: number) {
       two_factor_enabled: employees.twoFactorEnabled,
       two_factor_secret: employees.twoFactorSecret,
       two_factor_backup_codes: employees.twoFactorBackupCodes,
+      two_factor_prompt_dismissed_at: employees.twoFactorPromptDismissedAt,
     })
     .from(employees)
     .where(eq(employees.id, employeeId))
@@ -147,4 +148,9 @@ export async function deleteById(employeeId: number, id: number) {
 export async function deleteAllForEmployee(employeeId: number) {
   const result: any = await db.delete(trustedDevices).where(eq(trustedDevices.employeeId, employeeId));
   return result[0]?.affectedRows ?? 0;
+}
+
+// "Setup later" on the post-login 2FA prompt.
+export async function dismissPrompt(employeeId: number) {
+  await db.update(employees).set({ twoFactorPromptDismissedAt: new Date() }).where(eq(employees.id, employeeId));
 }

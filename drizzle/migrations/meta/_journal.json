@@ -134,6 +134,20 @@
       "when": 1795346524000,
       "tag": "0018_log_tables_partitioning",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1795754986832,
+      "tag": "0019_welcome_seen",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1795755753348,
+      "tag": "0020_two_factor_prompt_dismissed",
+      "breakpoints": true
     }
   ]
 }
