@@ -14,6 +14,7 @@ router.post('/webhook', googleCtrl.webhook);
 
 router.get('/meetings', authenticate, meetingsCtrl.list);
 router.post('/meetings', authenticate, meetingsCtrl.create);
+router.put('/meetings/:id', authenticate, meetingsCtrl.update);
 router.delete('/meetings/:id', authenticate, meetingsCtrl.remove);
 
 export default router;

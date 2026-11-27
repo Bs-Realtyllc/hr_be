@@ -9,6 +9,48 @@ const ERR403 = {
   content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
 };
 
+const ERR = (description: string) => ({
+  description,
+  content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+});
+
+// ?from=&to= on the calendar lists (calendar events, meetings): exact
+// instants, so "a day" or "a month" is the viewer's own (the frontend sends
+// its local boundaries). Items overlapping [from, to) are returned.
+const RANGE_PARAMS = [
+  {
+    name: "from",
+    in: "query",
+    required: false,
+    description:
+      "Start of the range, ISO 8601 with a timezone. Items that end after this instant. URL-encode a + offset as %2B (an unencoded + is also accepted).",
+    schema: { type: "string", format: "date-time", example: "2026-11-01T00:00:00+05:45" },
+  },
+  {
+    name: "to",
+    in: "query",
+    required: false,
+    description: "End of the range (not included), ISO 8601 with a timezone. Items that start before this instant.",
+    schema: { type: "string", format: "date-time", example: "2026-12-01T00:00:00+05:45" },
+  },
+];
+
+const ID_PARAM = { name: "id", in: "path", required: true, schema: { type: "integer" } };
+
+// Calendar times (meetings, calendar events) are exact instants.
+const INSTANT_OUT = {
+  type: "string",
+  format: "date-time",
+  description: "Exact instant, always returned in UTC. Show it in the viewer's own timezone.",
+  example: "2026-11-28T04:15:00.000Z",
+};
+const INSTANT_IN = {
+  type: "string",
+  format: "date-time",
+  description:
+    "Exact instant, ISO 8601 with a timezone (Z or ±HH:MM). A time without a zone is refused (400).",
+};
+
 const options = {
   definition: {
     openapi: "3.0.0",
@@ -77,6 +119,10 @@ const options = {
       {
         name: "Meetings",
         description: "Scheduled meetings backed by Google Calendar",
+      },
+      {
+        name: "Calendar Events",
+        description: "Company events on the calendar page (team lunch, town hall…). Admins manage them; everyone can view.",
       },
       {
         name: "Discord",
@@ -1528,8 +1574,8 @@ const options = {
             id: { type: "integer" },
             title: { type: "string" },
             description: { type: "string", nullable: true },
-            start_datetime: { type: "string", format: "date-time" },
-            end_datetime: { type: "string", format: "date-time" },
+            start_datetime: INSTANT_OUT,
+            end_datetime: INSTANT_OUT,
             attendees: {
               type: "array",
               items: { type: "string", format: "email" },
@@ -1537,7 +1583,7 @@ const options = {
             google_event_id: { type: "string", nullable: true },
             meet_link: { type: "string", format: "uri", nullable: true },
             status: { type: "string", enum: ["scheduled", "cancelled"] },
-            created_by: { type: "integer" },
+            created_by: { type: "integer", nullable: true },
             creator_name: { type: "string", nullable: true },
           },
         },
@@ -1546,24 +1592,61 @@ const options = {
           required: ["title", "start_datetime", "end_datetime"],
           properties: {
             title: { type: "string" },
-            description: { type: "string" },
-            start_datetime: { type: "string", format: "date-time" },
-            end_datetime: { type: "string", format: "date-time" },
+            description: { type: "string", nullable: true },
+            start_datetime: { ...INSTANT_IN, example: "2026-11-28T10:00:00+05:45" },
+            end_datetime: { ...INSTANT_IN, example: "2026-11-28T10:30:00+05:45" },
             attendees: {
               type: "array",
               items: { type: "string", format: "email" },
             },
+            time_zone: {
+              type: "string",
+              nullable: true,
+              description:
+                "Scheduler's IANA timezone. Only sets which zone Google shows the event in (attendees still see their own local time); not stored. Defaults to APP_TIMEZONE.",
+              example: "America/New_York",
+            },
           },
         },
-        MeetingCreated: {
+        CalendarEvent: {
           type: "object",
           properties: {
             id: { type: "integer" },
             title: { type: "string" },
-            start_datetime: { type: "string", format: "date-time" },
-            end_datetime: { type: "string", format: "date-time" },
-            meetLink: { type: "string", format: "uri", nullable: true },
-            googleEventId: { type: "string", nullable: true },
+            description: { type: "string", nullable: true },
+            start_datetime: INSTANT_OUT,
+            end_datetime: INSTANT_OUT,
+            event_type: { type: "string", enum: ["in-person", "online"] },
+            location: { type: "string", nullable: true, description: "Set for in-person events only" },
+            meet_link: { type: "string", nullable: true, description: "Set for online events only" },
+            attendees: {
+              type: "array",
+              items: { type: "string", format: "email" },
+              description: "Lower-cased, unique",
+            },
+            created_by: { type: "integer", nullable: true },
+            creator_name: { type: "string", nullable: true },
+            created_at: { type: "string", format: "date-time", nullable: true },
+            updated_at: { type: "string", format: "date-time", nullable: true },
+          },
+        },
+        CalendarEventInput: {
+          type: "object",
+          required: ["title", "start_datetime", "end_datetime", "event_type"],
+          description:
+            "end_datetime must be after start_datetime. location is required when event_type is in-person; only the field matching event_type is kept (location for in-person, meet_link for online).",
+          properties: {
+            title: { type: "string", maxLength: 255, example: "Team lunch" },
+            description: { type: "string", nullable: true },
+            start_datetime: { ...INSTANT_IN, example: "2026-11-28T13:00:00+05:45" },
+            end_datetime: { ...INSTANT_IN, example: "2026-11-28T14:00:00+05:45" },
+            event_type: { type: "string", enum: ["in-person", "online"] },
+            location: { type: "string", maxLength: 255, nullable: true, example: "Pokhara" },
+            meet_link: { type: "string", maxLength: 500, nullable: true },
+            attendees: {
+              type: "array",
+              items: { type: "string", format: "email" },
+            },
           },
         },
 
@@ -1727,6 +1810,12 @@ const options = {
             found: { type: "boolean" },
             data: { $ref: "#/components/schemas/OnboardDraft" },
           },
+        },
+
+        // employee_onboarding_profile.role
+        OnboardRole: {
+          type: "string",
+          enum: ["intern", "employee", "admin"],
         },
 
         OnboardPayload: {
@@ -5167,6 +5256,112 @@ const options = {
         },
       },
 
+      "/api/calendar-events": {
+        get: {
+          tags: ["Calendar Events"],
+          summary: "List calendar events",
+          description:
+            "Events that overlap [from, to), earliest first — an event past the viewer's midnight shows on each day it touches. Without from/to, all events.",
+          security: [{ bearerAuth: [] }],
+          parameters: RANGE_PARAMS,
+          responses: {
+            200: {
+              description: "Array of events",
+              content: {
+                "application/json": {
+                  schema: { type: "array", items: { $ref: "#/components/schemas/CalendarEvent" } },
+                },
+              },
+            },
+            400: ERR("from/to not an ISO date-time with a timezone, or from not before to"),
+            401: ERR401,
+          },
+        },
+        post: {
+          tags: ["Calendar Events"],
+          summary: "Create a calendar event (admin)",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/CalendarEventInput" } },
+            },
+          },
+          responses: {
+            201: {
+              description: "The saved event",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/CalendarEvent" } },
+              },
+            },
+            400: ERR("Invalid body (e.g. location missing for an in-person event)"),
+            401: ERR401,
+            403: ERR403,
+          },
+        },
+      },
+      "/api/calendar-events/{id}": {
+        get: {
+          tags: ["Calendar Events"],
+          summary: "Get one calendar event",
+          security: [{ bearerAuth: [] }],
+          parameters: [ID_PARAM],
+          responses: {
+            200: {
+              description: "The event",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/CalendarEvent" } },
+              },
+            },
+            401: ERR401,
+            404: ERR("Event not found"),
+          },
+        },
+        put: {
+          tags: ["Calendar Events"],
+          summary: "Edit a calendar event (admin)",
+          description: "Takes the full body, same as create.",
+          security: [{ bearerAuth: [] }],
+          parameters: [ID_PARAM],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/CalendarEventInput" } },
+            },
+          },
+          responses: {
+            200: {
+              description: "The updated event",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/CalendarEvent" } },
+              },
+            },
+            400: ERR("Invalid body"),
+            401: ERR401,
+            403: ERR403,
+            404: ERR("Event not found"),
+          },
+        },
+        delete: {
+          tags: ["Calendar Events"],
+          summary: "Delete a calendar event (admin)",
+          description: "Removes the row for good.",
+          security: [{ bearerAuth: [] }],
+          parameters: [ID_PARAM],
+          responses: {
+            200: {
+              description: "Deleted",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/Success" } },
+              },
+            },
+            401: ERR401,
+            403: ERR403,
+            404: ERR("Event not found"),
+          },
+        },
+      },
+
       "/api/payroll": {
         get: {
           tags: ["Payroll"],
@@ -6707,19 +6902,27 @@ const options = {
           tags: ["Google Calendar"],
           summary: "OAuth redirect target (called by Google, not the frontend)",
           description:
-            "Exchanges the auth code for tokens, stores them, and redirects to the frontend calendar page.",
+            "Exchanges the auth code for tokens, stores them, registers the webhook channel when GOOGLE_WEBHOOK_URL is set, and redirects back to the admin's Profile → Integrations tab.",
           parameters: [
             {
               name: "code",
               in: "query",
-              required: true,
+              required: false,
+              description: "Sent by Google when the admin allows access",
+              schema: { type: "string" },
+            },
+            {
+              name: "error",
+              in: "query",
+              required: false,
+              description: "Sent by Google instead of code when the admin cancels (e.g. access_denied)",
               schema: { type: "string" },
             },
           ],
           responses: {
             302: {
               description:
-                "Redirect to FRONTEND_URL/calendar with a status query param",
+                "Redirect to FRONTEND_URL/profile?tab=integrations&google=connected | cancelled | error",
             },
           },
         },
@@ -6832,11 +7035,14 @@ const options = {
       "/api/google/meetings": {
         get: {
           tags: ["Meetings"],
-          summary: "List scheduled meetings from the last 7 days onward",
+          summary: "List scheduled meetings",
+          description:
+            "With from/to: scheduled meetings that overlap [from, to). Without either: scheduled meetings from 7 days ago onward.",
           security: [{ bearerAuth: [] }],
+          parameters: RANGE_PARAMS,
           responses: {
             200: {
-              description: "Array of meetings",
+              description: "Array of meetings, earliest first",
               content: {
                 "application/json": {
                   schema: {
@@ -6846,13 +7052,15 @@ const options = {
                 },
               },
             },
+            400: ERR("from/to not an ISO date-time with a timezone, or from not before to"),
+            401: ERR401,
           },
         },
         post: {
           tags: ["Meetings"],
           summary: "Create a meeting",
           description:
-            "Also creates a matching Google Calendar event with a Meet link.",
+            "Also creates a matching Google Calendar event with a Meet link, and Google emails each attendee an invitation.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
@@ -6864,15 +7072,16 @@ const options = {
           },
           responses: {
             201: {
-              description: "Created",
+              description: "Created — the saved meeting, same shape as the list",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/MeetingCreated" },
+                  schema: { $ref: "#/components/schemas/Meeting" },
                 },
               },
             },
+            401: ERR401,
             400: {
-              description: "Missing required fields",
+              description: "Missing required fields, or end_datetime not after start_datetime",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },
@@ -6891,11 +7100,42 @@ const options = {
         },
       },
       "/api/google/meetings/{id}": {
+        put: {
+          tags: ["Meetings"],
+          summary: "Edit a meeting",
+          description:
+            "Only the creator or an admin. Takes the full body (same as create). Updates the Google Calendar event first, keeping its Meet link, and Google emails the attendees the change; if Google fails nothing is changed.",
+          security: [{ bearerAuth: [] }],
+          parameters: [ID_PARAM],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/MeetingInput" },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "The updated meeting",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Meeting" },
+                },
+              },
+            },
+            400: ERR("Missing required fields, or end_datetime not after start_datetime"),
+            401: ERR401,
+            403: ERR("Not the creator or an admin"),
+            404: ERR("Not found, or already cancelled"),
+            502: ERR("Google Calendar error"),
+          },
+        },
         delete: {
           tags: ["Meetings"],
           summary: "Cancel a meeting",
           description:
-            "Only the creator or an admin may cancel. Soft-delete (sets status = cancelled).",
+            "Only the creator or an admin may cancel. Deletes the Google Calendar event first (Google emails the attendees a cancellation; already gone on Google counts as done), then soft-deletes the row (status = cancelled). If Google fails, nothing is changed.",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -6922,14 +7162,9 @@ const options = {
                 },
               },
             },
-            404: {
-              description: "Not found",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/Error" },
-                },
-              },
-            },
+            401: ERR401,
+            404: ERR("Not found, or already cancelled"),
+            502: ERR("Google Calendar error"),
           },
         },
       },

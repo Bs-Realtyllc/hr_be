@@ -148,6 +148,20 @@
       "when": 1795755753348,
       "tag": "0020_two_factor_prompt_dismissed",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1795774180832,
+      "tag": "0021_calendar_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "5",
+      "when": 1795792446467,
+      "tag": "0022_calendar_times_to_utc",
+      "breakpoints": true
     }
   ]
 }

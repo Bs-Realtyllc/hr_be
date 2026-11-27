@@ -1,6 +1,7 @@
-import { eq, and, gte, sql, asc } from 'drizzle-orm';
+import { eq, and, gt, lt, sql, asc, type SQL } from 'drizzle-orm';
 import { db } from '../config/database';
 import { meetings, employees } from '../../drizzle/schema';
+import type { MeetingCreateInput, MeetingRange } from '../dtos/meeting.dto';
 
 const meetingsColumns = {
   id: meetings.id,
@@ -30,8 +31,25 @@ export async function findUpcomingScheduled() {
     })
     .from(meetings)
     .leftJoin(employees, eq(meetings.createdBy, employees.id))
-    .where(and(eq(meetings.status, 'scheduled'), sql`${meetings.startDatetime} >= DATE_SUB(NOW(), INTERVAL 7 DAY)`))
+    .where(and(eq(meetings.status, 'scheduled'), sql`${meetings.startDatetime} >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 7 DAY)`))
     .orderBy(asc(meetings.startDatetime));
+}
+
+/**
+ * Scheduled meetings that overlap [from, to), earliest first — the same rule
+ * as calendar events. Either end may be left open.
+ */
+export async function findScheduledInRange({ from, to }: MeetingRange) {
+  const conditions: SQL[] = [eq(meetings.status, 'scheduled')];
+  if (from) conditions.push(gt(meetings.endDatetime, from));
+  if (to) conditions.push(lt(meetings.startDatetime, to));
+
+  return db
+    .select({ ...meetingsColumns, creator_name: employees.name })
+    .from(meetings)
+    .leftJoin(employees, eq(meetings.createdBy, employees.id))
+    .where(and(...conditions))
+    .orderBy(asc(meetings.startDatetime), asc(meetings.id));
 }
 
 export async function create(data: any) {
@@ -50,8 +68,28 @@ export async function create(data: any) {
 }
 
 export async function findById(id: number | string) {
-  const rows = await db.select(meetingsColumns).from(meetings).where(eq(meetings.id, Number(id))).limit(1);
+  const rows = await db
+    .select({ ...meetingsColumns, creator_name: employees.name })
+    .from(meetings)
+    .leftJoin(employees, eq(meetings.createdBy, employees.id))
+    .where(eq(meetings.id, Number(id)))
+    .limit(1);
   return rows[0] || null;
+}
+
+/** Replaces the editable fields. The Google event id and Meet link stay as they are. */
+export async function update(id: number | string, data: MeetingCreateInput, actorId: number) {
+  await db
+    .update(meetings)
+    .set({
+      title: data.title,
+      description: data.description,
+      startDatetime: data.start_datetime,
+      endDatetime: data.end_datetime,
+      attendees: data.attendees,
+      updatedBy: actorId,
+    })
+    .where(eq(meetings.id, Number(id)));
 }
 
 export async function cancel(id: number | string, actorId: number | null = null) {

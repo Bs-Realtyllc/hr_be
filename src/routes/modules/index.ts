@@ -6,6 +6,7 @@ import standupRoutes from './standup.routes';
 import projectRoutes from './project.routes';
 import cultureEventRoutes from './cultureEvent.routes';
 import holidayRoutes from './holiday.routes';
+import calendarEventRoutes from './calendarEvent.routes';
 import serverRoutes from './server.routes';
 import payrollRoutes from './payroll.routes';
 import overtimeRoutes from './overtime.routes';
@@ -43,6 +44,7 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/projects', router: projectRoutes },
   { path: '/events', router: cultureEventRoutes },
   { path: '/holidays', router: holidayRoutes },
+  { path: '/calendar-events', router: calendarEventRoutes },
   { path: '/servers', router: serverRoutes },
   { path: '/payroll', router: payrollRoutes },
   { path: '/overtime', router: overtimeRoutes },

@@ -9,18 +9,22 @@ export const getAuthUrl = async (req: Request, res: Response) => {
   }
 };
 
-export const handleCallback = async (req: Request, res: Response) => {
-  const { code } = req.query;
-  const frontendUrl = process.env.FRONTEND_URL;
+// Back to the admin's Profile → Integrations tab, where Connect was clicked.
+const integrationsUrl = (result: string) => `${process.env.FRONTEND_URL}/profile?tab=integrations&google=${result}`;
 
-  if (!code) return res.redirect(`${frontendUrl}/calendar?google_error=missing_code`);
+export const handleCallback = async (req: Request, res: Response) => {
+  const { code, error } = req.query;
+
+  // The admin pressed Cancel on Google's consent screen
+  if (error) return res.redirect(integrationsUrl('cancelled'));
+  if (!code) return res.redirect(integrationsUrl('error'));
 
   try {
     await googleService.handleCallback(code as string);
-    res.redirect(`${frontendUrl}/calendar?google_connected=true`);
+    res.redirect(integrationsUrl('connected'));
   } catch (err: any) {
     console.error('[google] OAuth callback error:', err.message);
-    res.redirect(`${frontendUrl}/calendar?google_error=true`);
+    res.redirect(integrationsUrl('error'));
   }
 };
 

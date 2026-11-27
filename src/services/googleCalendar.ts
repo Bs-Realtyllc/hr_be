@@ -3,6 +3,17 @@ import * as googleSettingsRepo from '../repositories/googleSettings.repository';
 
 let _refreshInFlight: Promise<void> | null = null;
 
+// Google emails the attendees from the connected account: an invitation on
+// create, an update on edit, a cancellation on delete.
+const SEND_UPDATES = 'all';
+
+// Start/end are exact instants (ISO with Z); timeZone only says which zone
+// Google shows the event in — each attendee still sees their own local time.
+const eventTime = (dateTime: string, timeZone?: string | null) => ({
+  dateTime,
+  timeZone: timeZone || process.env.APP_TIMEZONE || 'UTC',
+});
+
 function makeOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -87,12 +98,16 @@ export async function createMeetingEvent({
   startDateTime,
   endDateTime,
   attendees,
+  timeZone,
 }: {
   title: string;
-  description?: string;
+  description?: string | null;
+  /** ISO 8601 instants */
   startDateTime: string;
   endDateTime: string;
   attendees?: string[];
+  /** IANA zone to show the event in */
+  timeZone?: string | null;
 }) {
   const auth = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth });
@@ -100,11 +115,12 @@ export async function createMeetingEvent({
   const { data } = await calendar.events.insert({
     calendarId: 'primary',
     conferenceDataVersion: 1,
+    sendUpdates: SEND_UPDATES,
     requestBody: {
       summary: title,
       description: description || '',
-      start: { dateTime: startDateTime, timeZone: process.env.APP_TIMEZONE || 'UTC' },
-      end: { dateTime: endDateTime, timeZone: process.env.APP_TIMEZONE || 'UTC' },
+      start: eventTime(startDateTime, timeZone),
+      end: eventTime(endDateTime, timeZone),
       attendees: (attendees || []).map((email) => ({ email })),
       conferenceData: {
         createRequest: {
@@ -117,6 +133,58 @@ export async function createMeetingEvent({
 
   const meetLink = data.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri || null;
   return { googleEventId: data.id, meetLink };
+}
+
+/** Edits an event made by createMeetingEvent. Only these fields change, so its Meet link is kept. */
+export async function updateMeetingEvent(
+  googleEventId: string,
+  {
+    title,
+    description,
+    startDateTime,
+    endDateTime,
+    attendees,
+    timeZone,
+  }: {
+    title: string;
+    description?: string | null;
+    /** ISO 8601 instants */
+    startDateTime: string;
+    endDateTime: string;
+    attendees?: string[];
+    /** IANA zone to show the event in */
+    timeZone?: string | null;
+  }
+) {
+  const auth = await getAuthenticatedClient();
+  const calendar = google.calendar({ version: 'v3', auth });
+
+  await calendar.events.patch({
+    calendarId: 'primary',
+    eventId: googleEventId,
+    sendUpdates: SEND_UPDATES,
+    requestBody: {
+      summary: title,
+      description: description || '',
+      start: eventTime(startDateTime, timeZone),
+      end: eventTime(endDateTime, timeZone),
+      attendees: (attendees || []).map((email) => ({ email })),
+    },
+  });
+}
+
+/** Deletes an event made by createMeetingEvent. Already gone on Google (404/410) counts as done. */
+export async function deleteMeetingEvent(googleEventId: string) {
+  const auth = await getAuthenticatedClient();
+  const calendar = google.calendar({ version: 'v3', auth });
+
+  try {
+    await calendar.events.delete({ calendarId: 'primary', eventId: googleEventId, sendUpdates: SEND_UPDATES });
+  } catch (err: any) {
+    const status = err?.response?.status ?? err?.code;
+    if (status === 404 || status === 410) return;
+    throw err;
+  }
 }
 
 export async function listUpcomingEvents(maxResults = 100) {

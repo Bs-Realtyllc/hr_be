@@ -27,6 +27,31 @@ export type NewAccessLog = typeof accessLog.$inferInsert;
 
 // Singleton settings row, same pattern as google_settings — the app always
 // reads/updates whichever row exists rather than enforcing a single id.
+// Events on the /calendar page (team lunch, town hall, ...). Not the same as
+// culture_events (birthdays/anniversaries) or meetings (Google Calendar).
+export const calendarEvents = mysqlTable("calendar_events", {
+	id: int().autoincrement().notNull(),
+	title: varchar({ length: 255 }).notNull(),
+	description: text(),
+	startDatetime: datetime("start_datetime", { mode: 'string'}).notNull(),
+	endDatetime: datetime("end_datetime", { mode: 'string'}).notNull(),
+	eventType: mysqlEnum("event_type", ['in-person','online']).notNull(),
+	location: varchar({ length: 255 }),
+	meetLink: varchar("meet_link", { length: 500 }),
+	attendees: json().$type<string[]>(),
+	createdBy: int("created_by").references(() => employees.id, { onDelete: "set null" } ),
+	updatedBy: int("updated_by").references(() => employees.id, { onDelete: "set null" } ),
+	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
+},
+(table) => [
+	index("idx_calendar_events_start").on(table.startDatetime),
+	index("idx_calendar_events_created_by").on(table.createdBy),
+	primaryKey({ columns: [table.id], name: "calendar_events_id"}),
+]);
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+export type NewCalendarEvent = typeof calendarEvents.$inferInsert;
+
 export const companySettings = mysqlTable("company_settings", {
 	id: int().autoincrement().notNull(),
 	name: varchar({ length: 150 }),
