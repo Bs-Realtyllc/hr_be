@@ -67,6 +67,7 @@ const options = {
       },
       { name: "Departments", description: "Active departments" },
       { name: "Designations", description: "Active designations" },
+      { name: "Org Chart", description: "Reporting structure for the org chart page" },
       { name: "Reports", description: "Monthly report file submissions" },
       { name: "Dashboard", description: "Aggregate stats and trends" },
       {
@@ -5988,6 +5989,66 @@ const options = {
           },
         },
       },
+      "/api/org-chart": {
+        get: {
+          tags: ["Org Chart"],
+          summary: "List everyone on the org chart",
+          description:
+            "Any logged-in user. Returns a flat list; the client builds the tree from manager_id. " +
+            "Excludes terminated and onboarding employees, and returns only non-sensitive fields. " +
+            "manager_id is cleaned so the list always forms a valid tree: it is null when the " +
+            "manager is not on the chart, and a reporting cycle in old data is broken.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "People on the org chart, sorted by name",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      required: ["id", "name", "manager_id", "status"],
+                      properties: {
+                        id: { type: "integer", example: 4 },
+                        name: { type: "string", example: "Sita Karki" },
+                        profile_picture: {
+                          type: "string",
+                          nullable: true,
+                          description: "File name under /uploads/profile/photo/",
+                          example: "4-1731500000000.jpg",
+                        },
+                        designation: { type: "string", nullable: true, example: "Head of Engineering" },
+                        department_id: { type: "integer", nullable: true, example: 1 },
+                        department: { type: "string", nullable: true, example: "IT" },
+                        manager_id: {
+                          type: "integer",
+                          nullable: true,
+                          description: "null for people at the top of the tree",
+                          example: 1,
+                        },
+                        status: {
+                          type: "string",
+                          enum: ["active", "on_leave", "probation", "offboarding"],
+                          example: "active",
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            401: {
+              description: "Not logged in",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+          },
+        },
+      },
       "/api/profile": {
         get: {
           tags: ["Profile"],
@@ -6327,6 +6388,64 @@ const options = {
             400: { description: "Invalid id, or the item is a folder", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             401: ERR401,
             404: { description: "Document not found, or the file is missing on disk", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+            "/api/documents/{id}/move": {
+        patch: {
+          tags: ["Documents"],
+          summary: "Move a file or folder",
+          description:
+            "Moves the document into the specified folder. Set `newParentId` to `null` to move it to the top level. Any authenticated user can use this endpoint.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+              description: "Document id",
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["newParentId"],
+                  properties: {
+                    newParentId: {
+                      type: "integer",
+                      nullable: true,
+                      description: "Destination folder id; null moves the item to the top level.",
+                      example: 5,
+                    },
+                  },
+                },
+                example: { newParentId: 5 },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Document moved",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Document" },
+                },
+              },
+            },
+            400: {
+              description:
+                "Invalid id, document not found, document is already in the requested folder, or destination is a file",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                },
+              },
+            },
+            401: ERR401,
           },
         },
       },

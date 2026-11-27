@@ -32,6 +32,7 @@ import offboardingRoutes from './offboarding.routes'
 import companySettingsRoutes from './companySettings.routes'
 import departmentRoutes from './department.routes'
 import designationRoutes from './designation.routes'
+import orgChartRoutes from './orgChart.routes'
 import trackerRoutes from './tracker.routes'
 
 const modules: Array<{ path: string; router: Router }> = [
@@ -68,6 +69,7 @@ const modules: Array<{ path: string; router: Router }> = [
   { path: '/company',      router: companySettingsRoutes },
   { path: '/departments',  router: departmentRoutes },
   { path: '/designations', router: designationRoutes },
+  { path: '/org-chart',    router: orgChartRoutes },
   { path: '/tracker',      router: trackerRoutes },
 
 

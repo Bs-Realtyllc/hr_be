@@ -27,8 +27,13 @@ export default function errorHandler(err: any, req: Request, res: Response, next
     return res.status(400).json({ error: message });
   }
 
-  if (err.code === 'ER_DUP_ENTRY') {
-    return res.status(400).json({ error: 'That record already exists' });
+  // Drizzle wraps driver errors, so the MySQL code lives on err.cause.
+  const dbErr = err.code ? err : err.cause;
+  if (dbErr?.code === 'ER_DUP_ENTRY') {
+    const isEmail = /for key '[^']*email'/.test(dbErr.sqlMessage ?? '');
+    return res.status(409).json({
+      error: isEmail ? 'An account with this email already exists' : 'That record already exists',
+    });
   }
 
   console.error(err);
