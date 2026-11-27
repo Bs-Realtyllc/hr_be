@@ -1,61 +1,81 @@
-import { eq, and, desc, asc, isNull } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { db } from '../config/database';
 import { documents, employees } from '../../drizzle/schema';
 
 const documentColumns = {
   id: documents.id,
   type: documents.type,
+  documentType: documents.documentType,
   title: documents.title,
   filePath: documents.filePath,
   uploadedBy: documents.uploadedBy,
   isActive: documents.isActive,
+  requiresAcknowledgement: documents.requiresAcknowledgement,
   category: documents.category,
   sizeBytes: documents.sizeBytes,
   isPinned: documents.isPinned,
   parentId: documents.parentId,
   createdAt: documents.createdAt,
-  updatedAt: documents.updatedAt
+  updatedAt: documents.updatedAt,
 };
 
 function insertedId(result: any): number {
   return result[0].insertId as number;
 }
 
-export async function create({ type, title, filePath, uploadedBy, category, parentId }: any) {
+export async function create({
+  type,
+  documentType,
+  title,
+  filePath,
+  uploadedBy,
+  category,
+  parentId,
+  requiresAcknowledgement,
+}: {
+  type: string;
+  documentType: string | null;
+  title: string;
+  filePath: string | null;
+  uploadedBy: number;
+  category: string | null;
+  parentId: number | null;
+  requiresAcknowledgement: boolean;
+}) {
   const result = await db.insert(documents).values({
-    type,
+    type: type as any,
+    documentType,
     title,
     filePath,
     uploadedBy,
     category,
-    parentId: parentId,
+    parentId,
+    requiresAcknowledgement,
     createdAt: new Date(),
-  } as any);
+  });
   return insertedId(result);
 }
 
-// export async function findActiveByType(type: 'file' | 'folder') {
-//   const rows = await db
-//     .select(documentColumns)
-//     .from(documents)
-//     .where(and(eq(documents.type, type), eq(documents.isActive, true)))
-//     .orderBy(desc(documents.version))
-//     .limit(1);
-//   return rows[0] || null;
-// }
-
 export async function findById(id: number | string) {
-  const rows = await db.select(documentColumns).from(documents).where(eq(documents.id, Number(id))).limit(1);
+  const rows = await db
+    .select(documentColumns)
+    .from(documents)
+    .where(eq(documents.id, Number(id)))
+    .limit(1);
   return rows[0] || null;
 }
 
-export async function listActive(parentId?: number) {
-  const conditions = [eq(documents.isActive, true)];
-  // if (category !== undefined) conditions.push(eq(documents.category, category));
-  if(parentId){
-    conditions.push(eq(documents.parentId, parentId))
-  }else{
-    conditions.push(isNull(documents.parentId))
+export async function listActive(parentId?: number | null, documentType?: string | null) {
+  const conditions: any[] = [eq(documents.isActive, true)];
+
+  if (parentId) {
+    conditions.push(eq(documents.parentId, parentId));
+  } else {
+    conditions.push(isNull(documents.parentId));
+  }
+
+  if (documentType) {
+    conditions.push(eq(documents.documentType, documentType));
   }
 
   return db
@@ -66,12 +86,8 @@ export async function listActive(parentId?: number) {
     .from(documents)
     .leftJoin(employees, eq(documents.uploadedBy, employees.id))
     .where(and(...conditions))
-    .orderBy(desc(documents.isPinned));
+    .orderBy(documents.isPinned);
 }
-
-// export async function deactivateByType(type: string) {
-//   await db.update(documents).set({ isActive: false }).where(eq(documents.type, type));
-// }
 
 export async function remove(id: number | string) {
   await db.delete(documents).where(eq(documents.id, Number(id)));
@@ -87,12 +103,11 @@ export async function rename(id: number | string, title: string) {
 }
 
 export async function getById(id: number) {
-  const result = await db.select(documentColumns).from(documents).where(eq(documents.id, id))
-  return result[0];
+  const rows = await db.select(documentColumns).from(documents).where(eq(documents.id, id));
+  return rows[0] || null;
 }
 
-export async function changeParentId(id: number, newParentId: number) {
-  await db.update(documents).set({parentId: newParentId}).where(eq(documents.id, id))
-  const result = await db.select().from(documents).where(eq(documents.id, id))
-  return result[0];
+export async function changeParentId(id: number, newParentId: number | null) {
+  await db.update(documents).set({ parentId: newParentId }).where(eq(documents.id, id));
+  return findById(id);
 }
