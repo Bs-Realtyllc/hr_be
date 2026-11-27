@@ -13,6 +13,7 @@ const calendarEventsColumns = {
   location: calendarEvents.location,
   meet_link: calendarEvents.meetLink,
   attendees: calendarEvents.attendees,
+  time_zone: calendarEvents.timeZone,
   created_by: calendarEvents.createdBy,
   updated_by: calendarEvents.updatedBy,
   created_at: calendarEvents.createdAt,
@@ -61,6 +62,7 @@ export async function create(data: CalendarEventInput, actorId: number) {
     location: data.location,
     meetLink: data.meet_link,
     attendees: data.attendees,
+    timeZone: data.time_zone,
     createdBy: actorId,
     updatedBy: actorId,
   });
@@ -79,6 +81,7 @@ export async function update(id: number | string, data: CalendarEventInput, acto
       location: data.location,
       meetLink: data.meet_link,
       attendees: data.attendees,
+      timeZone: data.time_zone,
       updatedBy: actorId,
     })
     .where(eq(calendarEvents.id, Number(id)));

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { bindAndValidate, optionalNullable } from '../pkg/validation';
-import { fromDbUtc, instantField, toInstantRange, type InstantRange } from '../pkg/instant';
+import { fromDbUtc, instantField, timeZoneField, toInstantRange, type InstantRange } from '../pkg/instant';
 
 export const CALENDAR_EVENT_TYPES = ['in-person', 'online'] as const;
 export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number];
@@ -15,6 +15,7 @@ const bodySchema = z
     location: optionalNullable(z.string().trim().max(255, 'location must be at most 255 characters')),
     meet_link: optionalNullable(z.string().trim().max(500, 'meet_link must be at most 500 characters')),
     attendees: optionalNullable(z.array(z.string().trim().email('attendees must be email addresses'))),
+    time_zone: timeZoneField(),
   })
   .refine((d) => d.end_datetime > d.start_datetime, {
     message: 'end_datetime must be after start_datetime',
@@ -36,6 +37,8 @@ export interface CalendarEventInput {
   location: string | null;
   meet_link: string | null;
   attendees: string[];
+  /** IANA zone the times were entered in — stored so the edit form reopens in it */
+  time_zone: string | null;
 }
 
 export function toInput(body: unknown): CalendarEventInput {
@@ -53,6 +56,7 @@ export function toInput(body: unknown): CalendarEventInput {
     meet_link: online ? parsed.meet_link || null : null,
     // Unique, case-insensitive
     attendees: [...new Set((parsed.attendees ?? []).map((email) => email.toLowerCase()))],
+    time_zone: parsed.time_zone || null,
   };
 }
 
@@ -71,6 +75,8 @@ export interface CalendarEventResponse {
   location: string | null;
   meet_link: string | null;
   attendees: string[];
+  /** IANA zone the event was entered in, or null (older events) */
+  time_zone: string | null;
   created_by: number | null;
   creator_name: string | null;
   created_at: Date | null;
@@ -89,6 +95,7 @@ export function toResponse(row: Record<string, any> | null): CalendarEventRespon
     location: row.location ?? null,
     meet_link: row.meet_link ?? null,
     attendees: Array.isArray(row.attendees) ? row.attendees : [],
+    time_zone: row.time_zone ?? null,
     created_by: row.created_by ?? null,
     creator_name: row.creator_name ?? null,
     created_at: row.created_at ?? null,

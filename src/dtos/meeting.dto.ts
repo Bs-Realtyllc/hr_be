@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import AppError from '../pkg/AppError';
 import { bindAndValidate, optionalNullable } from '../pkg/validation';
-import { fromDbUtc, instantField, isValidTimeZone } from '../pkg/instant';
+import { fromDbUtc, instantField, timeZoneField } from '../pkg/instant';
 
 // GET /google/meetings?from=&to= takes the same instant range as calendar events.
 export { toRange, type CalendarEventRange as MeetingRange } from './calendarEvent.dto';
@@ -13,7 +13,7 @@ const createBodySchema = z
     start_datetime: instantField('start_datetime'),
     end_datetime: instantField('end_datetime'),
     attendees: z.array(z.string().trim().email('attendees must be email addresses')),
-    time_zone: optionalNullable(z.string().refine(isValidTimeZone, 'time_zone must be an IANA timezone, like Asia/Kathmandu')),
+    time_zone: timeZoneField(),
   })
   .refine((data) => data.end_datetime > data.start_datetime, {
     message: 'end_datetime must be after start_datetime',
@@ -28,8 +28,9 @@ export interface MeetingCreateInput {
   end_datetime: string;
   attendees: string[];
   /**
-   * The scheduler's IANA zone. Only tells Google which zone to show the
-   * event in (the times are exact either way); not stored. Null → APP_TIMEZONE.
+   * IANA zone the times were entered in. Stored so the edit form reopens in
+   * it, and tells Google which zone to show the event in (the times are exact
+   * either way). Null → APP_TIMEZONE for Google.
    */
   time_zone: string | null;
 }
@@ -71,6 +72,8 @@ export interface MeetingResponse {
   attendees: string[] | null;
   google_event_id: string | null;
   meet_link: string | null;
+  /** IANA zone the meeting was scheduled in, or null (older meetings) */
+  time_zone: string | null;
   status: string;
   created_by: number | null;
   creator_name?: string | null;
@@ -87,6 +90,7 @@ export function toResponse(row: Record<string, any> | null): MeetingResponse | n
     attendees: Array.isArray(row.attendees) ? row.attendees : [],
     google_event_id: row.google_event_id ?? null,
     meet_link: row.meet_link ?? null,
+    time_zone: row.time_zone ?? null,
     status: row.status,
     created_by: row.created_by ?? null,
     creator_name: row.creator_name ?? null,

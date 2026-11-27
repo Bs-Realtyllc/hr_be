@@ -35,6 +35,8 @@ export function shapeGoogleEvent(event: any) {
     end_datetime: endDt,
     attendees,
     google_event_id: event.id,
+    // The zone the event is shown in on Google, when it has one
+    time_zone: event.start.timeZone || null,
     meet_link: meetLink,
   };
 }

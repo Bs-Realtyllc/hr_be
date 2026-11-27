@@ -39,6 +39,9 @@ export const calendarEvents = mysqlTable("calendar_events", {
 	location: varchar({ length: 255 }),
 	meetLink: varchar("meet_link", { length: 500 }),
 	attendees: json().$type<string[]>(),
+	// IANA zone the times were entered in (e.g. "America/New_York"). Times are
+	// stored in UTC; this only lets the edit form reopen in that zone.
+	timeZone: varchar("time_zone", { length: 64 }),
 	createdBy: int("created_by").references(() => employees.id, { onDelete: "set null" } ),
 	updatedBy: int("updated_by").references(() => employees.id, { onDelete: "set null" } ),
 	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
@@ -734,6 +737,9 @@ export const meetings = mysqlTable("meetings", {
 	attendees: json().$type<string[]>(),
 	googleEventId: varchar("google_event_id", { length: 255 }),
 	meetLink: varchar("meet_link", { length: 500 }),
+	// IANA zone the meeting was scheduled in (also the zone Google shows it in).
+	// Times are stored in UTC; this only lets the edit form reopen in that zone.
+	timeZone: varchar("time_zone", { length: 64 }),
 	status: mysqlEnum(['scheduled','cancelled']).default('scheduled').notNull(),
 	createdBy: int("created_by").references(() => employees.id, { onDelete: "set null" } ),
 	updatedBy: int("updated_by").references(() => employees.id, { onDelete: "set null" } ),

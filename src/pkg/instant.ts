@@ -107,3 +107,14 @@ export function zonedMidnight(dateStr: string, timeZone: string): Date {
   result = guess - zoneOffsetMinutes(new Date(result), timeZone) * 60000;
   return new Date(result);
 }
+
+/** Optional IANA zone the times were entered in ("America/New_York"); null when not sent. */
+export function timeZoneField() {
+  return z
+    .string()
+    .trim()
+    .max(64)
+    .refine(isValidTimeZone, 'time_zone must be an IANA timezone, like Asia/Kathmandu')
+    .nullable()
+    .optional();
+}

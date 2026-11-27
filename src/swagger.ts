@@ -44,6 +44,13 @@ const INSTANT_OUT = {
   description: "Exact instant, always returned in UTC. Show it in the viewer's own timezone.",
   example: "2026-11-28T04:15:00.000Z",
 };
+const TIME_ZONE_OUT = {
+  type: "string",
+  nullable: true,
+  description: "IANA zone the times were entered in (null for older items). Times are exact either way; this lets an edit form reopen in that zone.",
+  example: "America/New_York",
+};
+
 const INSTANT_IN = {
   type: "string",
   format: "date-time",
@@ -1582,6 +1589,7 @@ const options = {
             },
             google_event_id: { type: "string", nullable: true },
             meet_link: { type: "string", format: "uri", nullable: true },
+            time_zone: TIME_ZONE_OUT,
             status: { type: "string", enum: ["scheduled", "cancelled"] },
             created_by: { type: "integer", nullable: true },
             creator_name: { type: "string", nullable: true },
@@ -1603,7 +1611,7 @@ const options = {
               type: "string",
               nullable: true,
               description:
-                "Scheduler's IANA timezone. Only sets which zone Google shows the event in (attendees still see their own local time); not stored. Defaults to APP_TIMEZONE.",
+                "IANA zone the times were entered in. Stored, and sets which zone Google shows the event in (attendees still see their own local time; Google falls back to APP_TIMEZONE).",
               example: "America/New_York",
             },
           },
@@ -1624,6 +1632,7 @@ const options = {
               items: { type: "string", format: "email" },
               description: "Lower-cased, unique",
             },
+            time_zone: TIME_ZONE_OUT,
             created_by: { type: "integer", nullable: true },
             creator_name: { type: "string", nullable: true },
             created_at: { type: "string", format: "date-time", nullable: true },
@@ -1646,6 +1655,13 @@ const options = {
             attendees: {
               type: "array",
               items: { type: "string", format: "email" },
+            },
+            time_zone: {
+              type: "string",
+              nullable: true,
+              maxLength: 64,
+              description: "IANA zone the times were entered in. Stored so the edit form reopens in it.",
+              example: "Asia/Kathmandu",
             },
           },
         },
