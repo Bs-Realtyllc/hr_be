@@ -30,31 +30,47 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
   res.json(rows);
 });
 
-export const addAssignment = asyncHandler(async (req: Request, res: Response) => {
+export const addAssignment = asyncHandler(async (req: any, res: Response) => {
   const input = projectDto.toAssignmentInput(req.body);
-  await projectService.addAssignment(req.params.id, input);
+  await projectService.addAssignment(req.params.id, input, req.user);
   res.status(201).json({ success: true });
 });
 
-export const removeAssignment = asyncHandler(async (req: Request, res: Response) => {
-  await projectService.removeAssignment(req.params.id, req.params.empId);
+export const removeAssignment = asyncHandler(async (req: any, res: Response) => {
+  await projectService.removeAssignment(req.params.id, req.params.empId, req.user);
   res.json({ success: true });
 });
 
-export const getMilestones = asyncHandler(async (req: Request, res: Response) => {
-  const rows = await projectService.getMilestones(req.params.id);
+export const getModules = asyncHandler(async (req: Request, res: Response) => {
+  const rows = await projectService.getModules(req.params.id);
   res.json(rows);
 });
 
-export const addMilestone = asyncHandler(async (req: Request, res: Response) => {
-  const input = projectDto.toMilestoneCreateInput(req.body);
-  const id = await projectService.addMilestone(req.params.id, input);
+export const createModule = asyncHandler(async (req: any, res: Response) => {
+  const input = projectDto.toModuleCreateInput(req.body);
+  const id = await projectService.createModule(req.params.id, input, req.user);
   res.status(201).json({ id });
 });
 
-export const updateMilestone = asyncHandler(async (req: Request, res: Response) => {
-  const input = projectDto.toMilestoneUpdateInput(req.body);
-  await projectService.updateMilestone(req.params.id, req.params.mid, input);
+export const updateModule = asyncHandler(async (req: any, res: Response) => {
+  const input = projectDto.toModuleUpdateInput(req.body);
+  await projectService.updateModule(req.params.id, req.params.mid, input, req.user);
+  res.json({ success: true });
+});
+
+export const getModuleMembers = asyncHandler(async (req: Request, res: Response) => {
+  const rows = await projectService.getModuleMembers(req.params.id, req.params.mid);
+  res.json(rows);
+});
+
+export const addModuleMember = asyncHandler(async (req: any, res: Response) => {
+  const input = projectDto.toModuleMemberInput(req.body);
+  await projectService.addModuleMember(req.params.id, req.params.mid, input, req.user);
+  res.status(201).json({ success: true });
+});
+
+export const removeModuleMember = asyncHandler(async (req: any, res: Response) => {
+  await projectService.removeModuleMember(req.params.id, req.params.mid, req.params.empId, req.user);
   res.json({ success: true });
 });
 

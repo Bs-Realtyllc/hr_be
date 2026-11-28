@@ -146,3 +146,28 @@ export const uploadScreenshotMemory = multer({
   fileFilter: screenshotFileFilter,
   limits: { fileSize: 5 * 1024 * 1024 },
 });
+
+/* ── Issue attachments (project management tool) ───────────── */
+
+const ATTACHMENT_ALLOWED_TYPES = [
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+  'application/pdf',
+  'text/plain', 'text/csv',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/zip', 'application/x-zip-compressed',
+];
+
+const attachmentFileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
+  if (ATTACHMENT_ALLOWED_TYPES.includes(file.mimetype)) cb(null, true);
+  else cb(new AppError('File type not allowed for attachments', 400));
+};
+
+/* Memory storage — streams directly to MinIO, no local disk write. */
+export const uploadAttachmentMemory = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: attachmentFileFilter,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+});

@@ -1,0 +1,1 @@
+ALTER TABLE `issues` ADD `story_points` decimal(5,1);

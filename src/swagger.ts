@@ -32,7 +32,12 @@ const options = {
       { name: "Standups", description: "Async daily standup feed" },
       {
         name: "Projects",
-        description: "Projects, assignments, milestones, and services",
+        description: "Projects, assignments, modules, and services",
+      },
+      {
+        name: "Issues",
+        description:
+          "Native in-house issue tracker scoped to a project: issues, labels, comments, activity log, links, and attachments.",
       },
       { name: "Servers", description: "Server and environment configs" },
       {
@@ -677,6 +682,13 @@ const options = {
               items: { type: "string", format: "uri" },
             },
             status: { type: "string", enum: ["active", "archived", "on_hold"] },
+            code: {
+              type: "string",
+              nullable: true,
+              example: "QA",
+              description:
+                "Short uppercase code used to build human-readable issue keys (e.g. QA-1). Auto-derived from the name if not supplied at creation; immutable afterward.",
+            },
             start_date: { type: "string", format: "date", nullable: true },
             expected_end_date: {
               type: "string",
@@ -694,34 +706,32 @@ const options = {
               properties: {
                 assigned_role: {
                   type: "string",
-                  enum: [
-                    "lead",
-                    "backend",
-                    "frontend",
-                    "ui_ux",
-                    "qa",
-                    "devops",
-                  ],
+                  enum: ["admin", "member", "viewer"],
                 },
-                milestones: {
+                modules: {
                   type: "array",
-                  items: { $ref: "#/components/schemas/Milestone" },
+                  items: { $ref: "#/components/schemas/Module" },
                 },
               },
             },
           ],
         },
-        Milestone: {
+        Module: {
           type: "object",
+          description: "Replaces the old Milestone — a module has real ownership (lead_id) and its own subset of the team (see /projects/{id}/modules/{mid}/members), not just a label with a deadline.",
           properties: {
             id: { type: "integer" },
             project_id: { type: "integer" },
-            title: { type: "string" },
-            due_date: { type: "string", format: "date" },
+            name: { type: "string" },
+            description: { type: "string", nullable: true },
+            start_date: { type: "string", format: "date", nullable: true },
+            target_date: { type: "string", format: "date" },
             status: {
               type: "string",
-              enum: ["pending", "in_progress", "completed"],
+              enum: ["backlog", "planned", "in_progress", "completed", "cancelled"],
             },
+            lead_id: { type: "integer", nullable: true },
+            lead_name: { type: "string", nullable: true },
           },
         },
         Assignment: {
@@ -735,9 +745,126 @@ const options = {
             profile_picture: { type: "string", nullable: true },
             role: {
               type: "string",
-              enum: ["lead", "backend", "frontend", "ui_ux", "qa", "devops"],
+              description: "Permission tier (not the person's HR-wide role) — admin can manage this project's team/modules without a global HR admin; viewer cannot write issues.",
+              enum: ["admin", "member", "viewer"],
             },
             timezone: { type: "string" },
+          },
+        },
+        IssueLabel: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            name: { type: "string" },
+            color: { type: "string", example: "#6b7280" },
+          },
+        },
+        Issue: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            project_id: { type: "integer" },
+            sequence_number: { type: "integer", description: "Per-project counter, assigned atomically at creation." },
+            issue_key: { type: "string", example: "QA-1", description: "project.code + '-' + sequence_number. Only present on GET /issues (list), not create/update responses." },
+            title: { type: "string" },
+            description: { type: "string", nullable: true },
+            status: {
+              type: "string",
+              enum: ["backlog", "todo", "in_progress", "done", "cancelled"],
+            },
+            priority: {
+              type: "string",
+              enum: ["urgent", "high", "medium", "low", "none"],
+            },
+            type: {
+              type: "string",
+              enum: ["epic", "story", "task", "bug", "subtask"],
+              description:
+                "Epics never have a parent_issue_id; subtasks always require one pointing at a story/task/bug; story/task/bug may optionally point at an epic.",
+            },
+            parent_issue_id: { type: "integer", nullable: true },
+            story_points: {
+              type: "number",
+              nullable: true,
+              description: "Unconstrained estimate — no Fibonacci enforcement.",
+            },
+            assignee_id: { type: "integer", nullable: true },
+            assignee_name: { type: "string", nullable: true },
+            module_id: { type: "integer", nullable: true },
+            due_date: { type: "string", format: "date", nullable: true },
+            start_date: { type: "string", format: "date", nullable: true },
+            completed_at: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+              description:
+                "Read-only. Set automatically when status transitions to done, cleared when reopened — never settable via the request body.",
+            },
+            sort_order: { type: "integer" },
+            created_at: { type: "string", format: "date-time" },
+            updated_at: { type: "string", format: "date-time" },
+            labels: {
+              type: "array",
+              items: { $ref: "#/components/schemas/IssueLabel" },
+            },
+          },
+        },
+        IssueComment: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            issue_id: { type: "integer" },
+            body: { type: "string" },
+            created_by: { type: "integer", nullable: true },
+            created_by_name: { type: "string", nullable: true },
+            created_at: { type: "string", format: "date-time" },
+          },
+        },
+        IssueActivity: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            issue_id: { type: "integer" },
+            actor_id: { type: "integer", nullable: true },
+            actor_name: { type: "string", nullable: true },
+            verb: { type: "string", example: "updated" },
+            field: { type: "string", nullable: true },
+            old_value: { type: "string", nullable: true },
+            new_value: { type: "string", nullable: true },
+            created_at: { type: "string", format: "date-time" },
+          },
+        },
+        IssueLink: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            link_type: {
+              type: "string",
+              enum: ["blocks", "relates_to", "duplicates"],
+            },
+            label: {
+              type: "string",
+              description:
+                "Human-readable label resolved for whichever side this issue is on, e.g. 'blocks' vs 'is blocked by'.",
+              example: "is blocked by",
+            },
+            other_issue_id: { type: "integer" },
+            other_issue_title: { type: "string" },
+            other_issue_status: { type: "string" },
+            created_at: { type: "string", format: "date-time" },
+          },
+        },
+        IssueAttachment: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            issue_id: { type: "integer" },
+            file_name: { type: "string" },
+            mime_type: { type: "string" },
+            file_size: { type: "integer", description: "Bytes" },
+            uploaded_by: { type: "integer", nullable: true },
+            uploaded_by_name: { type: "string", nullable: true },
+            created_at: { type: "string", format: "date-time" },
           },
         },
         Server: {
@@ -4444,7 +4571,7 @@ const options = {
         get: {
           tags: ["Projects"],
           summary:
-            "Projects an employee is assigned to (with role and milestones)",
+            "Projects an employee is assigned to (with role and modules)",
           parameters: [
             {
               name: "empId",
@@ -4499,6 +4626,8 @@ const options = {
         post: {
           tags: ["Projects"],
           summary: "Create a project",
+          description:
+            "code is optional — if omitted, it's auto-derived from name (mirrors how Jira suggests a project key) and guaranteed unique. If supplied, it must itself be unique or the request is rejected rather than silently modified. Immutable once set.",
           requestBody: {
             required: true,
             content: {
@@ -4522,6 +4651,7 @@ const options = {
                       enum: ["active", "archived", "on_hold"],
                       default: "active",
                     },
+                    code: { type: "string", example: "QA", description: "2-10 uppercase letters/digits; auto-derived from name if omitted" },
                     start_date: { type: "string", format: "date" },
                     expected_end_date: { type: "string", format: "date" },
                   },
@@ -4537,6 +4667,10 @@ const options = {
                   schema: { $ref: "#/components/schemas/Created" },
                 },
               },
+            },
+            400: {
+              description: "An explicitly supplied code is already in use",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
           },
         },
@@ -4687,10 +4821,10 @@ const options = {
           },
         },
       },
-      "/api/projects/{id}/milestones": {
+      "/api/projects/{id}/modules": {
         get: {
           tags: ["Projects"],
-          summary: "Get milestones for a project",
+          summary: "Get modules for a project",
           parameters: [
             {
               name: "id",
@@ -4701,12 +4835,12 @@ const options = {
           ],
           responses: {
             200: {
-              description: "Array of milestones",
+              description: "Array of modules",
               content: {
                 "application/json": {
                   schema: {
                     type: "array",
-                    items: { $ref: "#/components/schemas/Milestone" },
+                    items: { $ref: "#/components/schemas/Module" },
                   },
                 },
               },
@@ -4715,7 +4849,8 @@ const options = {
         },
         post: {
           tags: ["Projects"],
-          summary: "Add a milestone to a project",
+          summary: "Create a module in a project",
+          description: "Requires a project admin or global HR admin/lead.",
           parameters: [
             {
               name: "id",
@@ -4730,15 +4865,18 @@ const options = {
               "application/json": {
                 schema: {
                   type: "object",
-                  required: ["title", "due_date"],
+                  required: ["name", "target_date"],
                   properties: {
-                    title: { type: "string" },
-                    due_date: { type: "string", format: "date" },
+                    name: { type: "string" },
+                    description: { type: "string", nullable: true },
+                    start_date: { type: "string", format: "date", nullable: true },
+                    target_date: { type: "string", format: "date" },
                     status: {
                       type: "string",
-                      enum: ["pending", "in_progress", "completed"],
-                      default: "pending",
+                      enum: ["backlog", "planned", "in_progress", "completed", "cancelled"],
+                      default: "backlog",
                     },
+                    lead_id: { type: "integer", nullable: true },
                   },
                 },
               },
@@ -4753,15 +4891,16 @@ const options = {
                 },
               },
             },
+            403: ERR403,
           },
         },
       },
-      "/api/projects/{id}/milestones/{mid}": {
+      "/api/projects/{id}/modules/{mid}": {
         put: {
           tags: ["Projects"],
-          summary: "Update a milestone",
+          summary: "Update a module",
           description:
-            "Fields are updated only if provided (COALESCE against existing values).",
+            "Fields are updated only if provided (COALESCE against existing values). Requires a project admin or global HR admin/lead.",
           parameters: [
             {
               name: "id",
@@ -4782,12 +4921,15 @@ const options = {
                 schema: {
                   type: "object",
                   properties: {
-                    title: { type: "string" },
-                    due_date: { type: "string", format: "date" },
+                    name: { type: "string" },
+                    description: { type: "string", nullable: true },
+                    start_date: { type: "string", format: "date", nullable: true },
+                    target_date: { type: "string", format: "date" },
                     status: {
                       type: "string",
-                      enum: ["pending", "in_progress", "completed"],
+                      enum: ["backlog", "planned", "in_progress", "completed", "cancelled"],
                     },
+                    lead_id: { type: "integer", nullable: true },
                   },
                 },
               },
@@ -4802,6 +4944,110 @@ const options = {
                 },
               },
             },
+            403: ERR403,
+          },
+        },
+      },
+      "/api/projects/{id}/modules/{mid}/members": {
+        get: {
+          tags: ["Projects"],
+          summary: "List a module's members",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+            {
+              name: "mid",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: { description: "Array of module members" },
+          },
+        },
+        post: {
+          tags: ["Projects"],
+          summary: "Add a member to a module",
+          description: "Requires a project admin or global HR admin/lead.",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+            {
+              name: "mid",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["employee_id"],
+                  properties: { employee_id: { type: "integer" } },
+                },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description: "Added",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Success" },
+                },
+              },
+            },
+            403: ERR403,
+          },
+        },
+      },
+      "/api/projects/{id}/modules/{mid}/members/{empId}": {
+        delete: {
+          tags: ["Projects"],
+          summary: "Remove a member from a module",
+          description: "Requires a project admin or global HR admin/lead.",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+            {
+              name: "mid",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+            {
+              name: "empId",
+              in: "path",
+              required: true,
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Removed",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Success" },
+                },
+              },
+            },
+            403: ERR403,
           },
         },
       },
@@ -4898,6 +5144,385 @@ const options = {
                 },
               },
             },
+          },
+        },
+      },
+
+      "/api/projects/{id}/issues": {
+        get: {
+          tags: ["Issues"],
+          summary: "List issues in a project",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" }],
+          responses: {
+            200: {
+              description: "Array of issues, each with its resolved labels",
+              content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Issue" } } } },
+            },
+            401: ERR401,
+          },
+        },
+        post: {
+          tags: ["Issues"],
+          summary: "Create an issue",
+          description:
+            "Caller must be a project member, or admin/lead. Hierarchy rules are enforced server-side: epics cannot have a parent_issue_id; subtasks require one pointing at a story/task/bug; story/task/bug may optionally point at an epic. assignee_id must be an existing, non-terminated employee. start_date cannot be after due_date when both are set. Assigning the issue sends the assignee an issue_assigned notification (subject to their notification preference), skipped if they're also the creator.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["title"],
+                  properties: {
+                    title: { type: "string", maxLength: 200 },
+                    description: { type: "string" },
+                    status: { type: "string", enum: ["backlog", "todo", "in_progress", "done", "cancelled"], default: "backlog" },
+                    priority: { type: "string", enum: ["urgent", "high", "medium", "low", "none"], default: "none" },
+                    type: { type: "string", enum: ["epic", "story", "task", "bug", "subtask"], default: "task" },
+                    parent_issue_id: { type: "integer" },
+                    story_points: { type: "number" },
+                    assignee_id: { type: "integer" },
+                    module_id: { type: "integer" },
+                    due_date: { type: "string", format: "date" },
+                    start_date: { type: "string", format: "date" },
+                    label_ids: { type: "array", items: { type: "integer" } },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            201: { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/Created" } } } },
+            400: {
+              description: "Validation failure, an invalid hierarchy, an unknown/terminated assignee, or start_date after due_date",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            401: ERR401,
+            403: { description: "Not a project member and not admin/lead", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/api/projects/{id}/issues/{iid}": {
+        put: {
+          tags: ["Issues"],
+          summary: "Update an issue",
+          description:
+            "All fields optional — only supplied fields are changed. Every changed field is recorded to the activity log. completed_at is never settable here; it's derived automatically from a status change into/out of done. assignee_id (if sent) must be an existing, non-terminated employee, and start_date cannot end up after due_date given the resolved combination of this update and the issue's current values. Changing the assignee or the status notifies the (new) assignee (issue_assigned / issue_status_changed preferences), skipped when the assignee is also the one making the change.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "iid", in: "path", required: true, schema: { type: "integer" }, description: "Issue id" },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string", maxLength: 200 },
+                    description: { type: "string", nullable: true },
+                    status: { type: "string", enum: ["backlog", "todo", "in_progress", "done", "cancelled"] },
+                    priority: { type: "string", enum: ["urgent", "high", "medium", "low", "none"] },
+                    type: { type: "string", enum: ["epic", "story", "task", "bug", "subtask"] },
+                    parent_issue_id: { type: "integer", nullable: true },
+                    story_points: { type: "number", nullable: true },
+                    assignee_id: { type: "integer", nullable: true },
+                    module_id: { type: "integer", nullable: true },
+                    due_date: { type: "string", format: "date", nullable: true },
+                    start_date: { type: "string", format: "date", nullable: true },
+                    label_ids: { type: "array", items: { type: "integer" } },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Updated", content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } } },
+            400: { description: "Validation failure, an invalid hierarchy, an unknown/terminated assignee, or start_date after due_date", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: ERR401,
+            404: { description: "Issue not found", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+        delete: {
+          tags: ["Issues"],
+          summary: "Delete an issue",
+          description: "Cascades to its comments, activity log, label links, and attachments.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "iid", in: "path", required: true, schema: { type: "integer" }, description: "Issue id" },
+          ],
+          responses: {
+            200: { description: "Deleted", content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } } },
+            401: ERR401,
+            404: { description: "Issue not found", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/api/projects/{id}/issues/{iid}/comments": {
+        get: {
+          tags: ["Issues"],
+          summary: "List comments on an issue",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "iid", in: "path", required: true, schema: { type: "integer" }, description: "Issue id" },
+          ],
+          responses: {
+            200: { description: "Array of comments, oldest first", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/IssueComment" } } } } },
+            401: ERR401,
+          },
+        },
+        post: {
+          tags: ["Issues"],
+          summary: "Add a comment",
+          description:
+            "mentioned_employee_ids (optional) sends each listed employee an issue_mentioned notification, subject to their own preference — every id must be an existing employee or the whole request is rejected. The issue's current assignee also gets an issue_commented notification if they didn't write the comment themselves.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "iid", in: "path", required: true, schema: { type: "integer" }, description: "Issue id" },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["body"],
+                  properties: {
+                    body: { type: "string" },
+                    mentioned_employee_ids: { type: "array", items: { type: "integer" } },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            201: { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/Created" } } } },
+            400: { description: "Comment body is required, or one or more mentioned_employee_ids don't exist", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: ERR401,
+          },
+        },
+      },
+      "/api/projects/{id}/issues/{iid}/activity": {
+        get: {
+          tags: ["Issues"],
+          summary: "Get the change/activity log for an issue",
+          description: "Newest first. Every create, field update, comment, link, and label change is recorded.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "iid", in: "path", required: true, schema: { type: "integer" }, description: "Issue id" },
+          ],
+          responses: {
+            200: { description: "Array of activity entries", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/IssueActivity" } } } } },
+            401: ERR401,
+          },
+        },
+      },
+      "/api/projects/{id}/issues/{iid}/links": {
+        get: {
+          tags: ["Issues"],
+          summary: "List an issue's links (both directions)",
+          description: "Includes links where this issue is the source and links where it's the target — the label is resolved for whichever side this issue is on, e.g. 'blocks' vs 'is blocked by'.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "iid", in: "path", required: true, schema: { type: "integer" }, description: "Issue id" },
+          ],
+          responses: {
+            200: { description: "Array of links", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/IssueLink" } } } } },
+            401: ERR401,
+            404: { description: "Issue not found", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+        post: {
+          tags: ["Issues"],
+          summary: "Link this issue to another",
+          description: "Cross-project links are allowed. An issue cannot be linked to itself, and the same (issue, linked issue, link_type) triple cannot be created twice.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "iid", in: "path", required: true, schema: { type: "integer" }, description: "Issue id" },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["linked_issue_id", "link_type"],
+                  properties: {
+                    linked_issue_id: { type: "integer" },
+                    link_type: { type: "string", enum: ["blocks", "relates_to", "duplicates"] },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            201: { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/Created" } } } },
+            400: { description: "Self-link, or the linked issue doesn't exist", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: ERR401,
+            409: { description: "That exact link already exists", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/api/projects/{id}/issues/{iid}/links/{lid}": {
+        delete: {
+          tags: ["Issues"],
+          summary: "Remove a link",
+          description: "Can be called from either side of the link (the issue in the URL just has to be one end of it).",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "iid", in: "path", required: true, schema: { type: "integer" }, description: "Issue id" },
+            { name: "lid", in: "path", required: true, schema: { type: "integer" }, description: "Link id" },
+          ],
+          responses: {
+            200: { description: "Removed", content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } } },
+            401: ERR401,
+            404: { description: "Link not found on this issue", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/api/projects/{id}/issues/{iid}/attachments": {
+        get: {
+          tags: ["Issues"],
+          summary: "List attachments on an issue",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "iid", in: "path", required: true, schema: { type: "integer" }, description: "Issue id" },
+          ],
+          responses: {
+            200: { description: "Array of attachments, newest first", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/IssueAttachment" } } } } },
+            401: ERR401,
+          },
+        },
+        post: {
+          tags: ["Issues"],
+          summary: "Upload an attachment",
+          description:
+            "Stored in MinIO, not on local disk — only a pointer + metadata is kept in MySQL. Allowed types: images, PDF, text/CSV, Word/Excel, zip. Max 20 MB.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "iid", in: "path", required: true, schema: { type: "integer" }, description: "Issue id" },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "multipart/form-data": {
+                schema: {
+                  type: "object",
+                  required: ["file"],
+                  properties: { file: { type: "string", format: "binary" } },
+                },
+              },
+            },
+          },
+          responses: {
+            201: { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/Created" } } } },
+            400: { description: "No file sent, file type not allowed, or file too large", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: ERR401,
+          },
+        },
+      },
+      "/api/projects/{id}/issues/{iid}/attachments/{aid}/download": {
+        get: {
+          tags: ["Issues"],
+          summary: "Download an attachment",
+          description: "Streams the file straight from MinIO with its original Content-Type and filename.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "iid", in: "path", required: true, schema: { type: "integer" }, description: "Issue id" },
+            { name: "aid", in: "path", required: true, schema: { type: "integer" }, description: "Attachment id" },
+          ],
+          responses: {
+            200: { description: "File stream", content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } } },
+            401: ERR401,
+            404: { description: "Attachment not found on this issue", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/api/projects/{id}/issues/{iid}/attachments/{aid}": {
+        delete: {
+          tags: ["Issues"],
+          summary: "Delete an attachment",
+          description: "Removes both the DB row and the underlying MinIO object.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "iid", in: "path", required: true, schema: { type: "integer" }, description: "Issue id" },
+            { name: "aid", in: "path", required: true, schema: { type: "integer" }, description: "Attachment id" },
+          ],
+          responses: {
+            200: { description: "Deleted", content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } } },
+            401: ERR401,
+            404: { description: "Attachment not found on this issue", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/api/projects/{id}/labels": {
+        get: {
+          tags: ["Issues"],
+          summary: "List labels available in a project",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" }],
+          responses: {
+            200: { description: "Array of labels", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/IssueLabel" } } } } },
+            401: ERR401,
+          },
+        },
+        post: {
+          tags: ["Issues"],
+          summary: "Create a label (admin)",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["name"],
+                  properties: {
+                    name: { type: "string", maxLength: 50 },
+                    color: { type: "string", example: "#6b7280", description: "Hex color, defaults to #6b7280" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            201: { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/Created" } } } },
+            400: { description: "Name is required", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: ERR401,
+            403: ERR403,
+          },
+        },
+      },
+      "/api/projects/{id}/labels/{lid}": {
+        delete: {
+          tags: ["Issues"],
+          summary: "Delete a label (admin)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "Project id" },
+            { name: "lid", in: "path", required: true, schema: { type: "integer" }, description: "Label id" },
+          ],
+          responses: {
+            200: { description: "Deleted", content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } } },
+            401: ERR401,
+            403: ERR403,
+            404: { description: "Label not found on this project", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },
         },
       },

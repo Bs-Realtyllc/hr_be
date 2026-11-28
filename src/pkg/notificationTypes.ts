@@ -28,6 +28,14 @@ export const NOTIFICATION_TYPES = [
     description: 'Email me whenever any employee or intern submits a leave request that needs my review.' },
   { key: 'overtime_request_submitted', group: 'email', label: 'New Overtime Request to Review', roles: APPROVER_ROLES,
     description: 'Email me whenever any employee or intern submits an overtime request that needs my review.' },
+  { key: 'issue_assigned', group: 'email', label: 'Issue Assigned to Me', roles: ALL_ROLES,
+    description: 'Email me when an issue on a project is assigned to me.' },
+  { key: 'issue_commented', group: 'email', label: 'Comment on My Issue', roles: ALL_ROLES,
+    description: 'Email me when someone comments on an issue assigned to me.' },
+  { key: 'issue_mentioned', group: 'email', label: 'Mentioned in an Issue Comment', roles: ALL_ROLES,
+    description: 'Email me when I am @mentioned in an issue comment.' },
+  { key: 'issue_status_changed', group: 'email', label: 'Status Changed on My Issue', roles: ALL_ROLES,
+    description: 'Email me when someone else changes the status of an issue assigned to me.' },
 ] as const;
 
 export type NotificationType = typeof NOTIFICATION_TYPES[number]['key'];
