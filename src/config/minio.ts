@@ -21,3 +21,10 @@ export async function ensureTrackerBucket() {
   const exists = await minioClient.bucketExists(TRACKER_BUCKET);
   if (!exists) await minioClient.makeBucket(TRACKER_BUCKET, 'us-east-1');
 }
+
+export const ISSUE_ATTACHMENTS_BUCKET = process.env.MINIO_ISSUE_ATTACHMENTS_BUCKET || 'issue-attachments';
+
+export async function ensureIssueAttachmentsBucket() {
+  const exists = await minioClient.bucketExists(ISSUE_ATTACHMENTS_BUCKET);
+  if (!exists) await minioClient.makeBucket(ISSUE_ATTACHMENTS_BUCKET, 'us-east-1');
+}

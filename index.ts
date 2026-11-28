@@ -10,7 +10,7 @@ import morgan from "morgan";
 import { enqueueAccessLog } from "./src/pkg/requestLogQueue";
 import { attachInboxSocket } from "./src/ws/inboxSocket";
 import { connectMongo } from "./src/config/mongodb";
-import { ensureAudioBucket, ensureTrackerBucket } from "./src/config/minio";
+import { ensureAudioBucket, ensureTrackerBucket, ensureIssueAttachmentsBucket } from "./src/config/minio";
 
 import { sql } from "drizzle-orm";
 import swaggerSpec from "./src/swagger";
@@ -164,6 +164,9 @@ async function start() {
   );
   await ensureTrackerBucket().catch((err: Error) =>
     console.warn("[minio] Tracker bucket init skipped:", err.message),
+  );
+  await ensureIssueAttachmentsBucket().catch((err: Error) =>
+    console.warn("[minio] Issue attachments bucket init skipped:", err.message),
   );
 
   const httpServer = http.createServer(app);

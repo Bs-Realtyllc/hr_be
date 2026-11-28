@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `plane_project_id` varchar(36);

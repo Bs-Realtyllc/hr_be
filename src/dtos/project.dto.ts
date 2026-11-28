@@ -17,6 +17,7 @@ const projectFields = {
   roadmap_key: z.string().trim().max(50),
   roadmap_label: z.string().trim().max(100),
   public_link: z.string().trim().url(),
+  code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,10}$/, 'code must be 2-10 uppercase letters/digits'),
 };
 
 const createBodySchema = z.object({
@@ -30,6 +31,7 @@ const createBodySchema = z.object({
   roadmap_key: optionalNullable(projectFields.roadmap_key),
   roadmap_label: optionalNullable(projectFields.roadmap_label),
   public_link: optionalNullable(projectFields.public_link),
+  code: optionalNullable(projectFields.code),
 });
 
 const updateBodySchema = z.object({
@@ -57,6 +59,7 @@ export interface ProjectCreateInput {
   roadmap_key: string | null;
   roadmap_label: string | null;
   public_link: string | null;
+  code?: string | null;
 }
 
 export interface ProjectUpdateInput {
@@ -86,7 +89,7 @@ export interface ProjectResponse {
   expected_end_date: string | null;
   created_at: Date;
   assigned_role?: string;
-  milestones?: unknown[];
+  modules?: unknown[];
 }
 
 function toArr(v: unknown): string[] {
@@ -120,6 +123,7 @@ export function toCreateInput(body: unknown): ProjectCreateInput {
     roadmap_key: parsed.roadmap_key ?? null,
     roadmap_label: parsed.roadmap_label ?? null,
     public_link: parsed.public_link ?? null,
+    code: parsed.code ?? null,
   };
 }
 
@@ -154,7 +158,7 @@ export function toResponse(project: Record<string, any> | null): ProjectResponse
     expected_end_date: project.expected_end_date,
     created_at: project.created_at,
     ...(project.assigned_role !== undefined && { assigned_role: project.assigned_role }),
-    ...(project.milestones !== undefined && { milestones: project.milestones }),
+    ...(project.modules !== undefined && { modules: project.modules }),
   };
 }
 
@@ -162,46 +166,75 @@ export function toResponseList(projectRows: Record<string, any>[]): ProjectRespo
   return projectRows.map((p) => toResponse(p) as ProjectResponse);
 }
 
-const ASSIGNMENT_ROLES = ['lead', 'backend', 'frontend', 'ui_ux', 'qa', 'devops'] as const;
+// Permission tier, not a job-function label — enforced in project.service.ts's
+// assertProjectAdmin and issue.service.ts's assertCanWrite. Named admin/member/
+// viewer rather than lead/contributor/viewer: this app's global employee role
+// enum already has 'lead' with real company-wide power (leave approval,
+// payroll, performance reviews), so reusing it here would make a project-level
+// tier look like it grants those same powers. Matches how Jira/Plane name
+// project-level tiers too.
+export const ASSIGNMENT_ROLES = ['admin', 'member', 'viewer'] as const;
 const assignmentBodySchema = z.object({
   employee_id: z.coerce.number().int().positive(),
-  role: z.enum(ASSIGNMENT_ROLES),
+  role: z.enum(ASSIGNMENT_ROLES).optional(),
 });
 export interface AssignmentInput {
   employee_id: number;
-  role: (typeof ASSIGNMENT_ROLES)[number];
+  role?: (typeof ASSIGNMENT_ROLES)[number];
 }
 export function toAssignmentInput(body: unknown): AssignmentInput {
   return bindAndValidate(assignmentBodySchema, body);
 }
 
-const MILESTONE_STATUSES = ['pending', 'in_progress', 'completed'] as const;
-const createMilestoneBodySchema = z.object({
-  title: z.string().trim().min(1),
-  due_date: dateString,
-  status: optionalNullable(z.enum(MILESTONE_STATUSES)),
+const MODULE_STATUSES = ['backlog', 'planned', 'in_progress', 'completed', 'cancelled'] as const;
+const createModuleBodySchema = z.object({
+  name: z.string().trim().min(1),
+  description: optionalNullable(z.string()),
+  start_date: optionalNullable(dateString),
+  target_date: dateString,
+  status: optionalNullable(z.enum(MODULE_STATUSES)),
+  lead_id: optionalNullable(z.coerce.number().int().positive()),
 });
-export interface MilestoneCreateInput {
-  title: string;
-  due_date: string;
-  status?: (typeof MILESTONE_STATUSES)[number] | null;
+export interface ModuleCreateInput {
+  name: string;
+  description?: string | null;
+  start_date?: string | null;
+  target_date: string;
+  status?: (typeof MODULE_STATUSES)[number] | null;
+  lead_id?: number | null;
 }
-export function toMilestoneCreateInput(body: unknown): MilestoneCreateInput {
-  return bindAndValidate(createMilestoneBodySchema, body);
+export function toModuleCreateInput(body: unknown): ModuleCreateInput {
+  return bindAndValidate(createModuleBodySchema, body);
 }
 
-const updateMilestoneBodySchema = z.object({
-  title: optionalNullable(z.string().trim().min(1)),
-  due_date: optionalNullable(dateString),
-  status: optionalNullable(z.enum(MILESTONE_STATUSES)),
+const updateModuleBodySchema = z.object({
+  name: optionalNullable(z.string().trim().min(1)),
+  description: optionalNullable(z.string()),
+  start_date: optionalNullable(dateString),
+  target_date: optionalNullable(dateString),
+  status: optionalNullable(z.enum(MODULE_STATUSES)),
+  lead_id: optionalNullable(z.coerce.number().int().positive()),
 });
-export interface MilestoneUpdateInput {
-  title?: string | null;
-  due_date?: string | null;
-  status?: (typeof MILESTONE_STATUSES)[number] | null;
+export interface ModuleUpdateInput {
+  name?: string | null;
+  description?: string | null;
+  start_date?: string | null;
+  target_date?: string | null;
+  status?: (typeof MODULE_STATUSES)[number] | null;
+  lead_id?: number | null;
 }
-export function toMilestoneUpdateInput(body: unknown): MilestoneUpdateInput {
-  return bindAndValidate(updateMilestoneBodySchema, body);
+export function toModuleUpdateInput(body: unknown): ModuleUpdateInput {
+  return bindAndValidate(updateModuleBodySchema, body);
+}
+
+const moduleMemberBodySchema = z.object({
+  employee_id: z.coerce.number().int().positive(),
+});
+export interface ModuleMemberInput {
+  employee_id: number;
+}
+export function toModuleMemberInput(body: unknown): ModuleMemberInput {
+  return bindAndValidate(moduleMemberBodySchema, body);
 }
 
 const serviceBodySchema = z.object({

@@ -1,4 +1,5 @@
-import { minioClient, AUDIO_BUCKET, TRACKER_BUCKET } from '../config/minio';
+import path from 'path';
+import { minioClient, AUDIO_BUCKET, TRACKER_BUCKET, ISSUE_ATTACHMENTS_BUCKET } from '../config/minio';
 
 export async function uploadAudioToMinio(
   buffer: Buffer,
@@ -55,4 +56,31 @@ export async function streamScreenshotFromMinio(
 
 export async function deleteScreenshotFromMinio(key: string) {
   await minioClient.removeObject(TRACKER_BUCKET, key);
+}
+
+export async function uploadIssueAttachmentToMinio(
+  buffer: Buffer,
+  mimetype: string,
+  originalName: string,
+): Promise<string> {
+  const ext = path.extname(originalName);
+  const key = `attachment-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+  await minioClient.putObject(ISSUE_ATTACHMENTS_BUCKET, key, buffer, buffer.length, {
+    'Content-Type': mimetype,
+  });
+  return key;
+}
+
+export async function streamIssueAttachmentFromMinio(
+  key: string,
+): Promise<{ stream: NodeJS.ReadableStream; size: number; contentType: string }> {
+  const stat = await minioClient.statObject(ISSUE_ATTACHMENTS_BUCKET, key);
+  const stream = await minioClient.getObject(ISSUE_ATTACHMENTS_BUCKET, key);
+  const contentType =
+    (stat.metaData?.['content-type'] as string | undefined) ?? 'application/octet-stream';
+  return { stream, size: stat.size, contentType };
+}
+
+export async function deleteIssueAttachmentFromMinio(key: string) {
+  await minioClient.removeObject(ISSUE_ATTACHMENTS_BUCKET, key);
 }

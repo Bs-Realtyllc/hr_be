@@ -1,14 +1,18 @@
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { db } from '../config/database';
-import { projects, projectAssignments, milestones, projectServices, employees, designations, employeeDocuments } from '../../drizzle/schema';
+import { projects, projectAssignments, modules, moduleMembers, projectServices, employees, designations, employeeDocuments } from '../../drizzle/schema';
 
-const milestonesColumns = {
-  id: milestones.id,
-  project_id: milestones.projectId,
-  title: milestones.title,
-  due_date: milestones.dueDate,
-  status: milestones.status,
-  created_at: milestones.createdAt,
+const modulesColumns = {
+  id: modules.id,
+  project_id: modules.projectId,
+  name: modules.name,
+  description: modules.description,
+  start_date: modules.startDate,
+  target_date: modules.targetDate,
+  status: modules.status,
+  lead_id: modules.leadId,
+  lead_name: employees.name,
+  created_at: modules.createdAt,
 };
 const projectsColumns = {
   id: projects.id,
@@ -20,6 +24,7 @@ const projectsColumns = {
   roadmap_key: projects.roadmapKey,
   roadmap_label: projects.roadmapLabel,
   public_link: projects.publicLink,
+  code: projects.code,
   start_date: projects.startDate,
   expected_end_date: projects.expectedEndDate,
   created_at: projects.createdAt,
@@ -47,6 +52,7 @@ export async function create(data: any, actorId: number | null = null) {
     repoUrl: data.repo_url,
     docsUrl: data.docs_url,
     status: data.status,
+    code: data.code,
     startDate: data.start_date,
     expectedEndDate: data.expected_end_date,
     createdBy: actorId,
@@ -54,6 +60,16 @@ export async function create(data: any, actorId: number | null = null) {
     createdAt: new Date(),
   } as any);
   return insertedId(result);
+}
+
+export async function existsByCode(code: string): Promise<boolean> {
+  const rows = await db.select({ id: projects.id }).from(projects).where(eq(projects.code, code)).limit(1);
+  return rows.length > 0;
+}
+
+export async function findCodeById(id: number | string): Promise<string | null> {
+  const rows = await db.select({ code: projects.code }).from(projects).where(eq(projects.id, Number(id))).limit(1);
+  return rows[0]?.code ?? null;
 }
 
 export async function update(id: number | string, updates: Record<string, any>, actorId: number | null = null) {
@@ -100,11 +116,11 @@ export async function findAssignments(projectId: number | string) {
     .where(eq(projectAssignments.projectId, Number(projectId)));
 }
 
-export async function addAssignment(projectId: number | string, employeeId: number | string, role: string) {
+export async function addAssignment(projectId: number | string, employeeId: number | string, role?: string) {
   await db
     .insert(projectAssignments)
-    .values({ projectId: Number(projectId), employeeId: Number(employeeId), role })
-    .onDuplicateKeyUpdate({ set: { role } });
+    .values({ projectId: Number(projectId), employeeId: Number(employeeId), ...(role ? { role } : {}) })
+    .onDuplicateKeyUpdate({ set: role ? { role } : { employeeId: Number(employeeId) } });
 }
 
 export async function removeAssignment(projectId: number | string, employeeId: number | string) {
@@ -113,40 +129,79 @@ export async function removeAssignment(projectId: number | string, employeeId: n
     .where(and(eq(projectAssignments.projectId, Number(projectId)), eq(projectAssignments.employeeId, Number(employeeId))));
 }
 
-export async function findMilestones(projectId: number | string) {
-  return db.select(milestonesColumns).from(milestones).where(eq(milestones.projectId, Number(projectId))).orderBy(asc(milestones.dueDate));
+export async function findModules(projectId: number | string) {
+  return db
+    .select(modulesColumns)
+    .from(modules)
+    .leftJoin(employees, eq(modules.leadId, employees.id))
+    .where(eq(modules.projectId, Number(projectId)))
+    .orderBy(asc(modules.targetDate));
 }
 
-export const findMilestonesForProject = findMilestones;
+export const findModulesForProject = findModules;
 
-export async function addMilestone(projectId: number | string, title: string, due_date: string, status: string) {
-  const result = await db.insert(milestones).values({
+export async function createModule(projectId: number | string, data: {
+  name: string; description?: string | null; start_date?: string | null; target_date: string;
+  status?: string | null; lead_id?: number | null;
+}) {
+  const result = await db.insert(modules).values({
     projectId: Number(projectId),
-    title,
-    dueDate: due_date,
-    status: status as any,
+    name: data.name,
+    description: data.description ?? null,
+    startDate: data.start_date ?? null,
+    targetDate: data.target_date,
+    status: (data.status ?? 'backlog') as any,
+    leadId: data.lead_id ?? null,
     createdAt: new Date(),
   });
   return insertedId(result);
 }
 
-export async function updateMilestone(
+export async function updateModule(
   projectId: number | string,
-  milestoneId: number | string,
-  title?: string,
-  due_date?: string,
-  status?: string
+  moduleId: number | string,
+  data: { name?: string; description?: string | null; start_date?: string | null; target_date?: string; status?: string; lead_id?: number | null },
 ) {
   const setValues: Record<string, any> = {};
-  if (title !== undefined) setValues.title = title;
-  if (due_date !== undefined) setValues.dueDate = due_date;
-  if (status !== undefined) setValues.status = status;
+  if (data.name !== undefined) setValues.name = data.name;
+  if (data.description !== undefined) setValues.description = data.description;
+  if (data.start_date !== undefined) setValues.startDate = data.start_date;
+  if (data.target_date !== undefined) setValues.targetDate = data.target_date;
+  if (data.status !== undefined) setValues.status = data.status;
+  if (data.lead_id !== undefined) setValues.leadId = data.lead_id;
   if (!Object.keys(setValues).length) return;
 
   await db
-    .update(milestones)
+    .update(modules)
     .set(setValues)
-    .where(and(eq(milestones.id, Number(milestoneId)), eq(milestones.projectId, Number(projectId))));
+    .where(and(eq(modules.id, Number(moduleId)), eq(modules.projectId, Number(projectId))));
+}
+
+export async function findModuleMembers(moduleId: number | string) {
+  return db
+    .select({
+      id: moduleMembers.id,
+      employee_id: moduleMembers.employeeId,
+      name: employees.name,
+      designation: designations.title,
+    })
+    .from(moduleMembers)
+    .innerJoin(employees, eq(moduleMembers.employeeId, employees.id))
+    .leftJoin(designations, eq(employees.designationId, designations.id))
+    .where(eq(moduleMembers.moduleId, Number(moduleId)));
+}
+
+export async function addModuleMember(moduleId: number | string, employeeId: number | string) {
+  await db
+    .insert(moduleMembers)
+    .ignore()
+    .values({ moduleId: Number(moduleId), employeeId: Number(employeeId) });
+}
+
+export async function removeModuleMember(moduleId: number | string, employeeId: number | string) {
+  await db
+    .delete(moduleMembers)
+    .where(and(eq(moduleMembers.moduleId, Number(moduleId)), eq(moduleMembers.employeeId, Number(employeeId))));
 }
 
 export async function findServices(projectId: number | string) {

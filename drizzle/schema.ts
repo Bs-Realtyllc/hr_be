@@ -719,22 +719,66 @@ export const meetings = mysqlTable("meetings", {
 export type Meeting = typeof meetings.$inferSelect;
 export type NewMeeting = typeof meetings.$inferInsert;
 
+// Replaces the old "milestones" table — a module has real ownership (leadId)
+// and its own subset of the team (moduleMembers below), not just a label with
+// a deadline. Mirrors Plane's Module concept, not its Cycle (no sprint/burndown).
+export const modules = mysqlTable("modules", {
+	id: int().autoincrement().notNull(),
+	projectId: int("project_id").notNull().references(() => projects.id, { onDelete: "cascade" } ),
+	name: varchar({ length: 200 }).notNull(),
+	description: text(),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	startDate: date("start_date", { mode: 'string' }),
+	targetDate: date("target_date", { mode: 'string' }).notNull(),
+	status: mysqlEnum(['backlog','planned','in_progress','completed','cancelled']).default('backlog').notNull(),
+	leadId: int("lead_id").references(() => employees.id, { onDelete: "set null" } ),
+	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+	// Single-tenant today (always 1) — mirrors trackerSegment.ts's companyId
+	// so tenant scoping doesn't require a backfill once this becomes multi-tenant.
+	companyId: int("company_id").default(1).notNull(),
+},
+(table) => [
+	index("project_id").on(table.projectId),
+	index("idx_modules_status").on(table.status),
+	primaryKey({ columns: [table.id], name: "modules_id"}),
+]);
+export type Module = typeof modules.$inferSelect;
+export type NewModule = typeof modules.$inferInsert;
+
+// The specific subset of the project team actually working on a module —
+// distinct from project_assignments (the whole team) below.
+export const moduleMembers = mysqlTable("module_members", {
+	id: int().autoincrement().notNull(),
+	moduleId: int("module_id").notNull().references(() => modules.id, { onDelete: "cascade" } ),
+	employeeId: int("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" } ),
+	assignedAt: timestamp("assigned_at", { mode: 'date' }).defaultNow(),
+	companyId: int("company_id").default(1).notNull(),
+},
+(table) => [
+	index("idx_module_members_employee_id").on(table.employeeId),
+	primaryKey({ columns: [table.id], name: "module_members_id"}),
+	unique("unique_module_member").on(table.moduleId, table.employeeId),
+]);
+export type ModuleMember = typeof moduleMembers.$inferSelect;
+export type NewModuleMember = typeof moduleMembers.$inferInsert;
+
+// TEMPORARY: kept alongside `modules` only until the data-migration script
+// (scripts/migrate-milestones-to-modules.ts) runs and backfills modules from
+// these rows — dropped in the follow-up migration once that's confirmed done.
 export const milestones = mysqlTable("milestones", {
 	id: int().autoincrement().notNull(),
 	projectId: int("project_id").notNull().references(() => projects.id, { onDelete: "cascade" } ),
 	title: varchar({ length: 200 }).notNull(),
-	// you can use { mode: 'date' }, if you want to have Date as type for this column
 	dueDate: date("due_date", { mode: 'string' }).notNull(),
 	status: mysqlEnum(['pending','in_progress','completed']).default('pending'),
 	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+	companyId: int("company_id").default(1).notNull(),
 },
 (table) => [
 	index("project_id").on(table.projectId),
 	index("idx_milestones_status").on(table.status),
 	primaryKey({ columns: [table.id], name: "milestones_id"}),
 ]);
-export type Milestone = typeof milestones.$inferSelect;
-export type NewMilestone = typeof milestones.$inferInsert;
 
 export const monthlyReports = mysqlTable("monthly_reports", {
 	id: int().autoincrement().notNull(),
@@ -1003,8 +1047,17 @@ export const projectAssignments = mysqlTable("project_assignments", {
 	id: int().autoincrement().notNull(),
 	projectId: int("project_id").notNull().references(() => projects.id, { onDelete: "cascade" } ),
 	employeeId: int("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" } ),
-	role: varchar({ length: 100 }).default('developer').notNull(),
+	// Values are a permission tier ('admin' | 'member' | 'viewer'), enforced
+	// in project.service.ts/issue.service.ts — not a DB-level enum since this
+	// column predates that meaning and widening it later should stay cheap.
+	// Named admin/member, not lead/contributor: this app's global employee
+	// role already has a 'lead' value with real company-wide power, so a
+	// project-scoped tier can't reuse that word without implying it too.
+	role: varchar({ length: 100 }).default('member').notNull(),
 	assignedAt: timestamp("assigned_at", { mode: 'date' }).defaultNow(),
+	// Single-tenant today (always 1) — mirrors trackerSegment.ts's companyId
+	// so tenant scoping doesn't require a backfill once this becomes multi-tenant.
+	companyId: int("company_id").default(1).notNull(),
 },
 (table) => [
 	index("employee_id").on(table.employeeId),
@@ -1019,6 +1072,9 @@ export const projectServices = mysqlTable("project_services", {
 	projectId: int("project_id").notNull().references(() => projects.id, { onDelete: "cascade" } ),
 	serviceKey: varchar("service_key", { length: 50 }).notNull(),
 	assignedAt: timestamp("assigned_at", { mode: 'date' }).defaultNow(),
+	// Single-tenant today (always 1) — mirrors trackerSegment.ts's companyId
+	// so tenant scoping doesn't require a backfill once this becomes multi-tenant.
+	companyId: int("company_id").default(1).notNull(),
 },
 (table) => [
 	primaryKey({ columns: [table.id], name: "project_services_id"}),
@@ -1026,6 +1082,157 @@ export const projectServices = mysqlTable("project_services", {
 ]);
 export type ProjectService = typeof projectServices.$inferSelect;
 export type NewProjectService = typeof projectServices.$inferInsert;
+
+export const issues = mysqlTable("issues", {
+	id: int().autoincrement().notNull(),
+	projectId: int("project_id").notNull().references(() => projects.id, { onDelete: "cascade" } ),
+	title: varchar({ length: 200 }).notNull(),
+	description: text(),
+	status: mysqlEnum(['backlog','todo','in_progress','done','cancelled']).default('backlog').notNull(),
+	priority: mysqlEnum(['urgent','high','medium','low','none']).default('none').notNull(),
+	assigneeId: int("assignee_id").references(() => employees.id, { onDelete: "set null" } ),
+	moduleId: int("module_id").references(() => modules.id, { onDelete: "set null" } ),
+	// TEMPORARY: see the `milestones` table comment — dropped once issues are backfilled onto moduleId.
+	milestoneId: int("milestone_id").references(() => milestones.id, { onDelete: "set null" } ),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	dueDate: date("due_date", { mode: 'string' }),
+	sortOrder: int("sort_order").default(0).notNull(),
+	createdBy: int("created_by").references(() => employees.id, { onDelete: "set null" } ),
+	updatedBy: int("updated_by").references(() => employees.id, { onDelete: "set null" } ),
+	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
+	// Single-tenant today (always 1) — mirrors trackerSegment.ts's companyId
+	// so tenant scoping doesn't require a backfill once this becomes multi-tenant.
+	companyId: int("company_id").default(1).notNull(),
+	type: mysqlEnum(['epic','story','task','bug','subtask']).default('task').notNull(),
+	// Epics have no parent; subtasks require one (parent must be story/task/bug);
+	// story/task/bug may optionally sit under an epic. Enforced in the service
+	// layer, not here, since MySQL can't express a cross-column-depends-on-row-type rule.
+	parentIssueId: int("parent_issue_id").references(() => issues.id, { onDelete: "set null" } ),
+	// Unconstrained estimate, same as Jira's story-point field — no Fibonacci
+	// enforcement at the schema level, teams can use whatever scale they like.
+	storyPoints: decimal("story_points", { precision: 5, scale: 1, mode: "number" }),
+	// Per-project sequence number (QA-1, QA-2, ...) assigned atomically from
+	// projects.issue_counter at creation time — never computed with MAX()+1.
+	sequenceNumber: int("sequence_number").default(0).notNull(),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	startDate: date("start_date", { mode: 'string' }),
+	// Set/cleared automatically by the service layer when status transitions
+	// into/out of 'done' — never user-settable directly, same as Jira's resolutiondate.
+	completedAt: timestamp("completed_at", { mode: 'date' }),
+},
+(table) => [
+	index("idx_issues_project_id").on(table.projectId),
+	index("idx_issues_status").on(table.status),
+	index("idx_issues_assignee_id").on(table.assigneeId),
+	index("idx_issues_company_id").on(table.companyId),
+	index("idx_issues_parent_issue_id").on(table.parentIssueId),
+	primaryKey({ columns: [table.id], name: "issues_id"}),
+]);
+export type Issue = typeof issues.$inferSelect;
+export type NewIssue = typeof issues.$inferInsert;
+
+export const issueLabels = mysqlTable("issue_labels", {
+	id: int().autoincrement().notNull(),
+	projectId: int("project_id").notNull().references(() => projects.id, { onDelete: "cascade" } ),
+	name: varchar({ length: 50 }).notNull(),
+	color: varchar({ length: 20 }).default('#6b7280').notNull(),
+	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+	// Single-tenant today (always 1) — mirrors trackerSegment.ts's companyId
+	// so tenant scoping doesn't require a backfill once this becomes multi-tenant.
+	companyId: int("company_id").default(1).notNull(),
+},
+(table) => [
+	index("idx_issue_labels_project_id").on(table.projectId),
+	primaryKey({ columns: [table.id], name: "issue_labels_id"}),
+	unique("unique_project_label_name").on(table.projectId, table.name),
+]);
+export type IssueLabel = typeof issueLabels.$inferSelect;
+export type NewIssueLabel = typeof issueLabels.$inferInsert;
+
+export const issueLabelLinks = mysqlTable("issue_label_links", {
+	issueId: int("issue_id").notNull().references(() => issues.id, { onDelete: "cascade" } ),
+	labelId: int("label_id").notNull().references(() => issueLabels.id, { onDelete: "cascade" } ),
+},
+(table) => [
+	index("idx_issue_label_links_label_id").on(table.labelId),
+	primaryKey({ columns: [table.issueId, table.labelId], name: "issue_label_links_pk"}),
+]);
+export type IssueLabelLink = typeof issueLabelLinks.$inferSelect;
+export type NewIssueLabelLink = typeof issueLabelLinks.$inferInsert;
+
+// Directional relationship between two issues (blocks / relates_to / duplicates),
+// mirroring Jira's link-type pairs. Stored once per direction; the inverse
+// label ("is blocked by", etc.) is resolved in the service layer when an
+// issue's links are listed from the other side.
+export const issueLinks = mysqlTable("issue_links", {
+	id: int().autoincrement().notNull(),
+	issueId: int("issue_id").notNull().references(() => issues.id, { onDelete: "cascade" } ),
+	linkedIssueId: int("linked_issue_id").notNull().references(() => issues.id, { onDelete: "cascade" } ),
+	linkType: mysqlEnum("link_type", ['blocks','relates_to','duplicates']).notNull(),
+	createdBy: int("created_by").references(() => employees.id, { onDelete: "set null" } ),
+	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+	companyId: int("company_id").default(1).notNull(),
+},
+(table) => [
+	index("idx_issue_links_issue_id").on(table.issueId),
+	index("idx_issue_links_linked_issue_id").on(table.linkedIssueId),
+	primaryKey({ columns: [table.id], name: "issue_links_id"}),
+	unique("unique_issue_link").on(table.issueId, table.linkedIssueId, table.linkType),
+]);
+export type IssueLink = typeof issueLinks.$inferSelect;
+export type NewIssueLink = typeof issueLinks.$inferInsert;
+
+export const issueComments = mysqlTable("issue_comments", {
+	id: int().autoincrement().notNull(),
+	issueId: int("issue_id").notNull().references(() => issues.id, { onDelete: "cascade" } ),
+	body: text().notNull(),
+	createdBy: int("created_by").references(() => employees.id, { onDelete: "set null" } ),
+	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+},
+(table) => [
+	index("idx_issue_comments_issue_id").on(table.issueId),
+	primaryKey({ columns: [table.id], name: "issue_comments_id"}),
+]);
+export type IssueComment = typeof issueComments.$inferSelect;
+export type NewIssueComment = typeof issueComments.$inferInsert;
+
+// File lives in MinIO (bucket ISSUE_ATTACHMENTS_BUCKET) under objectKey —
+// this row is just the pointer + display metadata, no bytes in MySQL.
+export const issueAttachments = mysqlTable("issue_attachments", {
+	id: int().autoincrement().notNull(),
+	issueId: int("issue_id").notNull().references(() => issues.id, { onDelete: "cascade" } ),
+	objectKey: varchar("object_key", { length: 255 }).notNull(),
+	fileName: varchar("file_name", { length: 255 }).notNull(),
+	mimeType: varchar("mime_type", { length: 100 }).notNull(),
+	fileSize: int("file_size").notNull(),
+	uploadedBy: int("uploaded_by").references(() => employees.id, { onDelete: "set null" } ),
+	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+	companyId: int("company_id").default(1).notNull(),
+},
+(table) => [
+	index("idx_issue_attachments_issue_id").on(table.issueId),
+	primaryKey({ columns: [table.id], name: "issue_attachments_id"}),
+]);
+export type IssueAttachment = typeof issueAttachments.$inferSelect;
+export type NewIssueAttachment = typeof issueAttachments.$inferInsert;
+
+export const issueActivity = mysqlTable("issue_activity", {
+	id: int().autoincrement().notNull(),
+	issueId: int("issue_id").notNull().references(() => issues.id, { onDelete: "cascade" } ),
+	actorId: int("actor_id").references(() => employees.id, { onDelete: "set null" } ),
+	verb: varchar({ length: 20 }).notNull(),
+	field: varchar({ length: 50 }),
+	oldValue: text("old_value"),
+	newValue: text("new_value"),
+	createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+},
+(table) => [
+	index("idx_issue_activity_issue_id").on(table.issueId),
+	primaryKey({ columns: [table.id], name: "issue_activity_id"}),
+]);
+export type IssueActivity = typeof issueActivity.$inferSelect;
+export type NewIssueActivity = typeof issueActivity.$inferInsert;
 
 export const projectTodos = mysqlTable("project_todos", {
 	id: int().autoincrement().notNull(),
@@ -1060,6 +1267,8 @@ export const projects = mysqlTable("projects", {
 	roadmapKey: varchar("roadmap_key", { length: 50 }),
 	roadmapLabel: varchar("roadmap_label", { length: 100 }),
 	publicLink: varchar("public_link", { length: 255 }),
+	// Plane's own project UUID, if this project's issues were migrated in from Plane.
+	planeProjectId: varchar("plane_project_id", { length: 36 }),
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
 	startDate: date("start_date", { mode: 'string' }),
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
@@ -1068,10 +1277,23 @@ export const projects = mysqlTable("projects", {
 	updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().onUpdateNow(),
 	createdBy: int("created_by").references(() => employees.id, { onDelete: "set null" } ),
 	updatedBy: int("updated_by").references(() => employees.id, { onDelete: "set null" } ),
+	// Single-tenant today (always 1) — mirrors trackerSegment.ts's companyId
+	// so tenant scoping doesn't require a backfill once this becomes multi-tenant.
+	companyId: int("company_id").default(1).notNull(),
+	// Short uppercase code used to build human-readable issue keys (e.g. QA-1).
+	// Immutable once set — changing it would invalidate every key anyone's
+	// already referenced elsewhere. Distinct from roadmap_key above, which is
+	// an unrelated public-roadmap grouping field.
+	code: varchar({ length: 10 }),
+	// Per-project atomic counter for issues.sequence_number — incremented inside
+	// a transaction at issue-creation time, never read-then-written outside one.
+	issueCounter: int("issue_counter").default(0).notNull(),
 },
 (table) => [
 	index("idx_projects_status").on(table.status),
+	index("idx_projects_company_id").on(table.companyId),
 	primaryKey({ columns: [table.id], name: "projects_id"}),
+	unique("unique_project_code").on(table.code),
 ]);
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
