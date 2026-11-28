@@ -62,6 +62,7 @@ export function attachInboxSocket(httpServer: HttpServer) {
   /* ── Connection ──────────────────────────────────────────── */
   io.on('connection', async (socket: Socket) => {
     const user: AuthPayload = (socket as any).user;
+    socket.data.userId = user.id;
 
     /* Put the socket in a personal room for targeted DM notifications */
     socket.join(`user:${user.id}`);
@@ -245,20 +246,31 @@ export function attachInboxSocket(httpServer: HttpServer) {
     });
 
     /* ── Voice ───────────────────────────────────────────────── */
-    socket.on('voice:join', async (channelId: number) => {
+    /* Each socket remembers the voice channel it joined, so closing that tab /
+       navigating away (socket disconnect) removes the user from the channel
+       even when they still have other tabs open. */
+    socket.on('voice:join', async (rawChannelId: number) => {
+      const channelId = Number(rawChannelId);
       try {
+        const previous  = await inboxService.otherVoiceChannels(user.id, channelId);
         const occupants = await inboxService.joinVoice(user, channelId);
+        const prevOnSocket = socket.data.voiceChannelId as number | undefined;
+        if (prevOnSocket != null && prevOnSocket !== channelId) socket.leave(`voice:${prevOnSocket}`);
+        socket.data.voiceChannelId = channelId;
         socket.join(`voice:${channelId}`);
         io.emit(`voice:presence:${channelId}`, occupants);
+        for (const id of previous) io.emit(`voice:presence:${id}`, await inboxService.voiceOccupants(id));
       } catch (err: any) {
         socket.emit('error', { code: err.status ?? 500, message: err.message });
       }
     });
 
-    socket.on('voice:leave', async (channelId: number) => {
+    socket.on('voice:leave', async (rawChannelId: number) => {
+      const channelId = Number(rawChannelId);
       try {
         const occupants = await inboxService.leaveVoice(user, channelId);
         socket.leave(`voice:${channelId}`);
+        if (socket.data.voiceChannelId === channelId) delete socket.data.voiceChannelId;
         io.emit(`voice:presence:${channelId}`, occupants);
       } catch (err: any) {
         socket.emit('error', { code: err.status ?? 500, message: err.message });
@@ -281,6 +293,20 @@ export function attachInboxSocket(httpServer: HttpServer) {
         heartbeatTimers.delete(socket.id);
       }
 
+      /* Leave the voice channel this socket was in, unless another of the
+         user's sockets is still in that same channel. */
+      const voiceChannelId = socket.data.voiceChannelId as number | undefined;
+      if (voiceChannelId != null) {
+        try {
+          const others = await io.in(`voice:${voiceChannelId}`).fetchSockets();
+          const stillThere = others.some(s => s.id !== socket.id && s.data.userId === user.id);
+          if (!stillThere) {
+            const occupants = await inboxService.leaveVoice(user, voiceChannelId);
+            io.emit(`voice:presence:${voiceChannelId}`, occupants);
+          }
+        } catch { /* best effort */ }
+      }
+
       /* Remove this socket from the user's set */
       const sockets = onlineSockets.get(user.id);
       if (sockets) {
@@ -289,7 +315,8 @@ export function attachInboxSocket(httpServer: HttpServer) {
           /* Last tab/device disconnected — mark offline */
           onlineSockets.delete(user.id);
           await repo.upsertPresence(user.id, 'offline').catch(() => {});
-          await repo.leaveAllVoiceChannels(user.id).catch(() => {});
+          const left = await inboxService.leaveAllVoice(user.id).catch(() => []);
+          for (const { channelId, occupants } of left) io.emit(`voice:presence:${channelId}`, occupants);
           io.emit('presence:update', { employee_id: user.id, status: 'offline' });
         }
         /* else: user still has other sockets open — stay online */
