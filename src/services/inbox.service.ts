@@ -131,12 +131,17 @@ export async function getVoiceToken(user: AuthUser, channelId: number) {
     identity: String(user.id),
     name: user.name,
     ttl: '2h',
+    // Server-signed, so other participants can trust it — the client lets
+    // admins/leads lower someone else's raised hand based on this role.
+    metadata: JSON.stringify({ role: user.role }),
   });
   at.addGrant({
     roomJoin: true,
     room: `inbox-voice-${channelId}`,
     canPublish: true,
     canSubscribe: true,
+    canPublishData: true,       // "lower hand" requests between participants
+    canUpdateOwnMetadata: true, // raise hand is stored as a participant attribute
   });
 
   const token = await at.toJwt();
@@ -296,6 +301,24 @@ export async function joinVoice(user: AuthUser, channelId: number) {
 
 export async function leaveVoice(user: AuthUser, channelId: number) {
   await repo.leaveVoiceChannel(channelId, user.id);
+  return repo.getVoicePresenceByChannel(channelId);
+}
+
+/** Voice channels the user is currently listed in, other than `exceptChannelId`. */
+export async function otherVoiceChannels(userId: number, exceptChannelId?: number) {
+  const ids = await repo.getVoiceChannelIdsForEmployee(userId);
+  return ids.filter(id => id !== exceptChannelId);
+}
+
+/** Removes the user from every voice channel and returns the updated occupants of each one they left. */
+export async function leaveAllVoice(userId: number) {
+  const ids = await repo.getVoiceChannelIdsForEmployee(userId);
+  await repo.leaveAllVoiceChannels(userId);
+  return Promise.all(ids.map(async channelId => ({ channelId, occupants: await repo.getVoicePresenceByChannel(channelId) })));
+}
+
+/** Current occupants of one voice channel. */
+export async function voiceOccupants(channelId: number) {
   return repo.getVoicePresenceByChannel(channelId);
 }
 

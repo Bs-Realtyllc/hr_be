@@ -218,10 +218,15 @@ export const getVoiceToken = asyncHandler(async (req: any, res: Response) => {
 
 export const joinVoice = asyncHandler(async (req: any, res: Response) => {
   const channelId  = parseInt(req.params.channelId, 10);
+  // joinVoice drops the user from any other voice channel — remember which, so those lists refresh too.
+  const previous   = await inboxService.otherVoiceChannels(req.user.id, channelId);
   const occupants  = await inboxService.joinVoice(req.user, channelId);
 
   const io = req.app.get('io');
-  if (io) io.emit(`voice:presence:${channelId}`, occupants);
+  if (io) {
+    io.emit(`voice:presence:${channelId}`, occupants);
+    for (const id of previous) io.emit(`voice:presence:${id}`, await inboxService.voiceOccupants(id));
+  }
 
   res.json(occupants);
 });

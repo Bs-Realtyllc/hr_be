@@ -589,6 +589,14 @@ export async function leaveAllVoiceChannels(employeeId: number) {
     .where(eq(inboxVoicePresence.employeeId, employeeId));
 }
 
+export async function getVoiceChannelIdsForEmployee(employeeId: number): Promise<number[]> {
+  const rows = await db
+    .select({ channelId: inboxVoicePresence.channelId })
+    .from(inboxVoicePresence)
+    .where(eq(inboxVoicePresence.employeeId, employeeId));
+  return rows.map(r => r.channelId);
+}
+
 export async function getVoicePresenceByChannel(channelId: number) {
   return db
     .select({ employee_id: inboxVoicePresence.employeeId, name: employees.name })
